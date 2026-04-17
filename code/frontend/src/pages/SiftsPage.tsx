@@ -280,14 +280,14 @@ function StatsStrip({ sifts }: { sifts: Sift[] }) {
       {stats.map((s) => (
         <div
           key={s.label}
-          className={`bg-card border border-border/60 rounded-xl px-4 py-3.5 flex items-center gap-3 border-l-2 ${s.accent} shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)]`}
+          className={`bg-card border border-border/60 rounded-xl px-5 py-4 flex items-center gap-4 border-l-2 ${s.accent} shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)]`}
         >
-          <div className={`${s.iconBg} rounded-lg p-2 shrink-0`}>
-            <s.icon className={`h-4 w-4 ${s.iconColor}`} />
+          <div className={`${s.iconBg} rounded-xl p-2.5 shrink-0`}>
+            <s.icon className={`h-5 w-5 ${s.iconColor}`} />
           </div>
           <div className="min-w-0">
-            <p className="text-xl font-bold tracking-tight tabular-nums leading-none">{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            <p className="text-3xl font-bold tracking-tight tabular-nums leading-none">{s.value}</p>
+            <p className="text-xs text-muted-foreground mt-1.5 truncate">
               {s.sublabel ?? s.label}
             </p>
           </div>
