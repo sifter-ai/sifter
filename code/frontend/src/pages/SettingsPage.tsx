@@ -1,15 +1,29 @@
 import { useState } from "react";
-import { Link, useLocation, Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Key, Plus, Trash2, Webhook as WebhookIcon, CreditCard, BarChart2, ClipboardList, Plug, Share2, UserCircle } from "lucide-react";
+import {
+  BarChart2,
+  ClipboardList,
+  Code2,
+  Copy,
+  CreditCard,
+  Key,
+  Palette,
+  Plug,
+  Plug2,
+  Plus,
+  Share2,
+  Terminal,
+  Trash2,
+  UserCircle,
+  Webhook as WebhookIcon,
+} from "lucide-react";
 import { createApiKey, fetchApiKeys, revokeApiKey } from "../api/keys";
-import { createWebhook, deleteWebhook, fetchWebhooks, Webhook } from "../api/webhooks";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,22 +36,6 @@ import { APIKey } from "../api/types";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString();
-}
-
-function SettingsSidebarLink({ to, icon: Icon, children }: { to: string; icon: React.ElementType; children: React.ReactNode }) {
-  const { pathname } = useLocation();
-  const active = pathname === to;
-  return (
-    <Link
-      to={to}
-      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-        active ? "bg-primary/10 text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-      }`}
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      {children}
-    </Link>
-  );
 }
 
 const settingsNavClass = ({ isActive }: { isActive: boolean }) =>
@@ -53,7 +51,6 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Page header — consistent with FolderBrowserPage toolbar style */}
       <div className="flex items-center gap-3 px-6 py-3 border-b bg-card/60 min-h-[48px]">
         <h1 className="text-sm font-semibold">Settings</h1>
         {user?.email && (
@@ -62,15 +59,23 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex flex-1 min-h-0">
-        {/* Settings sidebar */}
         <nav className="w-44 shrink-0 space-y-0.5 px-3 py-4 border-r bg-card/40">
           <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">General</p>
           <NavLink to="/settings/account" className={settingsNavClass}>
             <UserCircle className="h-4 w-4 shrink-0" />Account
           </NavLink>
+          <NavLink to="/settings/appearance" className={settingsNavClass}>
+            <Palette className="h-4 w-4 shrink-0" />Appearance
+          </NavLink>
+
+          <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Developer</p>
           <NavLink to="/settings" end className={settingsNavClass}>
             <Key className="h-4 w-4 shrink-0" />API Keys
           </NavLink>
+          <NavLink to="/settings/webhooks" className={settingsNavClass}>
+            <WebhookIcon className="h-4 w-4 shrink-0" />Webhooks
+          </NavLink>
+
           {mode === "cloud" && (
             <>
               <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cloud</p>
@@ -93,7 +98,6 @@ export default function SettingsPage() {
           )}
         </nav>
 
-        {/* Content — rendered by nested routes via Outlet */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
             <Outlet />
@@ -106,14 +110,99 @@ export default function SettingsPage() {
 
 export function SettingsIndex() {
   return (
-    <>
-      <ApiKeysSection />
-      <WebhooksSection />
-    </>
+    <div className="space-y-8">
+      <header className="flex items-start gap-4">
+        <div className="shrink-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-3 ring-1 ring-primary/10">
+          <Key className="h-6 w-6 text-primary" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+            Developer
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight leading-none">API Keys</h2>
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+            One key unlocks the entire Sifter surface — REST, SDK, CLI, MCP.{" "}
+            <span className="text-foreground/80">Shown once. Scoped to you.</span>
+          </p>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <ApiKeyUseCase
+          icon={<Code2 className="h-4 w-4" strokeWidth={1.75} />}
+          title="SDK & scripts"
+          body="Drop the key into your Python or TypeScript SDK to run extractions from your own code."
+        />
+        <ApiKeyUseCase
+          icon={<Terminal className="h-4 w-4" strokeWidth={1.75} />}
+          title="CLI & MCP"
+          body="Pipe documents through the sifter CLI, or expose Sifter to Claude Desktop via MCP."
+        />
+        <ApiKeyUseCase
+          icon={<Plug2 className="h-4 w-4" strokeWidth={1.75} />}
+          title="No-code tools"
+          body="Connect Zapier, n8n, and Make with the same key — no extra setup on the Sifter side."
+        />
+      </div>
+
+      <AuthSnippet />
+
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <h3 className="text-sm font-semibold tracking-tight">Your keys</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Revocation is instant — applications using a revoked key lose access immediately.
+          </p>
+        </div>
+        <ApiKeysCard />
+      </div>
+    </div>
   );
 }
 
-function ApiKeysSection() {
+function ApiKeyUseCase({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="group relative rounded-xl border bg-card/60 p-4 hover:border-foreground/20 transition-colors">
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+          {icon}
+        </span>
+        <p className="text-sm font-medium tracking-tight">{title}</p>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function AuthSnippet() {
+  return (
+    <div className="rounded-xl border bg-gradient-to-br from-muted/40 to-muted/10 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-card/40">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
+          <span className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground">
+            Authentication
+          </span>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground">header-based</span>
+      </div>
+      <pre className="text-xs font-mono leading-relaxed p-4 overflow-x-auto text-foreground/85">
+{`curl https://api.sifter.run/v1/sifts \\
+  -H "X-API-Key: sk_live_xxxxxxxxxxxxxxxx"`}
+      </pre>
+    </div>
+  );
+}
+
+function ApiKeysCard() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
@@ -157,29 +246,27 @@ function ApiKeysSection() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Key className="h-4 w-4" /> API Keys
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-4 space-y-4">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         ) : keys.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No API keys yet.</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center space-y-2 border border-dashed rounded-lg">
+            <Key className="h-7 w-7 text-muted-foreground/60" strokeWidth={1.5} />
+            <p className="text-sm text-muted-foreground">No keys yet — create your first one below.</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {keys.map((key: APIKey) => (
               <div
                 key={key.id}
-                className="flex items-center justify-between p-3 border rounded-md"
+                className="flex items-center justify-between p-3 border rounded-lg hover:border-foreground/20 transition-colors"
               >
                 <div>
                   <p className="font-medium text-sm">{key.name}</p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {key.key_prefix}...
+                    {key.key_prefix}…
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground">
                     Created {formatDate(key.created_at)}
                     {key.last_used_at && ` · Last used ${formatDate(key.last_used_at)}`}
                   </p>
@@ -203,7 +290,7 @@ function ApiKeysSection() {
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1"
         >
-          <Plus className="h-4 w-4" /> Create Key
+          <Plus className="h-4 w-4" /> Create key
         </Button>
 
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
@@ -231,9 +318,9 @@ function ApiKeysSection() {
                 {createMutation.isPending ? "Creating..." : "Create"}
               </Button>
               {createMutation.isError && (
-                <p className="text-sm text-destructive">
-                  {(createMutation.error as Error).message}
-                </p>
+                <Alert variant="destructive">
+                  <AlertDescription>{(createMutation.error as Error).message}</AlertDescription>
+                </Alert>
               )}
             </div>
           </DialogContent>
@@ -291,203 +378,6 @@ function ApiKeysSection() {
                 disabled={revokeMutation.isPending}
               >
                 {revokeMutation.isPending ? "Revoking..." : "Revoke"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
-  );
-}
-
-const AVAILABLE_EVENTS = [
-  { value: "sift.document.processed", label: "Document processed" },
-  { value: "sift.error", label: "Processing error" },
-  { value: "sift.*", label: "All sift events" },
-];
-
-function WebhooksSection() {
-  const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newUrl, setNewUrl] = useState("");
-  const [selectedEvents, setSelectedEvents] = useState<string[]>(["sift.document.processed"]);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  const { data: webhooks = [], isLoading, error } = useQuery({
-    queryKey: ["webhooks"],
-    queryFn: fetchWebhooks,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: () => createWebhook({ url: newUrl, events: selectedEvents }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-      setShowCreate(false);
-      setNewUrl("");
-      setSelectedEvents(["sift.document.processed"]);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteWebhook(id),
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["webhooks"] });
-      const previous = queryClient.getQueryData<Webhook[]>(["webhooks"]);
-      queryClient.setQueryData<Webhook[]>(["webhooks"], (old) =>
-        old?.filter((w) => w.id !== id) ?? []
-      );
-      return { previous };
-    },
-    onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["webhooks"], context.previous);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-    },
-  });
-
-  const toggleEvent = (event: string) => {
-    setSelectedEvents((prev) =>
-      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event]
-    );
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <WebhookIcon className="h-4 w-4" /> Webhooks
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Receive HTTP POST notifications when documents are processed.
-        </p>
-
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        ) : error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{(error as Error).message}</AlertDescription>
-          </Alert>
-        ) : webhooks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No webhooks configured.</p>
-        ) : (
-          <div className="space-y-2">
-            {webhooks.map((hook: Webhook) => (
-              <div
-                key={hook.id}
-                className="flex items-start justify-between gap-2 p-3 border rounded-md"
-              >
-                <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-mono truncate">{hook.url}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {hook.events.map((ev) => (
-                      <Badge key={ev} variant="secondary" className="text-xs">
-                        {ev}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Created {formatDate(hook.created_at)}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmDeleteId(hook.id)}
-                  disabled={deleteMutation.isPending}
-                  className="shrink-0"
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1"
-        >
-          <Plus className="h-4 w-4" /> Add Webhook
-        </Button>
-
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Webhook</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Endpoint URL</Label>
-                <Input
-                  placeholder="https://your-server.com/webhook"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Events</Label>
-                <div className="space-y-2">
-                  {AVAILABLE_EVENTS.map((ev) => (
-                    <label key={ev.value} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedEvents.includes(ev.value)}
-                        onChange={() => toggleEvent(ev.value)}
-                        className="rounded border-input"
-                      />
-                      <span className="text-sm">{ev.label}</span>
-                      <code className="text-xs text-muted-foreground">{ev.value}</code>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <Button
-                onClick={() => createMutation.mutate()}
-                disabled={!newUrl.trim() || selectedEvents.length === 0 || createMutation.isPending}
-                className="w-full"
-              >
-                {createMutation.isPending ? "Creating..." : "Add Webhook"}
-              </Button>
-              {createMutation.isError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{(createMutation.error as Error).message}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Webhook</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this webhook? You will no longer receive
-              notifications at this endpoint.
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (confirmDeleteId) {
-                    deleteMutation.mutate(confirmDeleteId);
-                    setConfirmDeleteId(null);
-                  }
-                }}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
               </Button>
             </div>
           </DialogContent>

@@ -1,266 +1,166 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, X, Edit2 } from "lucide-react";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const GridLayout = require("react-grid-layout").default;
-type Layout = { i: string; x: number; y: number; w: number; h: number };
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
-import {
-  fetchDashboard,
-  updateDashboard,
-  createWidget,
-  updateWidget,
-  deleteWidget,
-  refreshWidget,
-  type Dashboard,
-  type DashboardWidget,
-} from "@/api/cloud";
-import { fetchSifts } from "@/api/extractions";
-import { BlockRenderer } from "@/components/cloud/BlockRenderer";
+import { ArrowLeft, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  fetchSiftDashboard,
+  generateDashboard,
+  addDashboardTile,
+  deleteDashboardTile,
+  refreshDashboardTile,
+} from "@/api/cloud";
+import { TileGrid } from "./TileGrid";
+import { TileEditor } from "./TileEditor";
+import { DrillDownPanel } from "./DrillDownPanel";
 
-function AddWidgetPanel({
-  dashboardId,
-  siftIds,
-  onClose,
-}: {
-  dashboardId: string;
-  siftIds: string[];
-  onClose: () => void;
-}) {
-  const qc = useQueryClient();
-  const { data: sifts = [] } = useQuery({ queryKey: ["sifts"], queryFn: fetchSifts });
-  const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<"big_number" | "table" | "chart">("big_number");
-  const [siftId, setSiftId] = useState(siftIds[0] ?? "");
-  const [pipeline, setPipeline] = useState("[]");
-  const [pipelineError, setPipelineError] = useState("");
-
-  const createMutation = useMutation({
-    mutationFn: () => {
-      let parsed: any[];
-      try { parsed = JSON.parse(pipeline); } catch { throw new Error("Invalid JSON pipeline"); }
-      return createWidget({
-        title,
-        kind,
-        sift_id: siftId,
-        dashboard_id: dashboardId,
-        pipeline: parsed,
-        layout: { x: 0, y: 0, w: 6, h: 4 },
-      } as any);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["dashboard", dashboardId] });
-      onClose();
-    },
-    onError: (e: Error) => setPipelineError(e.message),
-  });
-
-  return (
-    <div className="fixed inset-y-0 right-0 w-80 bg-background border-l shadow-lg p-5 space-y-4 overflow-y-auto z-50">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Add Widget</h3>
-        <button onClick={onClose}><X className="h-4 w-4" /></button>
-      </div>
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <Label>Title</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Widget title" />
-        </div>
-        <div className="space-y-1">
-          <Label>Type</Label>
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as any)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="big_number">Big Number</option>
-            <option value="table">Table</option>
-            <option value="chart">Chart</option>
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label>Sift</Label>
-          <select
-            value={siftId}
-            onChange={(e) => setSiftId(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            {(sifts as any[]).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label>Pipeline (JSON)</Label>
-          <textarea
-            value={pipeline}
-            onChange={(e) => { setPipeline(e.target.value); setPipelineError(""); }}
-            rows={6}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          {pipelineError && <p className="text-xs text-destructive">{pipelineError}</p>}
-        </div>
-        <Button
-          className="w-full"
-          onClick={() => createMutation.mutate()}
-          disabled={!title || createMutation.isPending}
-        >
-          {createMutation.isPending ? "Adding…" : "Add Widget"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function WidgetCard({
-  widget,
-  editMode,
-  onRefresh,
-  onDelete,
-}: {
-  widget: DashboardWidget;
-  editMode: boolean;
-  onRefresh: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="h-full bg-card border rounded-lg flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b shrink-0">
-        <p className="text-sm font-medium truncate">{widget.title}</p>
-        <div className="flex gap-1">
-          <button onClick={onRefresh} className="text-muted-foreground hover:text-foreground p-0.5">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
-          {editMode && (
-            <button onClick={onDelete} className="text-muted-foreground hover:text-destructive p-0.5">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="flex-1 overflow-auto p-3">
-        {widget.snapshot ? (
-          <BlockRenderer block={widget.snapshot} />
-        ) : (
-          <p className="text-sm text-muted-foreground">No data — click refresh.</p>
-        )}
-      </div>
-    </div>
-  );
+interface DrillDownState {
+  tileId: string;
+  bucketKey: string;
+  bucketValue: string;
 }
 
 export default function DashboardPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id: siftId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const qc = useQueryClient();
-  const [editMode, setEditMode] = useState(false);
-  const [showAddWidget, setShowAddWidget] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(1200);
+
+  const [showAddTile, setShowAddTile] = useState(false);
+  const [drillDown, setDrillDown] = useState<DrillDownState | null>(null);
 
   const { data: dashboard, isLoading } = useQuery({
-    queryKey: ["dashboard", id],
-    queryFn: () => fetchDashboard(id!),
+    queryKey: ["sift-dashboard", siftId],
+    queryFn: () => fetchSiftDashboard(siftId!),
+    staleTime: 30_000,
   });
 
-  const refreshMutation = useMutation({
-    mutationFn: (widgetId: string) => refreshWidget(widgetId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard", id] }),
+  const regenMutation = useMutation({
+    mutationFn: () => generateDashboard(siftId!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sift-dashboard", siftId] }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (widgetId: string) => deleteWidget(widgetId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard", id] }),
+  const addTileMutation = useMutation({
+    mutationFn: (tile: Parameters<typeof addDashboardTile>[1]) =>
+      addDashboardTile(siftId!, tile),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sift-dashboard", siftId] });
+      setShowAddTile(false);
+    },
   });
 
-  // SSE auto-refresh
-  useEffect(() => {
-    if (!id) return;
-    const es = new EventSource(`/api/cloud/dashboards/${id}/stream`);
-    es.addEventListener("widget_updated", () => {
-      qc.invalidateQueries({ queryKey: ["dashboard", id] });
-    });
-    return () => es.close();
-  }, [id]);
+  const deleteTileMutation = useMutation({
+    mutationFn: (tileId: string) => deleteDashboardTile(siftId!, tileId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sift-dashboard", siftId] }),
+  });
 
-  if (isLoading) return <div className="p-8"><Skeleton className="h-64 w-full" /></div>;
-  if (!dashboard) return null;
+  const refreshTileMutation = useMutation({
+    mutationFn: (tileId: string) => refreshDashboardTile(siftId!, tileId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sift-dashboard", siftId] }),
+  });
 
-  const widgets = dashboard.widgets ?? [];
-  const layout: Layout[] = widgets.map((w) => ({
-    i: w.id,
-    x: w.layout?.x ?? 0,
-    y: w.layout?.y ?? 0,
-    w: w.layout?.w ?? 6,
-    h: w.layout?.h ?? 4,
-  }));
-
-  const onLayoutChange = (newLayout: Layout[]) => {
-    if (!editMode) return;
-    newLayout.forEach((l: Layout) => {
-      const widget = widgets.find((w) => w.id === l.i);
-      if (widget) {
-        updateWidget(widget.id, { layout: { x: l.x, y: l.y, w: l.w, h: l.h } });
-      }
-    });
+  const handleBucketClick = (tileId: string, bucketKey: string, bucketValue: string) => {
+    setDrillDown({ tileId, bucketKey, bucketValue });
   };
 
+  if (isLoading) {
+    return (
+      <div className="px-6 py-8 max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded" />
+          <Skeleton className="h-6 w-48" />
+          <div className="flex-1" />
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const tiles = dashboard?.tiles ?? [];
+  const snapshots = dashboard?.snapshots ?? {};
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0">
-        <h1 className="text-lg font-semibold flex-1">{dashboard.name}</h1>
+    <div className="px-6 py-8 max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={() => navigate(`/sifts/${siftId}`)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-xl font-semibold tracking-tight flex-1">Dashboard</h1>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setEditMode((v) => !v)}
+          onClick={() => regenMutation.mutate()}
+          disabled={regenMutation.isPending}
+          title="Regenerate tiles from current schema"
         >
-          <Edit2 className="h-3.5 w-3.5 mr-1" />
-          {editMode ? "Done" : "Edit"}
+          {regenMutation.isPending ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          <span className="ml-1.5">Regenerate</span>
         </Button>
-        {editMode && (
-          <Button size="sm" onClick={() => setShowAddWidget(true)}>
-            <Plus className="h-4 w-4 mr-1" />Add widget
-          </Button>
-        )}
+        <Button
+          size="sm"
+          onClick={() => setShowAddTile(true)}
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add tile
+        </Button>
       </div>
 
-      <div className="flex-1 overflow-auto p-4" ref={(el) => el && setContainerWidth(el.clientWidth)}>
-        {widgets.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-            No widgets yet. Enter edit mode to add one.
+      {/* Tiles or empty state */}
+      {tiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+          <Sparkles className="h-10 w-10 text-muted-foreground/40" />
+          <div>
+            <p className="font-medium text-foreground">
+              {regenMutation.isPending ? "Auto-generating…" : "No tiles yet"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Click "Regenerate" to auto-generate tiles from your sift schema, or add a custom tile.
+            </p>
           </div>
-        ) : (
-          <GridLayout
-            layout={layout as any}
-            cols={12}
-            rowHeight={60}
-            width={containerWidth - 32}
-            isDraggable={editMode}
-            isResizable={editMode}
-            onLayoutChange={onLayoutChange as any}
-            margin={[12, 12]}
-          >
-            {widgets.map((w) => (
-              <div key={w.id}>
-                <WidgetCard
-                  widget={w}
-                  editMode={editMode}
-                  onRefresh={() => refreshMutation.mutate(w.id)}
-                  onDelete={() => deleteMutation.mutate(w.id)}
-                />
-              </div>
-            ))}
-          </GridLayout>
-        )}
-      </div>
+        </div>
+      ) : (
+        <TileGrid
+          tiles={tiles}
+          snapshots={snapshots}
+          onTileDelete={(id) => deleteTileMutation.mutate(id)}
+          onTileRefresh={(id) => refreshTileMutation.mutate(id)}
+          onBucketClick={handleBucketClick}
+        />
+      )}
 
-      {showAddWidget && (
-        <AddWidgetPanel
-          dashboardId={id!}
-          siftIds={dashboard.sift_ids}
-          onClose={() => setShowAddWidget(false)}
+      {/* Add tile side panel */}
+      {showAddTile && (
+        <TileEditor
+          onSubmit={(tile) => addTileMutation.mutate(tile)}
+          onClose={() => setShowAddTile(false)}
+          isPending={addTileMutation.isPending}
+        />
+      )}
+
+      {/* Drill-down side panel */}
+      {drillDown && (
+        <DrillDownPanel
+          siftId={siftId!}
+          tileId={drillDown.tileId}
+          bucketKey={drillDown.bucketKey}
+          bucketValue={drillDown.bucketValue}
+          onClose={() => setDrillDown(null)}
         />
       )}
     </div>

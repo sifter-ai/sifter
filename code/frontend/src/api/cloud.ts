@@ -299,7 +299,7 @@ export const fetchChatSuggestions = (sift_ids: string[]): Promise<{ suggestions:
     body: JSON.stringify({ sift_ids }),
   });
 
-// ---- Dashboards ----
+// ---- Dashboards (legacy org-level — kept for backward compat) ----
 
 export interface DashboardWidget {
   id: string;
@@ -320,54 +320,96 @@ export interface Dashboard {
   updated_at: string;
 }
 
-export const fetchDashboards = (): Promise<{ items: Dashboard[] }> =>
-  apiFetchJson("/api/cloud/dashboards");
+// ---- Per-sift dashboard ----
 
-export const createDashboard = (payload: { name: string; sift_ids: string[] }): Promise<Dashboard> =>
-  apiFetchJson("/api/cloud/dashboards", {
+export interface SiftDashboardTile {
+  id: string;
+  kind: "kpi" | "table" | "bar_chart" | "line_chart";
+  title: string;
+  pipeline: Record<string, unknown>[];
+  chart_x: string | null;
+  chart_y: string | null;
+  position: number;
+  is_auto_generated: boolean;
+  created_at: string;
+}
+
+export interface TileSnapshot {
+  tile_id: string;
+  sift_id: string;
+  result: Record<string, unknown>[];
+  ran_at: string;
+  record_ids_by_bucket?: Record<string, string[]> | null;
+}
+
+export interface SiftDashboard {
+  _id: string;
+  org_id: string;
+  sift_id: string;
+  tiles: SiftDashboardTile[];
+  snapshots: Record<string, TileSnapshot>;
+  created_at: string;
+  updated_at: string;
+}
+
+export const fetchSiftDashboard = (siftId: string): Promise<SiftDashboard> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard`);
+
+export const generateDashboard = (siftId: string): Promise<SiftDashboard> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/generate`, { method: "POST" });
+
+export const addDashboardTile = (
+  siftId: string,
+  tile: {
+    kind: string;
+    title: string;
+    pipeline: Record<string, unknown>[];
+    chart_x?: string;
+    chart_y?: string;
+  }
+): Promise<SiftDashboard> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/tiles`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(tile),
   });
 
-export const fetchDashboard = (id: string): Promise<Dashboard> =>
-  apiFetchJson(`/api/cloud/dashboards/${id}`);
-
-export const updateDashboard = (id: string, payload: Partial<Dashboard>): Promise<Dashboard> =>
-  apiFetchJson(`/api/cloud/dashboards/${id}`, {
+export const updateDashboardTile = (
+  siftId: string,
+  tileId: string,
+  updates: Partial<SiftDashboardTile>
+): Promise<SiftDashboard> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/tiles/${tileId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(updates),
   });
 
-export const deleteDashboard = (id: string): Promise<void> =>
-  apiFetchJson(`/api/cloud/dashboards/${id}`, { method: "DELETE" });
+export const deleteDashboardTile = (siftId: string, tileId: string): Promise<{ status: string }> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/tiles/${tileId}`, { method: "DELETE" });
 
-export const createWidget = (payload: Omit<DashboardWidget, "id" | "snapshot">): Promise<DashboardWidget> =>
-  apiFetchJson("/api/cloud/widgets", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+export const refreshDashboardTile = (siftId: string, tileId: string): Promise<TileSnapshot> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/tiles/${tileId}/refresh`, { method: "POST" });
 
-export const updateWidget = (id: string, payload: Partial<DashboardWidget>): Promise<DashboardWidget> =>
-  apiFetchJson(`/api/cloud/widgets/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-export const deleteWidget = (id: string): Promise<void> =>
-  apiFetchJson(`/api/cloud/widgets/${id}`, { method: "DELETE" });
-
-export const refreshWidget = (id: string): Promise<DashboardWidget> =>
-  apiFetchJson(`/api/cloud/widgets/${id}/refresh`, { method: "POST" });
-
-export const drillDownWidget = (
-  id: string,
-  bucket_key: string
+export const drillDownTile = (
+  siftId: string,
+  tileId: string,
+  bucketKey: string,
+  bucketValue: string
 ): Promise<{ record_ids: string[] }> =>
-  apiFetchJson(`/api/cloud/widgets/${id}/drill-down?bucket_key=${encodeURIComponent(bucket_key)}`);
+  apiFetchJson(
+    `/api/cloud/sifts/${siftId}/dashboard/tiles/${tileId}/drill-down?bucket_key=${encodeURIComponent(bucketKey)}&bucket_value=${encodeURIComponent(bucketValue)}`
+  );
+
+export const reorderDashboardTiles = (
+  siftId: string,
+  order: { id: string; position: number }[]
+): Promise<SiftDashboard> =>
+  apiFetchJson(`/api/cloud/sifts/${siftId}/dashboard/tiles`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(order),
+  });
 
 // ---- GitHub Auth ----
 

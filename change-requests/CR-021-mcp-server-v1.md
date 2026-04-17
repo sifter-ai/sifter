@@ -1,6 +1,6 @@
 ---
 title: "MCP server v1: read-only tools for Claude Desktop / Cursor"
-status: open
+status: applied
 author: "Bruno Fortunato"
 created-at: "2026-04-17T00:00:00.000Z"
 ---

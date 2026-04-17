@@ -1,6 +1,6 @@
 ---
 title: "Positioning rewrite: 2-surface model + new personas"
-status: open
+status: applied
 author: "Bruno Fortunato"
 created-at: "2026-04-17T00:00:00.000Z"
 ---

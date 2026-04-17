@@ -4,9 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   BookOpen,
+  Bot,
   FileText,
   Folder,
-  LayoutDashboard,
   LogOut,
   MessageCircle,
   Settings,
@@ -16,11 +16,13 @@ import { useDarkMode } from "@/hooks/useDarkMode";
 import logo from "@/assets/logo.svg";
 import { SiftsPage } from "@/pages/SiftsPage";
 import { SiftDetailPage } from "@/pages/SiftDetailPage";
-import { ChatPage } from "@/pages/ChatPage";
+import MCPSetupPage from "@/pages/MCPSetupPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import SettingsPage, { SettingsIndex } from "@/pages/SettingsPage";
 import AccountSettingsPage from "@/pages/AccountSettingsPage";
+import AppearanceSettingsPage from "@/pages/AppearanceSettingsPage";
+import WebhooksSettingsPage from "@/pages/WebhooksSettingsPage";
 import FolderBrowserPage from "@/pages/FolderBrowserPage";
 import DocumentDetailPage from "@/pages/DocumentDetailPage";
 import LandingPage from "@/pages/LandingPage";
@@ -42,7 +44,7 @@ const SharesPage = lazy(() => import("@/pages/cloud/SharesPage"));
 const PublicViewerPage = lazy(() => import("@/pages/cloud/PublicViewerPage"));
 const CloudChatPage = lazy(() => import("@/pages/cloud/CloudChatPage"));
 const DashboardListPage = lazy(() => import("@/pages/cloud/DashboardListPage"));
-const DashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
+const SiftDashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,16 +110,18 @@ function Sidebar() {
           <Folder className="h-4 w-4 shrink-0" />
           Folders
         </NavLink>
-        <NavLink to="/chat" className={navLinkClass}>
-          <MessageCircle className="h-4 w-4 shrink-0" />
-          Chat
-        </NavLink>
-        {mode === "cloud" && (
-          <NavLink to="/dashboards" className={navLinkClass}>
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            Dashboards
+        {mode === "cloud" ? (
+          <NavLink to="/chat" className={navLinkClass}>
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            Chat
+          </NavLink>
+        ) : (
+          <NavLink to="/chat" className={navLinkClass}>
+            <Bot className="h-4 w-4 shrink-0" />
+            Use with AI
           </NavLink>
         )}
+        {/* Dashboards nav link removed — dashboard accessed per-sift via /sifts/:id/dashboard */}
 
         {/* Secondary nav — pushed to bottom of the nav flex */}
         <div className="mt-auto pt-3 flex flex-col gap-0.5">
@@ -166,6 +170,8 @@ function Sidebar() {
   );
 }
 
+// CloudRoutes is unused — routes are defined inline in AppRoutes.
+// Kept as a reference stub.
 function CloudRoutes() {
   return (
     <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading…</div>}>
@@ -176,7 +182,7 @@ function CloudRoutes() {
       <Route path="/settings/shares" element={<ProtectedRoute><SharesPage /></ProtectedRoute>} />
       <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
       <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-      <Route path="/dashboards/:id" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><SiftDashboardPage /></ProtectedRoute>} />
     </Suspense>
   );
 }
@@ -206,7 +212,7 @@ function AppRoutes() {
                 path="/chat"
                 element={
                   <ProtectedRoute>
-                    {mode === "cloud" ? <CloudChatPage /> : <ChatPage />}
+                    {mode === "cloud" ? <CloudChatPage /> : <MCPSetupPage />}
                   </ProtectedRoute>
                 }
               />
@@ -216,6 +222,8 @@ function AppRoutes() {
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
                 <Route index element={<SettingsIndex />} />
                 <Route path="account" element={<AccountSettingsPage />} />
+                <Route path="appearance" element={<AppearanceSettingsPage />} />
+                <Route path="webhooks" element={<WebhooksSettingsPage />} />
                 {mode === "cloud" && (
                   <>
                     <Route path="billing" element={<BillingPage />} />
@@ -230,8 +238,10 @@ function AppRoutes() {
               {mode === "cloud" && (
                 <>
                   <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
+                  {/* Legacy dashboard list — kept for backward compat */}
                   <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-                  <Route path="/dashboards/:id" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                  {/* Per-sift dashboard */}
+                  <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><SiftDashboardPage /></ProtectedRoute>} />
                 </>
               )}
               {/* Public / auth callbacks */}

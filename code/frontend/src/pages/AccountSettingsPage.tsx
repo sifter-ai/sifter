@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Moon, Sun, User as UserIcon } from "lucide-react";
+import { Camera, User as UserIcon } from "lucide-react";
 import { changePassword, updateProfile, uploadAvatar } from "../api/auth";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
@@ -8,7 +8,6 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
-import { useDarkMode } from "../hooks/useDarkMode";
 
 function initials(name: string): string {
   return name
@@ -49,47 +48,8 @@ export default function AccountSettingsPage() {
       <ProfileSection user={user} updateUser={updateUser} />
       <AvatarSection user={user} updateUser={updateUser} />
       {user?.auth_provider === "email" && <PasswordSection />}
-      <AppearanceSection />
       {mode === "cloud" && <OrgCard />}
     </div>
-  );
-}
-
-function AppearanceSection() {
-  const { dark, toggle } = useDarkMode();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appearance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Theme</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {dark ? "Dark mode active" : "Light mode active"} · follows system by default
-            </p>
-          </div>
-          <button
-            onClick={toggle}
-            className={`relative inline-flex h-8 w-[72px] items-center rounded-full border transition-colors ${
-              dark ? "bg-primary border-primary/80" : "bg-muted border-border"
-            }`}
-          >
-            <span
-              className={`inline-flex h-6 w-6 items-center justify-center rounded-full bg-card shadow transition-transform ${
-                dark ? "translate-x-[42px]" : "translate-x-1"
-              }`}
-            >
-              {dark
-                ? <Moon className="h-3.5 w-3.5 text-primary" />
-                : <Sun className="h-3.5 w-3.5 text-amber-500" />}
-            </span>
-          </button>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle,
   Download,
+  LayoutDashboard,
   Link,
   Loader2,
   Pencil,
@@ -55,6 +56,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
 import type { Folder } from "@/api/types";
 import type { Aggregation, AggregationResult, SiftDocument } from "@/api/types";
+import { useConfig } from "@/context/ConfigContext";
 
 function AggregationStatusIcon({ status }: { status: string }) {
   if (status === "generating") return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
@@ -554,6 +556,7 @@ function FolderTreeNode({
 export function SiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { mode } = useConfig();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState("");
@@ -783,6 +786,16 @@ export function SiftDetailPage() {
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
+        {mode === "cloud" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/sifts/${id}/dashboard`)}
+          >
+            <LayoutDashboard className="h-4 w-4 mr-2" />
+            Dashboard
+          </Button>
+        )}
         <Button variant="outline" onClick={handleDelete} className="text-destructive hover:text-destructive">
           <Trash2 className="h-4 w-4 mr-2" />
           Delete
