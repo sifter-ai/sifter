@@ -52,16 +52,18 @@ export default function SettingsPage() {
   const { mode } = useConfig();
 
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="flex flex-col h-full">
+      {/* Page header — consistent with FolderBrowserPage toolbar style */}
+      <div className="flex items-center gap-3 px-6 py-3 border-b bg-card/60 min-h-[48px]">
+        <h1 className="text-sm font-semibold">Settings</h1>
         {user?.email && (
-          <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
+          <span className="text-xs text-muted-foreground">{user.email}</span>
         )}
       </div>
-      <div className="flex gap-8">
+
+      <div className="flex flex-1 min-h-0">
         {/* Settings sidebar */}
-        <nav className="w-44 shrink-0 space-y-0.5">
+        <nav className="w-44 shrink-0 space-y-0.5 px-3 py-4 border-r bg-card/40">
           <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">General</p>
           <NavLink to="/settings/account" className={settingsNavClass}>
             <UserCircle className="h-4 w-4 shrink-0" />Account
@@ -92,8 +94,10 @@ export default function SettingsPage() {
         </nav>
 
         {/* Content — rendered by nested routes via Outlet */}
-        <div className="flex-1 space-y-8">
-          <Outlet />
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-6 py-6 space-y-6">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

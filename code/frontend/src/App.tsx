@@ -8,8 +8,12 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  Moon,
   Settings,
+  Sun,
+  User as UserIcon,
 } from "lucide-react";
+import { useDarkMode } from "@/hooks/useDarkMode";
 import logo from "@/assets/logo.svg";
 import { SiftsPage } from "@/pages/SiftsPage";
 import { SiftDetailPage } from "@/pages/SiftDetailPage";
@@ -52,9 +56,25 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]"
   }`;
 
+function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
+  const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  if (src) {
+    return <img src={src} alt={name} style={{ width: size, height: size }} className="rounded-full object-cover shrink-0" />;
+  }
+  return (
+    <div
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+      className="rounded-full bg-primary/15 flex items-center justify-center font-semibold text-primary shrink-0 select-none"
+    >
+      {initials || <UserIcon style={{ width: size * 0.55, height: size * 0.55 }} />}
+    </div>
+  );
+}
+
 function Sidebar() {
   const { isAuthenticated, user, logout } = useAuthContext();
   const { mode } = useConfig();
+  const { dark, toggle } = useDarkMode();
 
   if (!isAuthenticated) return null;
 
@@ -94,23 +114,42 @@ function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="mt-auto flex flex-col gap-0.5 px-2 pb-4 border-t border-border/50 pt-3">
-        {user?.email && (
-          <p className="px-3 py-1 text-xs text-muted-foreground truncate">
-            {user.email}
-          </p>
-        )}
-        <NavLink to="/settings" className={navLinkClass}>
+      <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3 border-t border-border/50 pt-3">
+        {/* User identity — links to account settings */}
+        <Link
+          to="/settings/account"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-muted/60 transition-colors group"
+        >
+          <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={26} />
+          <div className="min-w-0 flex-1">
+            {user?.full_name && (
+              <p className="text-xs font-medium truncate leading-tight">{user.full_name}</p>
+            )}
+            <p className="text-[11px] text-muted-foreground truncate leading-tight">{user?.email}</p>
+          </div>
+        </Link>
+
+        <NavLink to="/settings" end className={navLinkClass}>
           <Settings className="h-4 w-4 shrink-0" />
           Settings
         </NavLink>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all w-full text-left border-l-2 border-transparent pl-[10px]"
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          Sign out
-        </button>
+
+        <div className="flex items-center gap-1 px-1 mt-0.5">
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all flex-1 text-left border-l-2 border-transparent pl-[10px]"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            Sign out
+          </button>
+          <button
+            onClick={toggle}
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0"
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
     </aside>
   );

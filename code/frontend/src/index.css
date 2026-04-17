@@ -29,6 +29,28 @@
     --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
     --font-mono: 'DM Mono', 'Fira Code', monospace;
   }
+
+  .dark {
+    --background: 263 22% 9%;
+    --foreground: 263 10% 92%;
+    --card: 263 22% 12%;
+    --card-foreground: 263 10% 92%;
+    --popover: 263 22% 12%;
+    --popover-foreground: 263 10% 92%;
+    --primary: 263 72% 62%;
+    --primary-foreground: 270 100% 99%;
+    --secondary: 263 22% 18%;
+    --secondary-foreground: 263 10% 80%;
+    --muted: 263 22% 16%;
+    --muted-foreground: 263 15% 55%;
+    --accent: 263 22% 20%;
+    --accent-foreground: 263 10% 85%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 263 20% 20%;
+    --input: 263 20% 20%;
+    --ring: 263 72% 62%;
+  }
 }
 
 @layer base {
