@@ -6,7 +6,7 @@
 #   ./scripts/deploy.sh python      — sifter-ai, sifter-mcp → PyPI
 #   ./scripts/deploy.sh npm         — @sifter-ai/sdk, @sifter-ai/cli → npm
 #   ./scripts/deploy.sh docker      — ghcr.io/sifter-ai/sifter → GitHub Container Registry
-#   ./scripts/deploy.sh cloud       — bimbobruno/sifter-cloud → Docker Hub + Railway
+#   ./scripts/deploy.sh cloud       — sifter-cloud → Artifact Registry + Cloud Run
 #   ./scripts/deploy.sh frontend    — build + deploy su Cloudflare Pages
 
 set -euo pipefail
@@ -28,7 +28,9 @@ GITHUB_PAT=$(get GITHUB_PAT)
 NPM_TOKEN=$(get NPM_TOKEN)
 CLOUDFLARE_API_TOKEN=$(get CLOUDFLARE_API_TOKEN)
 CLOUDFLARE_ACCOUNT_ID=$(get CLOUDFLARE_ACCOUNT_ID)
-RAILWAY_TOKEN=$(get RAILWAY_TOKEN)
+GCP_PROJECT=$(get GCP_PROJECT_ID)
+GCP_REGION=$(get GCP_REGION)
+GCP_SA_KEY="$REPO_ROOT/scripts/sifter-ai-493617-5aeefdd4df6d.json"
 
 # ── Versione dal tag git più recente ─────────────────────────
 VERSION=$(git -C "$REPO_ROOT" describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.0")
@@ -109,29 +111,43 @@ deploy_docker() {
 # ─────────────────────────────────────────────────────────────
 deploy_cloud() {
     echo ""
-    echo "── sifter-cloud (ghcr.io + Railway) ─────────────────"
-    [ -z "$GITHUB_PAT" ]    && echo "ERROR: GITHUB_PAT mancante in .secrets" && exit 1
-    [ -z "$RAILWAY_TOKEN" ] && echo "ERROR: RAILWAY_TOKEN mancante in .secrets" && exit 1
-    [ ! -d "$CLOUD_ROOT" ]  && echo "ERROR: sifter-cloud non trovato in $CLOUD_ROOT" && exit 1
+    echo "── sifter-cloud (Artifact Registry + Cloud Run) ─────"
+    [ -z "$GCP_PROJECT" ] && echo "ERROR: GCP_PROJECT_ID mancante in .secrets" && exit 1
+    [ -z "$GCP_REGION" ]  && echo "ERROR: GCP_REGION mancante in .secrets" && exit 1
+    [ ! -f "$GCP_SA_KEY" ] && echo "ERROR: Service account key non trovato: $GCP_SA_KEY" && exit 1
+    [ ! -d "$CLOUD_ROOT" ] && echo "ERROR: sifter-cloud non trovato in $CLOUD_ROOT" && exit 1
 
-    echo "$GITHUB_PAT" | docker login ghcr.io -u bimbobruno --password-stdin
+    AR_HOST="${GCP_REGION}-docker.pkg.dev"
+    AR_IMAGE="${AR_HOST}/${GCP_PROJECT}/sifter/sifter-cloud"
+    SERVICE_NAME="sifter-cloud"
 
+    echo "  → Autenticazione GCP"
+    gcloud auth activate-service-account --key-file="$GCP_SA_KEY" --quiet
+    gcloud config set project "$GCP_PROJECT" --quiet
+    gcloud auth configure-docker "$AR_HOST" --quiet
+
+    echo "  → Build image"
     docker build \
         -f "$CLOUD_ROOT/Dockerfile" \
-        -t "ghcr.io/sifter-ai/sifter-cloud:$VERSION" \
-        -t "ghcr.io/sifter-ai/sifter-cloud:latest" \
+        -t "${AR_IMAGE}:${VERSION}" \
+        -t "${AR_IMAGE}:latest" \
         "$CLOUD_ROOT"
 
-    docker push "ghcr.io/sifter-ai/sifter-cloud:$VERSION"
-    docker push "ghcr.io/sifter-ai/sifter-cloud:latest"
-    echo "  ✓ Cloud image pubblicata su ghcr.io (privata)"
+    echo "  → Push su Artifact Registry"
+    docker push "${AR_IMAGE}:${VERSION}"
+    docker push "${AR_IMAGE}:latest"
+    echo "  ✓ Image pubblicata: ${AR_IMAGE}:${VERSION}"
 
-    echo "  → Railway deploy"
-    (
-        cd "$CLOUD_ROOT"
-        RAILWAY_TOKEN="$RAILWAY_TOKEN" npx @railway/cli up --detach
-    )
-    echo "  ✓ Railway deploy avviato"
+    echo "  → Deploy su Cloud Run"
+    gcloud run deploy "$SERVICE_NAME" \
+        --image "${AR_IMAGE}:${VERSION}" \
+        --region "$GCP_REGION" \
+        --platform managed \
+        --allow-unauthenticated \
+        --min-instances 1 \
+        --port 8000 \
+        --quiet
+    echo "  ✓ Cloud Run deploy completato"
 }
 
 # ─────────────────────────────────────────────────────────────

@@ -26,10 +26,8 @@ gh secret set NPM_TOKEN             --repo "$SIFTER_REPO" --body "$(get_secret N
 echo "   ✓ 3 secrets caricati"
 
 echo "→ sifter-cloud repo ($CLOUD_REPO)"
-gh secret set DOCKERHUB_USERNAME --repo "$CLOUD_REPO" --body "$(get_secret DOCKERHUB_USERNAME)"
-gh secret set DOCKERHUB_TOKEN    --repo "$CLOUD_REPO" --body "$(get_secret DOCKERHUB_TOKEN)"
-gh secret set RAILWAY_TOKEN      --repo "$CLOUD_REPO" --body "$(get_secret RAILWAY_TOKEN)"
-echo "   ✓ 3 secrets caricati"
+gh secret set RAILWAY_TOKEN --repo "$CLOUD_REPO" --body "$(get_secret RAILWAY_TOKEN)"
+echo "   ✓ 1 secret caricato  (ghcr.io usa GITHUB_TOKEN automatico)"
 
 echo ""
 echo "Fatto. Verifica su:"

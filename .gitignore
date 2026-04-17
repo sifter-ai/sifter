@@ -13,3 +13,5 @@ code/examples/receipts/
 code/examples/docs/
 code/examples/*.csv
 .secrets
+scripts/*.json
+code/frontend/.vite/

@@ -10,6 +10,18 @@ logger = structlog.get_logger()
 SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp"}
 
 
+def count_pdf_pages(content: bytes) -> int | None:
+    """Return the page count of a PDF byte stream, or None if it cannot be parsed."""
+    try:
+        import fitz  # pymupdf
+
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            return doc.page_count
+    except Exception as exc:
+        logger.warning("pdf_page_count_failed", error=str(exc))
+        return None
+
+
 class ProcessedFile(NamedTuple):
     text_content: str
     images: list[dict]  # list of {"type": "image_url", "image_url": {"url": "data:..."}}

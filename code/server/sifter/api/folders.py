@@ -390,6 +390,19 @@ async def upload_document(
             detail=f"File exceeds max size of {config.max_file_size_mb}MB",
         )
 
+    if (file.filename or "").lower().endswith(".pdf"):
+        from ..services.file_processor import count_pdf_pages
+
+        pages = count_pdf_pages(content)
+        if pages is not None and pages > config.max_pdf_pages:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"PDF {file.filename} has {pages} pages; max is "
+                    f"{config.max_pdf_pages}. Split the document and retry."
+                ),
+            )
+
     await usage.check_upload(principal.key_id, len(content))
 
     storage = get_storage_backend()

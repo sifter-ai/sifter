@@ -34,6 +34,7 @@ class SifterConfig(BaseSettings):
     storage_path: str = "./uploads"
     storage_backend: str = "filesystem"   # "filesystem" | "s3" | "gcs"
     max_file_size_mb: int = 50
+    max_pdf_pages: int = 10                # reject PDFs with more pages; split to process
 
     # S3 storage (used when storage_backend="s3")
     s3_bucket: str = ""

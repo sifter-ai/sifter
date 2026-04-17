@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  Check,
   Code2,
   Filter,
   Folder,
@@ -316,6 +317,60 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Pricing ── */}
+      <section className="py-20 border-t">
+        <div className="max-w-6xl mx-auto px-6">
+          <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase text-center mb-2">
+            Pricing
+          </p>
+          <h2 className="text-2xl font-bold text-center mb-3">Simple, volume-based plans</h2>
+          <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto mb-12">
+            All paid plans include API access, advanced chat, live dashboards, and Google connectors.
+            1 document = 1 file up to 10 pages.
+          </p>
+
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <PricingCard name="Free" price="$0" period="forever" docs="10 docs/mo" sifts="1 sift" features={[
+              "Up to 10 pages / doc",
+              "Web UI + SDK",
+              "Basic chat",
+              "Unlimited retention",
+            ]} cta="Start free" highlighted={false} />
+            <PricingCard name="Starter" price="$19" period="per month" docs="500 docs/mo" sifts="10 sifts" features={[
+              "Up to 10 pages / doc",
+              "Full REST API",
+              "Advanced chat",
+              "Live dashboard",
+              "Gmail + Drive (1×)",
+              "Mail-to-upload",
+              "CSV export",
+            ]} cta="Start Starter" highlighted={false} />
+            <PricingCard name="Pro" price="$49" period="per month" docs="3,000 docs/mo" sifts="∞ sifts" features={[
+              "Everything in Starter",
+              "Unlimited connectors",
+              "SSO (Google + GitHub)",
+              "Higher rate limits",
+            ]} cta="Start Pro" highlighted={true} />
+            <PricingCard name="Business" price="$149" period="per month" docs="15,000 docs/mo" sifts="∞ sifts" features={[
+              "Everything in Pro",
+              "PDF report export",
+              "Advanced webhooks",
+              "Unlimited shares",
+            ]} cta="Start Business" highlighted={false} />
+            <PricingCard name="Scale" price="$399" period="per month" docs="50,000 docs/mo" sifts="∞ sifts" features={[
+              "Everything in Business",
+              "Share via email + PDF",
+              "Highest rate limits",
+              "Priority support",
+            ]} cta="Start Scale" highlighted={false} />
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-10">
+            Need larger documents or higher volume? <Link to="/enterprise" className="text-primary hover:underline">Talk to us about Enterprise</Link> — SSO, BYOK LLM, on-prem, custom SLA, no page limit.
+          </p>
+        </div>
+      </section>
+
       {/* ── Two ways to run Sifter ── */}
       <section className="py-20 border-t">
         <div className="max-w-5xl mx-auto px-6">
@@ -446,12 +501,14 @@ export default function LandingPage() {
             <img src={logo} alt="Sifter" className="h-5 w-5" />
             <span>Sifter — Apache 2.0</span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 flex-wrap">
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
               className="hover:text-foreground transition-colors">GitHub</a>
             <a href={DOCS_URL} target="_blank" rel="noopener noreferrer"
               className="hover:text-foreground transition-colors">Docs</a>
             <Link to="/enterprise" className="hover:text-foreground transition-colors">Enterprise</Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link to="/register" className="hover:text-foreground transition-colors">Get Started</Link>
           </div>
         </div>
@@ -480,6 +537,69 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
       </div>
       <h3 className="font-semibold mt-4 text-sm">{title}</h3>
       <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{children}</p>
+    </div>
+  );
+}
+
+function PricingCard({
+  name,
+  price,
+  period,
+  docs,
+  sifts,
+  features,
+  cta,
+  highlighted,
+}: {
+  name: string;
+  price: string;
+  period: string;
+  docs: string;
+  sifts: string;
+  features: string[];
+  cta: string;
+  highlighted: boolean;
+}) {
+  return (
+    <div
+      className={
+        highlighted
+          ? "relative rounded-2xl border-2 border-primary bg-gradient-to-b from-primary/5 to-background p-6 flex flex-col shadow-lg"
+          : "rounded-2xl border bg-card p-6 flex flex-col"
+      }
+    >
+      {highlighted && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-semibold px-3 py-1 rounded-full tracking-wide uppercase">
+          Most popular
+        </div>
+      )}
+      <h3 className="font-semibold text-base">{name}</h3>
+      <div className="mt-3 flex items-baseline gap-1">
+        <span className="text-3xl font-bold tracking-tight">{price}</span>
+        <span className="text-xs text-muted-foreground">/ {period}</span>
+      </div>
+      <div className="mt-4 pb-4 border-b">
+        <p className="text-sm font-medium">{docs}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{sifts}</p>
+      </div>
+      <ul className="mt-4 space-y-2 flex-1">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/register"
+        className={
+          highlighted
+            ? "mt-6 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium text-center hover:opacity-90 transition-opacity"
+            : "mt-6 border border-input px-4 py-2 rounded-md text-sm font-medium text-center hover:bg-muted/60 transition-colors"
+        }
+      >
+        {cta}
+      </Link>
     </div>
   );
 }

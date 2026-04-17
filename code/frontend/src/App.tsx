@@ -25,6 +25,8 @@ import FolderBrowserPage from "@/pages/FolderBrowserPage";
 import DocumentDetailPage from "@/pages/DocumentDetailPage";
 import LandingPage from "@/pages/LandingPage";
 import EnterprisePage from "@/pages/EnterprisePage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import GitHubCallbackPage from "@/pages/GitHubCallbackPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthProvider, useAuthContext } from "@/context/AuthContext";
@@ -237,6 +239,8 @@ function AppRoutes() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
               <Route path="/s/:slug" element={<PublicViewerPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} />
             </Routes>
           </Suspense>
         </main>
@@ -250,6 +254,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/enterprise" element={<EnterprisePage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
