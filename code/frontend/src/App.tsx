@@ -53,8 +53,8 @@ const navItemBase =
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `${navItemBase} ${
     isActive
-      ? "bg-primary/12 text-foreground font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+      ? "bg-primary/10 font-medium text-foreground border-l-2 border-primary pl-[10px]"
+      : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]"
   }`;
 
 function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
@@ -123,7 +123,7 @@ function Sidebar() {
             href="https://docs.sifter.ai"
             target="_blank"
             rel="noopener noreferrer"
-            className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/70`}
+            className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]`}
           >
             <BookOpen className="h-4 w-4 shrink-0" />
             Docs
