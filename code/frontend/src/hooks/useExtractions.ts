@@ -35,14 +35,16 @@ export const useSifts = () =>
     },
   });
 
-export const useSift = (id: string, options?: { refetchInterval?: number | false }) =>
+type RefetchInterval = number | false | ((query: any) => number | false);
+
+export const useSift = (id: string, options?: { refetchInterval?: RefetchInterval }) =>
   useQuery({
     queryKey: ["sift", id],
     queryFn: () => fetchSift(id),
     refetchInterval: options?.refetchInterval,
   });
 
-export const useSiftRecords = (id: string, options?: { refetchInterval?: number | false }) =>
+export const useSiftRecords = (id: string, options?: { refetchInterval?: RefetchInterval }) =>
   useQuery({
     queryKey: ["sift-records", id],
     queryFn: () => fetchSiftRecords(id),

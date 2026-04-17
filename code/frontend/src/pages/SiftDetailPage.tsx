@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle,
   Download,
-  FolderLink,
+  Link,
   Loader2,
   Pencil,
   Plus,
@@ -51,6 +51,7 @@ import {
   useUpdateSift,
   useUploadDocuments,
 } from "@/hooks/useExtractions";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
 import type { Folder } from "@/api/types";
 import type { Aggregation, AggregationResult, SiftDocument } from "@/api/types";
@@ -476,6 +477,80 @@ function LinkFolderDialog({
   );
 }
 
+function FolderTreeList({
+  folders,
+  onNavigate,
+}: {
+  folders: { id: string; name: string; path: string | null }[];
+  onNavigate: (id: string) => void;
+}) {
+  const sorted = [...folders].sort((a, b) => (a.path ?? "").localeCompare(b.path ?? ""));
+
+  const roots = sorted.filter((f) => {
+    if (!f.path) return true;
+    const parentPath = f.path.substring(0, f.path.lastIndexOf("/")) || null;
+    return !parentPath || !sorted.some((p) => p.path === parentPath);
+  });
+
+  return (
+    <div className="inline-flex flex-col gap-0.5">
+      {roots.map((root) => (
+        <FolderTreeNode
+          key={root.id}
+          folder={root}
+          allFolders={sorted}
+          depth={0}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FolderTreeNode({
+  folder,
+  allFolders,
+  depth,
+  onNavigate,
+}: {
+  folder: { id: string; name: string; path: string | null };
+  allFolders: { id: string; name: string; path: string | null }[];
+  depth: number;
+  onNavigate: (id: string) => void;
+}) {
+  const childPath = folder.path ? folder.path + "/" : null;
+  const children = childPath
+    ? allFolders.filter((f) => f.path?.startsWith(childPath) && f.path !== folder.path)
+        .filter((f) => {
+          const parentPath = f.path!.substring(0, f.path!.lastIndexOf("/")) || null;
+          return parentPath === folder.path;
+        })
+    : [];
+
+  return (
+    <>
+      <button
+        className="text-primary hover:underline text-sm font-mono text-left"
+        style={{ paddingLeft: `${depth * 16}px` }}
+        onClick={() => onNavigate(folder.id)}
+        title={folder.path ?? folder.name}
+      >
+        {depth > 0 && <span className="text-muted-foreground/40 mr-1">└</span>}
+        {folder.name}
+      </button>
+      {children.map((child) => (
+        <FolderTreeNode
+          key={child.id}
+          folder={child}
+          allFolders={allFolders}
+          depth={depth + 1}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </>
+  );
+}
+
 export function SiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -488,17 +563,25 @@ export function SiftDetailPage() {
   const [showLinkFolder, setShowLinkFolder] = useState(false);
   const updateMutation = useUpdateSift(id!);
 
-  const isIndexing = (status: string) => status === "indexing";
+  const isIndexing = (status: string | undefined) => status === "indexing";
+  const qc = useQueryClient();
 
-  const { data: extraction, isLoading, error } = useSift(id!);
-
-  useSift(id!, {
-    refetchInterval: extraction && isIndexing(extraction.status) ? 2000 : false,
+  const { data: extraction, isLoading, error } = useSift(id!, {
+    refetchInterval: (query: any) =>
+      (query.state.data as any)?.status === "indexing" ? 2000 : false,
   });
 
   const { data: records, isLoading: recordsLoading } = useSiftRecords(id!, {
-    refetchInterval: extraction && isIndexing(extraction.status) ? 3000 : false,
+    refetchInterval: isIndexing(extraction?.status) ? 3000 : false,
   });
+
+  const prevStatusRef = useRef<string | undefined>();
+  useEffect(() => {
+    if (prevStatusRef.current === "indexing" && !isIndexing(extraction?.status)) {
+      qc.invalidateQueries({ queryKey: ["sift-records", id] });
+    }
+    prevStatusRef.current = extraction?.status;
+  }, [extraction?.status]);
   const uploadMutation = useUploadDocuments(id!);
   const reindexMutation = useReindexSift(id!);
   const deleteMutation = useDeleteSift();
@@ -616,30 +699,24 @@ export function SiftDetailPage() {
             <dt className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 whitespace-nowrap">
               Folders
             </dt>
-            <dd className="flex flex-wrap items-center gap-1.5 min-h-[22px]">
+            <dd className="min-h-[22px]">
               {foldersLoading ? (
                 <Skeleton className="h-5 w-24" />
               ) : siftFolders && siftFolders.items.length > 0 ? (
-                siftFolders.items.map((f) => (
-                  <button
-                    key={f.id}
-                    className="text-primary hover:underline text-sm font-mono"
-                    onClick={() => navigate(`/folders?folder=${f.id}`)}
-                    title={f.name}
-                  >
-                    {f.path ?? f.name}
-                  </button>
-                ))
+                <FolderTreeList
+                  folders={siftFolders.items}
+                  onNavigate={(id) => navigate(`/folders/${id}`)}
+                />
               ) : (
                 <span className="text-muted-foreground text-sm">None</span>
               )}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 ml-1"
                 onClick={() => setShowLinkFolder(true)}
               >
-                <FolderLink className="h-3 w-3" />
+                <Link className="h-3 w-3" />
                 Link
               </Button>
             </dd>
