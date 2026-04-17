@@ -3,14 +3,13 @@ import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
+  BookOpen,
   FileText,
   Folder,
   LayoutDashboard,
   LogOut,
   MessageCircle,
-  Moon,
   Settings,
-  Sun,
   User as UserIcon,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
@@ -49,22 +48,24 @@ const queryClient = new QueryClient({
   },
 });
 
+const navItemBase =
+  "flex items-center gap-2.5 px-3 py-[7px] rounded-lg text-sm transition-all w-full relative";
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all w-full ${
+  `${navItemBase} ${
     isActive
-      ? "bg-primary/10 font-medium text-foreground border-l-2 border-primary pl-[10px]"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]"
+      ? "bg-primary/12 text-foreground font-medium shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]"
+      : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
   }`;
 
 function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
   const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   if (src) {
-    return <img src={src} alt={name} style={{ width: size, height: size }} className="rounded-full object-cover shrink-0" />;
+    return <img src={src} alt={name} style={{ width: size, height: size }} className="rounded-full object-cover shrink-0 ring-1 ring-border" />;
   }
   return (
     <div
       style={{ width: size, height: size, fontSize: size * 0.38 }}
-      className="rounded-full bg-primary/15 flex items-center justify-center font-semibold text-primary shrink-0 select-none"
+      className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20 flex items-center justify-center font-semibold text-primary shrink-0 select-none"
     >
       {initials || <UserIcon style={{ width: size * 0.55, height: size * 0.55 }} />}
     </div>
@@ -74,25 +75,29 @@ function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string
 function Sidebar() {
   const { isAuthenticated, user, logout } = useAuthContext();
   const { mode } = useConfig();
-  const { dark, toggle } = useDarkMode();
+  useDarkMode();
 
   if (!isAuthenticated) return null;
 
   return (
     <aside className="w-56 h-screen sticky top-0 flex flex-col border-r bg-card shrink-0">
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-border/50">
+      <div className="px-4 py-[14px]">
         <Link
           to="/"
-          className="font-bold text-lg tracking-tight flex items-center gap-2.5"
+          className="font-bold text-[15px] tracking-tight flex items-center gap-2.5 group"
         >
-          <img src={logo} alt="Sifter" className="h-7 w-7" />
+          <div className="relative">
+            <img src={logo} alt="Sifter" className="h-7 w-7 transition-transform group-hover:scale-105" />
+          </div>
           <span className="text-primary">Sifter</span>
         </Link>
       </div>
 
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
+
       {/* Main nav */}
-      <nav className="flex flex-col gap-0.5 px-2 pt-3">
+      <nav className="flex flex-col gap-0.5 px-2 pt-3 flex-1">
         <NavLink to="/" end className={navLinkClass}>
           <FileText className="h-4 w-4 shrink-0" />
           Sifts
@@ -111,43 +116,49 @@ function Sidebar() {
             Dashboards
           </NavLink>
         )}
+
+        {/* Secondary nav — pushed to bottom of the nav flex */}
+        <div className="mt-auto pt-3 flex flex-col gap-0.5">
+          <a
+            href="https://docs.sifter.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/70`}
+          >
+            <BookOpen className="h-4 w-4 shrink-0" />
+            Docs
+            <span className="ml-auto text-[10px] text-muted-foreground/50">↗</span>
+          </a>
+          <NavLink to="/settings" end className={navLinkClass}>
+            <Settings className="h-4 w-4 shrink-0" />
+            Settings
+          </NavLink>
+        </div>
       </nav>
 
-      {/* Bottom section */}
-      <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3 border-t border-border/50 pt-3">
-        {/* User identity — links to account settings */}
-        <Link
-          to="/settings/account"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-muted/60 transition-colors group"
-        >
-          <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={26} />
-          <div className="min-w-0 flex-1">
-            {user?.full_name && (
-              <p className="text-xs font-medium truncate leading-tight">{user.full_name}</p>
-            )}
-            <p className="text-[11px] text-muted-foreground truncate leading-tight">{user?.email}</p>
-          </div>
-        </Link>
+      <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
 
-        <NavLink to="/settings" end className={navLinkClass}>
-          <Settings className="h-4 w-4 shrink-0" />
-          Settings
-        </NavLink>
-
-        <div className="flex items-center gap-1 px-1 mt-0.5">
+      {/* User identity */}
+      <div className="px-2 py-3">
+        <div className="flex items-center gap-2">
+          <Link
+            to="/settings/account"
+            className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/70 transition-colors flex-1 min-w-0 group"
+          >
+            <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={27} />
+            <div className="min-w-0 flex-1">
+              {user?.full_name && (
+                <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
+              )}
+              <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
+            </div>
+          </Link>
           <button
             onClick={logout}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all flex-1 text-left border-l-2 border-transparent pl-[10px]"
+            title="Sign out"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors shrink-0"
           >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Sign out
-          </button>
-          <button
-            onClick={toggle}
-            title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0"
-          >
-            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

@@ -1,23 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-const KEY = "sifter_dark_mode";
+function applyDark(dark: boolean) {
+  document.documentElement.classList.toggle("dark", dark);
+}
 
 export function useDarkMode() {
-  const [dark, setDark] = useState<boolean>(() => {
-    const stored = localStorage.getItem(KEY);
-    if (stored !== null) return stored === "true";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
-
   useEffect(() => {
-    const root = document.documentElement;
-    if (dark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    localStorage.setItem(KEY, String(dark));
-  }, [dark]);
-
-  return { dark, toggle: () => setDark((d) => !d) };
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    applyDark(mq.matches);
+    const handler = (e: MediaQueryListEvent) => applyDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 }
