@@ -34,6 +34,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthProvider, useAuthContext } from "@/context/AuthContext";
 import { ConfigProvider, useConfig } from "@/context/ConfigContext";
 
+const SidebarPlanWidget = lazy(() =>
+  import("@/components/cloud/SidebarPlanWidget").then((m) => ({ default: m.SidebarPlanWidget }))
+);
+
 // Cloud pages — lazy loaded so they don't affect OSS bundle size
 const BillingPage = lazy(() => import("@/pages/cloud/BillingPage"));
 const UsagePage = lazy(() => import("@/pages/cloud/UsagePage"));
@@ -148,6 +152,15 @@ function Sidebar() {
           </button>
         </div>
       </nav>
+
+      {mode === "cloud" && (
+        <>
+          <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
+          <Suspense fallback={null}>
+            <SidebarPlanWidget />
+          </Suspense>
+        </>
+      )}
 
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
 
