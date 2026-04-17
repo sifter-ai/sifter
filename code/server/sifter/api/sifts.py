@@ -116,13 +116,9 @@ async def create_sift(
     db=Depends(get_db),
     usage: NoopLimiter = Depends(get_usage_limiter),
 ):
-    from ..services.document_service import DocumentService
-
     await usage.check_sift_create(principal.key_id)
     svc = SiftService(db)
-    doc_svc = DocumentService(db)
     await svc.ensure_indexes()
-    await doc_svc.ensure_indexes()
 
     sift = await svc.create(
         name=body.name,
@@ -131,11 +127,6 @@ async def create_sift(
         schema=body.schema,
         multi_record=body.multi_record,
     )
-
-    # Create default folder, link it, and store its ID on the sift
-    folder = await doc_svc.create_folder(body.name, "")
-    await doc_svc.link_extractor(folder.id, sift.id)
-    sift = await svc.update(sift.id, {"default_folder_id": folder.id})
 
     return _sift_to_dict(sift)
 
@@ -194,7 +185,7 @@ async def list_sift_folders(
     folders = await db["folders"].find({"_id": {"$in": folder_ids}}).to_list(length=None)
     result = []
     for f in folders:
-        result.append({"id": str(f["_id"]), "name": f.get("name", "")})
+        result.append({"id": str(f["_id"]), "name": f.get("name", ""), "path": f.get("path")})
     return {"items": result}
 
 

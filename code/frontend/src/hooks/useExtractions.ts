@@ -14,6 +14,7 @@ import {
   updateSift,
   uploadDocuments,
 } from "@/api/extractions";
+import { linkExtractor } from "@/api/folders";
 import {
   createAggregation,
   deleteAggregation,
@@ -84,12 +85,23 @@ export const useDeleteSift = () => {
   });
 };
 
-export const useSiftFolders = (id: string, enabled: boolean) =>
+export const useSiftFolders = (id: string, enabled: boolean = true) =>
   useQuery({
     queryKey: ["sift-folders", id],
     queryFn: () => fetchSiftFolders(id),
     enabled: !!id && enabled,
   });
+
+export const useLinkFolderToSift = (siftId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (folderId: string) => linkExtractor(folderId, siftId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sift-folders", siftId] });
+      qc.invalidateQueries({ queryKey: ["sift", siftId] });
+    },
+  });
+};
 
 export const useUploadDocuments = (siftId: string) => {
   const qc = useQueryClient();

@@ -671,6 +671,30 @@ class Sifter:
             r.raise_for_status()
             return r.json()
 
+    def folder_by_path(self, path: str) -> FolderHandle:
+        """Get a folder by its path (e.g. '/invoices/2024'). Raises if not found."""
+        import httpx
+        with httpx.Client() as http:
+            r = http.get(
+                f"{self.api_url}/api/folders/by-path",
+                headers=self._auth_headers(),
+                params={"path": path},
+            )
+            r.raise_for_status()
+            return FolderHandle(r.json(), self)
+
+    def get_or_create_folder(self, path: str) -> FolderHandle:
+        """Return the folder at `path`, creating it (and any missing parents) if needed."""
+        import httpx
+        with httpx.Client() as http:
+            r = http.get(
+                f"{self.api_url}/api/folders/by-path",
+                headers=self._auth_headers(),
+                params={"path": path, "create": "true"},
+            )
+            r.raise_for_status()
+            return FolderHandle(r.json(), self)
+
     def document(self, document_id: str) -> DocumentHandle:
         """Return a handle to a document for accessing page images."""
         return DocumentHandle(document_id=document_id, client=self)

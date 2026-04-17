@@ -4,10 +4,12 @@ import {
   ArrowLeft,
   CheckCircle,
   Download,
+  FolderLink,
   Loader2,
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   Trash2,
   Upload,
   XCircle,
@@ -38,6 +40,7 @@ import {
   useDeleteAggregation,
   useDeleteSift,
   useExportCsv,
+  useLinkFolderToSift,
   useSift,
   useSiftDocuments,
   useSiftFolders,
@@ -48,6 +51,8 @@ import {
   useUpdateSift,
   useUploadDocuments,
 } from "@/hooks/useExtractions";
+import { fetchFolders } from "@/api/folders";
+import type { Folder } from "@/api/types";
 import type { Aggregation, AggregationResult, SiftDocument } from "@/api/types";
 
 function AggregationStatusIcon({ status }: { status: string }) {
@@ -355,6 +360,122 @@ function AggregationsPanel({ siftId }: { siftId: string }) {
   );
 }
 
+function LinkFolderDialog({
+  siftId,
+  open,
+  onOpenChange,
+}: {
+  siftId: string;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Folder | null>(null);
+  const linkMutation = useLinkFolderToSift(siftId);
+
+  const loadFolders = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchFolders();
+      setFolders(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    onOpenChange(v);
+    if (v) {
+      setSearch("");
+      setSelected(null);
+      loadFolders();
+    }
+  };
+
+  const filtered = folders.filter((f) => {
+    const q = search.toLowerCase();
+    return (
+      f.name.toLowerCase().includes(q) ||
+      (f.path ?? "").toLowerCase().includes(q)
+    );
+  });
+
+  const handleLink = () => {
+    if (!selected) return;
+    linkMutation.mutate(selected.id, {
+      onSuccess: () => onOpenChange(false),
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Link a Folder</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-8"
+              placeholder="Search by name or path…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="max-h-56 overflow-y-auto rounded-md border">
+            {loading ? (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No folders found.</p>
+            ) : (
+              filtered.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelected(f)}
+                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b last:border-0 ${
+                    selected?.id === f.id ? "bg-primary/10 font-medium" : ""
+                  }`}
+                >
+                  <span className="block truncate">{f.name}</span>
+                  {f.path && (
+                    <span className="text-xs text-muted-foreground font-mono">{f.path}</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLink}
+              disabled={!selected || linkMutation.isPending}
+            >
+              {linkMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Linking…</>
+              ) : (
+                "Link Folder"
+              )}
+            </Button>
+          </div>
+          {linkMutation.isError && (
+            <p className="text-xs text-destructive">
+              {(linkMutation.error as Error).message}
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function SiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -364,6 +485,7 @@ export function SiftDetailPage() {
   const [editInstructions, setEditInstructions] = useState("");
   const [editMultiRecord, setEditMultiRecord] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showLinkFolder, setShowLinkFolder] = useState(false);
   const updateMutation = useUpdateSift(id!);
 
   const isIndexing = (status: string) => status === "indexing";
@@ -381,7 +503,7 @@ export function SiftDetailPage() {
   const reindexMutation = useReindexSift(id!);
   const deleteMutation = useDeleteSift();
   const exportMutation = useExportCsv();
-  const { data: siftFolders, isLoading: foldersLoading } = useSiftFolders(id!, showDeleteDialog);
+  const { data: siftFolders, isLoading: foldersLoading } = useSiftFolders(id!);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -491,21 +613,36 @@ export function SiftDetailPage() {
                 : "Single record per document"}
             </dd>
 
-            {extraction.default_folder_id && (
-              <>
-                <dt className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 whitespace-nowrap">
-                  Folder
-                </dt>
-                <dd>
+            <dt className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 whitespace-nowrap">
+              Folders
+            </dt>
+            <dd className="flex flex-wrap items-center gap-1.5 min-h-[22px]">
+              {foldersLoading ? (
+                <Skeleton className="h-5 w-24" />
+              ) : siftFolders && siftFolders.items.length > 0 ? (
+                siftFolders.items.map((f) => (
                   <button
-                    className="text-primary hover:underline text-sm"
-                    onClick={() => navigate(`/folders?folder=${extraction.default_folder_id}`)}
+                    key={f.id}
+                    className="text-primary hover:underline text-sm font-mono"
+                    onClick={() => navigate(`/folders?folder=${f.id}`)}
+                    title={f.name}
                   >
-                    {extraction.name}
+                    {f.path ?? f.name}
                   </button>
-                </dd>
-              </>
-            )}
+                ))
+              ) : (
+                <span className="text-muted-foreground text-sm">None</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                onClick={() => setShowLinkFolder(true)}
+              >
+                <FolderLink className="h-3 w-3" />
+                Link
+              </Button>
+            </dd>
           </dl>
 
           {extraction.error && (
@@ -632,6 +769,13 @@ export function SiftDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Link Folder Dialog */}
+      <LinkFolderDialog
+        siftId={id!}
+        open={showLinkFolder}
+        onOpenChange={setShowLinkFolder}
+      />
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
@@ -642,14 +786,12 @@ export function SiftDetailPage() {
             <p className="text-sm text-muted-foreground">
               All records and documents processed by this sift will be permanently deleted.
             </p>
-            {foldersLoading ? (
-              <Skeleton className="h-10 w-full" />
-            ) : siftFolders && siftFolders.items.length > 0 ? (
+            {siftFolders && siftFolders.items.length > 0 ? (
               <div className="rounded-md border p-3 space-y-1">
                 <p className="text-sm font-medium">Linked folders that will be unlinked:</p>
                 <ul className="text-sm text-muted-foreground list-disc list-inside space-y-0.5">
                   {siftFolders.items.map((f) => (
-                    <li key={f.id}>{f.name}</li>
+                    <li key={f.id}>{f.path ?? f.name}</li>
                   ))}
                 </ul>
               </div>

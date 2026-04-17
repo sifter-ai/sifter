@@ -37,8 +37,8 @@ export const updateSift = (
 export const deleteSift = (id: string): Promise<void> =>
   apiFetchJson<void>(`${BASE}/${id}`, { method: "DELETE" });
 
-export const fetchSiftFolders = (id: string): Promise<{ items: { id: string; name: string }[] }> =>
-  apiFetchJson<{ items: { id: string; name: string }[] }>(`${BASE}/${id}/folders`);
+export const fetchSiftFolders = (id: string): Promise<{ items: { id: string; name: string; path: string | null }[] }> =>
+  apiFetchJson<{ items: { id: string; name: string; path: string | null }[] }>(`${BASE}/${id}/folders`);
 
 export const uploadDocuments = (id: string, formData: FormData): Promise<unknown> =>
   apiFetchJson<unknown>(`${BASE}/${id}/upload`, { method: "POST", body: formData });
