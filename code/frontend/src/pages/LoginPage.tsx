@@ -1,20 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
-import { GitHubButton } from "@/components/GitHubButton";
 import logo from "@/assets/logo.svg";
 
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuthContext();
-  const { googleAuthEnabled, mode } = useConfig();
+  const { googleAuthEnabled } = useConfig();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const githubError = searchParams.get("error") === "github_auth_failed";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -67,40 +64,26 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
           </div>
 
-          {(googleAuthEnabled || mode === "cloud") && (
+          {googleAuthEnabled && (
             <div className="space-y-3">
-              {googleAuthEnabled && (
-                <GoogleLogin
-                  onSuccess={async (response) => {
-                    if (!response.credential) return;
-                    setError("");
-                    setLoading(true);
-                    try {
-                      await loginWithGoogle(response.credential);
-                      navigate("/");
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : "Google sign-in failed");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  onError={() => setError("Google sign-in failed")}
-                  width="100%"
-                  text="signin_with"
-                />
-              )}
-              {mode === "cloud" && (
-                <GitHubButton
-                  onClick={() => {
-                    const clientId = (import.meta as any).env?.VITE_GITHUB_CLIENT_ID ?? "";
-                    const redirectUri = (import.meta as any).env?.VITE_GITHUB_REDIRECT_URI ?? "";
-                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email&redirect_uri=${redirectUri}`;
-                  }}
-                />
-              )}
-              {githubError && (
-                <p className="text-sm text-destructive">GitHub sign-in failed. Please try again.</p>
-              )}
+              <GoogleLogin
+                onSuccess={async (response) => {
+                  if (!response.credential) return;
+                  setError("");
+                  setLoading(true);
+                  try {
+                    await loginWithGoogle(response.credential);
+                    navigate("/");
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "Google sign-in failed");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                onError={() => setError("Google sign-in failed")}
+                width="100%"
+                text="signin_with"
+              />
               <div className="relative flex items-center gap-3">
                 <div className="flex-1 border-t border-border" />
                 <span className="text-xs text-muted-foreground">or</span>

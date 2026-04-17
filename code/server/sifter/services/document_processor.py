@@ -97,11 +97,22 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
         try:
             await doc_svc.update_sift_status(document_id, sift_id, DocumentSiftStatusEnum.PROCESSING)
 
-            from ..storage import local_path as storage_local_path
-            async with storage_local_path(storage_path) as local_file:
-                results = await ext_svc.process_single_document(
-                    sift_id, local_file, document_id=document_id
-                )
+            from ..storage import get_storage_backend, GCSBackend
+            from ..config import config as oss_config
+            from pathlib import Path
+            backend = get_storage_backend()
+            filename = Path(storage_path).name
+            _use_gcs_uri = (
+                isinstance(backend, GCSBackend)
+                and oss_config.llm_model.startswith("vertex_ai/")
+            )
+            if _use_gcs_uri:
+                source = f"gs://{backend.bucket_name}/{storage_path}"
+            else:
+                source = await backend.load(storage_path)
+            results = await ext_svc.process_single_document(
+                sift_id, source, filename, document_id=document_id
+            )
 
             # Store first record's ID for traceability; multi-record docs may have many
             first_record_id = results[0].id if results else None

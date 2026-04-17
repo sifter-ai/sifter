@@ -25,7 +25,7 @@ class ExtractionAgentResult:
     filter_reason: str
     confidence: float
     extracted_data: list[dict[str, Any]]
-    page_blocks: list[dict] = None  # for citation resolution
+    page_blocks: list[dict] = None
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -37,29 +37,19 @@ def _strip_markdown_fences(text: str) -> str:
 
 
 async def extract(
-    file_path: str | Path,
+    source: "bytes | str",
+    filename: str,
     instructions: str,
     schema: Optional[str] = None,
     multi_record: bool = False,
 ) -> ExtractionAgentResult:
-    """
-    Extract structured data from a document using an LLM.
+    if isinstance(source, str):
+        processed = _file_processor.process_uri(source, filename)
+    else:
+        processed = _file_processor.process(source, filename)
 
-    Args:
-        file_path: Path to the document file (PDF, image, text)
-        instructions: Natural language extraction instructions
-        schema: Optional schema string from previous extractions for consistency
-        multi_record: If True, extract multiple records (JSON array); otherwise single record
-
-    Returns:
-        ExtractionAgentResult with extracted_data as a list of dicts (always)
-    """
-    processed = _file_processor.process(file_path)
-
-    # Build user message content
     user_content: list[dict] = []
 
-    # Text part: instructions + document text
     text_parts = [f"## Extraction Instructions\n{instructions}"]
     if multi_record:
         text_parts.append(
@@ -77,8 +67,6 @@ async def extract(
         text_parts.append(f"## Document Text Content\n{processed.text_content}")
 
     user_content.append({"type": "text", "text": "\n\n".join(text_parts)})
-
-    # Add images if available
     for img in processed.images:
         user_content.append(img)
 
@@ -89,7 +77,7 @@ async def extract(
 
     logger.info(
         "extraction_agent_call",
-        file=str(file_path),
+        filename=filename,
         model=config.llm_model,
         num_images=len(processed.images),
     )
@@ -105,30 +93,28 @@ async def extract(
     cleaned = _strip_markdown_fences(raw)
 
     try:
-        data = json.loads(cleaned)
+        data_parsed = json.loads(cleaned)
     except json.JSONDecodeError as e:
         logger.error("extraction_json_parse_error", raw=raw[:500], error=str(e))
         raise ValueError(f"LLM returned invalid JSON: {e}") from e
 
-    raw_extracted = data.get("extractedData", {})
+    raw_extracted = data_parsed.get("extractedData", {})
     if multi_record:
-        # Expect a list; wrap dict in list if model returned a single object
         if isinstance(raw_extracted, list):
             extracted_list = raw_extracted
         else:
             extracted_list = [raw_extracted] if raw_extracted else []
     else:
-        # Expect a dict; take first element if model returned a list
         if isinstance(raw_extracted, list):
             extracted_list = [raw_extracted[0]] if raw_extracted else [{}]
         else:
             extracted_list = [raw_extracted]
 
     return ExtractionAgentResult(
-        document_type=data.get("documentType", "unknown"),
-        matches_filter=data.get("matchesFilter", True),
-        filter_reason=data.get("filterReason", ""),
-        confidence=float(data.get("confidence", 0.0)),
+        document_type=data_parsed.get("documentType", "unknown"),
+        matches_filter=data_parsed.get("matchesFilter", True),
+        filter_reason=data_parsed.get("filterReason", ""),
+        confidence=float(data_parsed.get("confidence", 0.0)),
         extracted_data=extracted_list,
         page_blocks=processed.page_blocks,
     )

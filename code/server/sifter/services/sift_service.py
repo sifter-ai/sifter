@@ -8,6 +8,7 @@ import structlog
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from ..config import config
 from ..models.sift import Sift, SiftStatus
 from ..models.sift_result import SiftResult
 from . import sift_agent
@@ -121,30 +122,38 @@ class SiftService:
         errors = []
         discarded = 0
 
-        from ..storage import local_path as storage_local_path
+        from ..storage import get_storage_backend, GCSBackend
+        backend = get_storage_backend()
+        _use_gcs_uri = (
+            isinstance(backend, GCSBackend)
+            and config.llm_model.startswith("vertex_ai/")
+        )
 
         for idx, file_path in enumerate(file_paths):
             try:
-                async with storage_local_path(file_path) as local_file:
-                    result = await sift_agent.extract(
-                        file_path=local_file,
-                        instructions=sift.instructions,
-                        schema=schema,
-                        multi_record=sift.multi_record,
-                    )
+                filename = Path(file_path).name
+                if _use_gcs_uri:
+                    source: "bytes | str" = f"gs://{backend.bucket_name}/{file_path}"
+                else:
+                    source = await backend.load(file_path)
+                result = await sift_agent.extract(
+                    source=source,
+                    filename=filename,
+                    instructions=sift.instructions,
+                    schema=schema,
+                    multi_record=sift.multi_record,
+                )
 
                 if not result.matches_filter:
                     discarded += 1
                     logger.info(
                         "document_discarded",
                         sift_id=sift_id,
-                        document=Path(file_path).name,
+                        document=filename,
                         reason=result.filter_reason,
                     )
                     await self.update(sift_id, {"processed_documents": idx + 1 - len(errors)})
                     continue
-
-                filename = Path(file_path).name
                 doc_id = str(uuid4())
                 for rec_idx, record_data in enumerate(result.extracted_data):
                     await self.results_service.insert_result(
@@ -206,24 +215,21 @@ class SiftService:
         )
 
     async def process_single_document(
-        self, sift_id: str, file_path: str, document_id: str | None = None
+        self, sift_id: str, source: "bytes | str", filename: str, document_id: str | None = None
     ) -> list[SiftResult]:
         sift = await self.get(sift_id)
         if not sift:
             raise ValueError(f"Sift {sift_id} not found")
 
-        from ..storage import local_path as storage_local_path
-        async with storage_local_path(file_path) as local_file:
-            result = await sift_agent.extract(
-                file_path=local_file,
-                instructions=sift.instructions,
-                schema=sift.schema,
-                multi_record=sift.multi_record,
-            )
+        result = await sift_agent.extract(
+            source=source,
+            filename=filename,
+            instructions=sift.instructions,
+            schema=sift.schema,
+            multi_record=sift.multi_record,
+        )
 
         if not result.matches_filter:
-            # Increment counter so the sift can still transition to ACTIVE
-            # when all documents (including discarded ones) have been processed
             discard_updated = await self.col.find_one_and_update(
                 {"_id": ObjectId(sift_id)},
                 {"$inc": {"processed_documents": 1}},
@@ -232,8 +238,6 @@ class SiftService:
             if discard_updated and discard_updated.get("processed_documents", 0) >= discard_updated.get("total_documents", 1):
                 await self.update(sift_id, {"status": SiftStatus.ACTIVE})
             raise DocumentDiscardedError(reason=result.filter_reason or "")
-
-        filename = Path(file_path).name
         doc_id = document_id or str(uuid4())
         stored: list[SiftResult] = []
 
