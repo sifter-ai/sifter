@@ -129,20 +129,24 @@ See `product/features/server/records-query.md` for the filter DSL and `product/f
 
 ## Folder CRUD
 
-A **Folder** is a shared document container. When a document is added, all linked sifts are updated automatically. A folder can feed multiple sifts; a sift can be linked to multiple folders.
+A **Folder** is a shared document container. Folders are identified by their **path** (e.g. `/invoices/2025`). Paths are unique — no two folders can share a path. When a document is added, all linked sifts are updated automatically.
 
 ```python
-folder = s.create_folder("Contracts 2024")
-folder = s.get_folder("folder_id")
+folder = s.create_folder("/invoices/2025")   # get-or-create (creates intermediate folders)
+folder = s.get_folder("/invoices/2025")      # get existing (raises 404 if not found)
 folders = s.list_folders()
-folder.update(name="Contracts 2024-2025")
+folder.update(name="Invoices 2025")
 folder.delete()
+
+print(folder.path)  # "/invoices/2025"
 ```
+
+`create_folder` is idempotent — if the folder already exists it is returned unchanged. Missing parent folders are created automatically.
 
 ## Folder: Documents and Sifts
 
 ```python
-folder.upload("./contracts/")   # upload documents to folder
+folder.upload("./invoices/")    # upload documents to folder
 docs = folder.documents()        # list documents in folder
 folder.add_sift(sift)            # link a sift — folder docs processed by it
 folder.remove_sift(sift)
@@ -154,6 +158,7 @@ linked = folder.sifts()          # list linked sifts
 ```python
 parties = s.create_sift("Parties", "contracting parties, dates")
 clauses = s.create_sift("Clauses", "non-compete, termination conditions")
+folder = s.create_folder("/contracts/2025")
 folder.add_sift(parties)
 folder.add_sift(clauses)
 # → all folder docs processed by both sifts

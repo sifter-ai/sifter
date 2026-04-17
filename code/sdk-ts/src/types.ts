@@ -34,6 +34,8 @@ export interface FolderData {
   name: string;
   description: string;
   document_count: number;
+  parent_id: string | null;
+  path: string | null;
   created_at: string;
 }
 

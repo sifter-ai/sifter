@@ -147,6 +147,37 @@ async def get_folder_by_path(
     return _folder_dict(folder)
 
 
+@router.patch("/by-path")
+async def update_folder_by_path(
+    path: str,
+    body: UpdateFolderRequest,
+    _: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    """Update a folder identified by its path."""
+    svc = DocumentService(db)
+    folder = await svc.get_folder_by_path(path)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    folder = await svc.update_folder(folder.id, updates)
+    return _folder_dict(folder)
+
+
+@router.delete("/by-path", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_folder_by_path(
+    path: str,
+    _: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    """Delete a folder identified by its path."""
+    svc = DocumentService(db)
+    folder = await svc.get_folder_by_path(path)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    await svc.delete_folder(folder.id)
+
+
 @router.get("/{folder_id}")
 async def get_folder(
     folder_id: str,

@@ -23,6 +23,7 @@ export class FolderHandle {
   }
 
   get name(): string { return String(this._data["name"] ?? ""); }
+  get path(): string { return String(this._data["path"] ?? ""); }
 
   async documents(): Promise<unknown[]> {
     const res = await this._fetch(

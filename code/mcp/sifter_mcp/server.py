@@ -79,10 +79,17 @@ def list_folders() -> list[dict]:
 
 
 @mcp.tool()
-def get_folder(folder_id: str) -> dict:
-    """Get folder metadata, linked sifts, and document list for a specific folder."""
-    handle = _get_client().get_folder(folder_id)
+def get_folder(folder_path: str) -> dict:
+    """Get folder metadata, linked sifts, and document list for a specific folder.
+
+    Args:
+        folder_path: Folder path (e.g. '/invoices/2025')
+    """
+    handle = _get_client().get_folder(folder_path)
     return {
+        "path": handle.path,
+        "id": handle.id,
+        "name": handle.name,
         "documents": handle.documents(),
         "sifts": handle.sifts(),
     }
@@ -104,16 +111,19 @@ def get_record_citations(sift_id: str, record_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def create_sift(name: str, instructions: str, folder_id: str = "") -> dict:
+def create_sift(name: str, instructions: str, folder_path: str = "") -> dict:
     """Create a new sift with the given extraction instructions.
 
     Args:
         name: Human-readable sift name
         instructions: Natural language extraction instructions (e.g. "client, date, total")
-        folder_id: Optional existing folder to link; if empty a default folder is created
+        folder_path: Optional folder path to link (e.g. '/invoices/2025'); created if it doesn't exist
     """
     client = _get_client()
     handle = client.create_sift(name=name, instructions=instructions)
+    if folder_path:
+        folder = client.create_folder(folder_path)
+        folder.add_sift(handle)
     return handle._data
 
 
@@ -148,11 +158,12 @@ def delete_sift(sift_id: str) -> dict:
 
 
 @mcp.tool()
-def upload_document(folder_id: str, filename: str, content_base64: str) -> dict:
-    """Upload a document to a folder. The document will be processed by all linked sifts.
+def upload_document(folder_path: str, filename: str, content_base64: str) -> dict:
+    """Upload a document to a folder. The folder is created if it doesn't exist.
+    The document will be processed by all sifts linked to the folder.
 
     Args:
-        folder_id: Target folder identifier
+        folder_path: Target folder path (e.g. '/invoices/2025'). Created if it doesn't exist.
         filename: Original filename (used for display)
         content_base64: Base64-encoded file bytes
     """
@@ -160,10 +171,11 @@ def upload_document(folder_id: str, filename: str, content_base64: str) -> dict:
     import httpx
 
     client = _get_client()
+    folder = client.create_folder(folder_path)
     raw = base64.b64decode(content_base64)
     with httpx.Client(timeout=300.0) as http:
         r = http.post(
-            f"{_api_url}/api/folders/{folder_id}/documents",
+            f"{_api_url}/api/folders/{folder.id}/documents",
             headers=client._auth_headers(),
             files={"file": (filename, raw, "application/octet-stream")},
         )

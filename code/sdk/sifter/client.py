@@ -641,25 +641,28 @@ class Sifter:
 
     # ---- Folder CRUD ----
 
-    def create_folder(self, name: str, description: str = "") -> FolderHandle:
-        """Create a new folder and return a handle to it."""
+    def create_folder(self, path: str) -> FolderHandle:
+        """Get or create the folder at `path` (e.g. '/invoices/2025'), creating
+        any missing intermediate folders. Returns a handle to the folder."""
         import httpx
         with httpx.Client() as http:
-            r = http.post(
-                f"{self.api_url}/api/folders",
+            r = http.get(
+                f"{self.api_url}/api/folders/by-path",
                 headers=self._auth_headers(),
-                json={"name": name, "description": description},
+                params={"path": path, "create": "true"},
             )
             r.raise_for_status()
             return FolderHandle(r.json(), self)
 
-    def get_folder(self, folder_id: str) -> FolderHandle:
-        """Get a handle to an existing folder."""
+    def get_folder(self, path: str) -> FolderHandle:
+        """Get a handle to an existing folder by its path (e.g. '/invoices/2025').
+        Raises an HTTP 404 error if the folder does not exist."""
         import httpx
         with httpx.Client() as http:
             r = http.get(
-                f"{self.api_url}/api/folders/{folder_id}",
+                f"{self.api_url}/api/folders/by-path",
                 headers=self._auth_headers(),
+                params={"path": path},
             )
             r.raise_for_status()
             return FolderHandle(r.json(), self)
@@ -674,30 +677,6 @@ class Sifter:
             )
             r.raise_for_status()
             return r.json()
-
-    def folder_by_path(self, path: str) -> FolderHandle:
-        """Get a folder by its path (e.g. '/invoices/2024'). Raises if not found."""
-        import httpx
-        with httpx.Client() as http:
-            r = http.get(
-                f"{self.api_url}/api/folders/by-path",
-                headers=self._auth_headers(),
-                params={"path": path},
-            )
-            r.raise_for_status()
-            return FolderHandle(r.json(), self)
-
-    def get_or_create_folder(self, path: str) -> FolderHandle:
-        """Return the folder at `path`, creating it (and any missing parents) if needed."""
-        import httpx
-        with httpx.Client() as http:
-            r = http.get(
-                f"{self.api_url}/api/folders/by-path",
-                headers=self._auth_headers(),
-                params={"path": path, "create": "true"},
-            )
-            r.raise_for_status()
-            return FolderHandle(r.json(), self)
 
     def document(self, document_id: str) -> DocumentHandle:
         """Return a handle to a document for accessing page images."""

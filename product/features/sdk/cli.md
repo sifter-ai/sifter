@@ -30,9 +30,9 @@ sifter sifts delete <sift_id>
 sifter sifts schema <sift_id> [--format ts|json|pydantic] [--watch]
 
 sifter folders list
-sifter folders create --name N
-sifter folders upload <folder_id> <path>  # file or directory
-sifter folders link <folder_id> <sift_id>
+sifter folders create <folder-path>       # e.g. /invoices/2025 (creates intermediate folders)
+sifter folders upload <folder-path> <path>  # file or directory (folder created if needed)
+sifter folders link <folder-path> <sift_id>
 
 sifter extract <path>… --instructions "…" [--sift <id>] [--wait] [--json]
 # one-shot: creates a temp sift (or uses --sift), uploads, waits, prints records

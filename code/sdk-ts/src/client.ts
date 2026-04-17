@@ -57,18 +57,18 @@ export class SifterClient {
 
   // ---- Folder CRUD ----
 
-  async createFolder(name: string, description = ""): Promise<FolderHandle> {
-    const res = await this._fetch(`${this._apiUrl}/api/folders`, {
-      method: "POST",
-      headers: { ...this._headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description }),
+  async createFolder(path: string): Promise<FolderHandle> {
+    const params = new URLSearchParams({ path, create: "true" });
+    const res = await this._fetch(`${this._apiUrl}/api/folders/by-path?${params}`, {
+      headers: this._headers,
     });
     await assertOk(res);
     return this._folderHandle(await res.json());
   }
 
-  async getFolder(folderId: string): Promise<FolderHandle> {
-    const res = await this._fetch(`${this._apiUrl}/api/folders/${folderId}`, {
+  async getFolder(path: string): Promise<FolderHandle> {
+    const params = new URLSearchParams({ path });
+    const res = await this._fetch(`${this._apiUrl}/api/folders/by-path?${params}`, {
       headers: this._headers,
     });
     await assertOk(res);

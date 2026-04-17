@@ -73,12 +73,18 @@ const answer = await sift.query("Total by client");
 
 ## Folders
 
+Folders are identified by their **path** (e.g. `/invoices/2025`). Paths are unique.
+
 ```ts
-const folder = await s.createFolder("Contracts 2024");
+const folder = await s.createFolder("/invoices/2025");  // get-or-create
+const folder = await s.getFolder("/invoices/2025");     // get existing (throws 404 if missing)
 await folder.upload(file);
 await folder.addSift(sift);
 const docs = await folder.documents();
+console.log(folder.path);  // "/invoices/2025"
 ```
+
+`createFolder` is idempotent — missing parent folders are created automatically.
 
 ## Extraction Control
 
@@ -140,6 +146,8 @@ Every public method on `sifter-ai` has a TypeScript equivalent with the same sem
 | `sift.query(nl)` | `sift.query(nl)` |
 | `sift.extract(doc_id)` | `sift.extract(docId)` |
 | `sift.extraction_status(doc_id)` | `sift.extractionStatus(docId)` |
+| `s.create_folder("/invoices/2025")` | `s.createFolder("/invoices/2025")` |
+| `s.get_folder("/invoices/2025")` | `s.getFolder("/invoices/2025")` |
 | `folder.upload(path)` | `folder.upload(file)` |
 | `s.register_hook(…)` | `s.registerHook(…)` |
 

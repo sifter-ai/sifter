@@ -4,7 +4,20 @@ import { Command } from "commander";
 import { autoFormat, ok, err } from "../output.js";
 import { makeClient, type GlobalOpts } from "../client.js";
 
-async function uploadToFolder(folderId: string, inputPath: string, opts: GlobalOpts, quiet: boolean): Promise<number> {
+async function resolveFolderPath(folderPath: string, opts: GlobalOpts, create = false): Promise<string> {
+  const params = new URLSearchParams({ path: folderPath });
+  if (create) params.set("create", "true");
+  const res = await fetch(`${opts.apiUrl}/api/folders/by-path?${params}`, {
+    headers: { "X-API-Key": opts.apiKey },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
+async function uploadToFolder(folderPath: string, inputPath: string, opts: GlobalOpts, quiet: boolean): Promise<number> {
+  const folderId = await resolveFolderPath(folderPath, opts, true);
+
   const s = await stat(inputPath);
   const files = s.isDirectory()
     ? (await readdir(inputPath, { recursive: true }))
@@ -52,44 +65,43 @@ export function foldersCommand(globals: () => GlobalOpts): Command {
     .action(async (opts) => {
       try {
         const folders = await makeClient(globals()).listFolders(parseInt(opts.limit));
-        autoFormat(folders.map(f => ({ id: f.id, name: f.name, documents: f.document_count })), !!opts.json);
+        autoFormat(folders.map(f => ({ path: f.path, name: f.name, documents: f.document_count })), !!opts.json);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 
   cmd
-    .command("create")
-    .description("Create a new folder")
-    .requiredOption("-n, --name <name>", "Folder name")
-    .option("--description <text>", "Description", "")
+    .command("create <folder-path>")
+    .description("Create a folder by path (e.g. /invoices/2025), creating intermediate folders as needed")
     .option("--json", "Output as JSON")
-    .action(async (opts) => {
+    .action(async (folderPath, opts) => {
       try {
-        const f = await makeClient(globals()).createFolder(opts.name, opts.description);
-        autoFormat({ id: f.id, name: f.name }, !!opts.json);
+        const f = await makeClient(globals()).createFolder(folderPath);
+        autoFormat({ path: f.path, name: f.name }, !!opts.json);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 
   cmd
-    .command("upload <folder-id> <path>")
-    .description("Upload a file or directory to a folder")
+    .command("upload <folder-path> <path>")
+    .description("Upload a file or directory to a folder (folder created if needed)")
     .option("--quiet", "Suppress per-file output")
-    .action(async (folderId, inputPath, opts) => {
+    .action(async (folderPath, inputPath, opts) => {
       try {
         const g = globals();
-        const count = await uploadToFolder(folderId, inputPath, g, !!opts.quiet);
-        ok(`Uploaded ${count} file(s).`);
+        const count = await uploadToFolder(folderPath, inputPath, g, !!opts.quiet);
+        ok(`Uploaded ${count} file(s) to ${folderPath}.`);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 
   cmd
-    .command("link <folder-id> <sift-id>")
+    .command("link <folder-path> <sift-id>")
     .description("Link a sift to a folder")
-    .action(async (folderId, siftId) => {
+    .action(async (folderPath, siftId) => {
       try {
-        const folder = await makeClient(globals()).getFolder(folderId);
-        const sift = await makeClient(globals()).getSift(siftId);
+        const client = makeClient(globals());
+        const folder = await client.getFolder(folderPath);
+        const sift = await client.getSift(siftId);
         await folder.addSift(sift);
-        ok(`Linked folder ${folderId} → sift ${siftId}.`);
+        ok(`Linked folder ${folderPath} → sift ${siftId}.`);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 
