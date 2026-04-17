@@ -1,6 +1,6 @@
 ---
 title: "Zero-friction self-host: `docker run sifter/sifter`"
-status: pending
+status: applied
 author: "Bruno Fortunato"
 created-at: "2026-04-17T00:00:00.000Z"
 ---
