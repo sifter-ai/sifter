@@ -88,7 +88,7 @@ sifter sifts schema <sift_id> [-f ts|json|pydantic] [--watch]
 
 ## Cartelle
 
-Le cartelle raggruppano documenti e possono essere collegate a più sifts.
+Le cartelle raggruppano documenti e possono essere collegate a più sifts. Ogni cartella è identificata dal suo **path** (es. `/fatture/2025`). I path sono univoci; le cartelle intermedie vengono create automaticamente.
 
 ### Listare le cartelle
 
@@ -99,21 +99,23 @@ sifter folders list [--limit N] [--json]
 ### Creare una cartella
 
 ```bash
-sifter folders create -n "Contratti Q1" [--description "..."] [--json]
+sifter folders create /fatture/2025 [--json]
 ```
+
+Se le cartelle intermedie (es. `/fatture`) non esistono vengono create automaticamente. Il comando è idempotente — se la cartella esiste già viene restituita com'è.
 
 ### Caricare documenti
 
 ```bash
-sifter folders upload <folder_id> ./documents/ [--quiet]
+sifter folders upload /fatture/2025 ./documents/ [--quiet]
 ```
 
-Accetta un file singolo o una directory. Il progresso viene mostrato per ciascun file caricato.
+Accetta un file singolo o una directory. La cartella viene creata se non esiste. Il progresso viene mostrato per ciascun file caricato.
 
 ### Collegare a un sift
 
 ```bash
-sifter folders link <folder_id> <sift_id>
+sifter folders link /fatture/2025 <sift_id>
 ```
 
 Dopo il collegamento, i documenti della cartella vengono elaborati dal sift.
@@ -173,7 +175,7 @@ Se `-o` è omesso, il CSV viene scritto su stdout.
 
 ## Esempi
 
-### Workflow base: crea, carica, esporta
+### Workflow base: crea cartella, linka sift, carica, esporta
 
 ```bash
 export SIFTER_API_KEY="sk-..."
@@ -181,8 +183,12 @@ export SIFTER_API_KEY="sk-..."
 # Crea un sift
 SIFT=$(sifter sifts create -n "Fatture" -i "cliente, data, importo" --json | jq -r '.id')
 
-# Carica una cartella di PDF
-sifter extract ./fatture/ --sift $SIFT --quiet
+# Crea la cartella (o usa una esistente) e collega il sift
+sifter folders create /fatture/2025
+sifter folders link /fatture/2025 $SIFT
+
+# Carica i documenti
+sifter folders upload /fatture/2025 ./fatture/ --quiet
 
 # Esporta i risultati
 sifter records export $SIFT -o fatture.csv
