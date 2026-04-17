@@ -58,8 +58,8 @@ This split is intentional: OSS is the defensible engine and dev experience; Clou
 - Source: this repository (`sifter`).
 - Distribution:
   - `pip install sifter-ai` — Python SDK
-  - `npm install @sifter-ai/sdk` — TypeScript SDK (upcoming)
-  - `pip install sifter-cli` / `uvx sifter` — CLI (upcoming)
+  - `npm install @sifter-ai/sdk` — TypeScript SDK
+  - `npm install -g @sifter-ai/cli` / `npx @sifter-ai/cli` — CLI
   - `pip install sifter-mcp` / `uvx sifter-mcp` — MCP server
   - `docker run ghcr.io/sifter-ai/sifter` — all-in-one evaluation image (upcoming)
   - `docker-compose` — production self-host

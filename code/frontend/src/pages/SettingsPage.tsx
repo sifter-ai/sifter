@@ -111,6 +111,7 @@ function ApiKeysSection() {
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ["api-keys"],
@@ -129,7 +130,22 @@ function ApiKeysSection() {
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => revokeApiKey(keyId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["api-keys"] }),
+    onMutate: async (keyId) => {
+      await queryClient.cancelQueries({ queryKey: ["api-keys"] });
+      const previous = queryClient.getQueryData<APIKey[]>(["api-keys"]);
+      queryClient.setQueryData<APIKey[]>(["api-keys"], (old) =>
+        old?.filter((k) => k.id !== keyId) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _keyId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["api-keys"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+    },
   });
 
   return (
@@ -164,7 +180,7 @@ function ApiKeysSection() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => revokeMutation.mutate(key.id)}
+                  onClick={() => setConfirmRevokeId(key.id)}
                   disabled={revokeMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -243,6 +259,35 @@ function ApiKeysSection() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={!!confirmRevokeId} onOpenChange={() => setConfirmRevokeId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Revoke API Key</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to revoke this API key? This action cannot be undone.
+              Any application using this key will lose access immediately.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmRevokeId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (confirmRevokeId) {
+                    revokeMutation.mutate(confirmRevokeId);
+                    setConfirmRevokeId(null);
+                  }
+                }}
+                disabled={revokeMutation.isPending}
+              >
+                {revokeMutation.isPending ? "Revoking..." : "Revoke"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
@@ -259,6 +304,7 @@ function WebhooksSection() {
   const [showCreate, setShowCreate] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<string[]>(["sift.document.processed"]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: webhooks = [], isLoading, error } = useQuery({
     queryKey: ["webhooks"],
@@ -277,7 +323,22 @@ function WebhooksSection() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteWebhook(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["webhooks"] }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["webhooks"] });
+      const previous = queryClient.getQueryData<Webhook[]>(["webhooks"]);
+      queryClient.setQueryData<Webhook[]>(["webhooks"], (old) =>
+        old?.filter((w) => w.id !== id) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["webhooks"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
+    },
   });
 
   const toggleEvent = (event: string) => {
@@ -329,7 +390,7 @@ function WebhooksSection() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => deleteMutation.mutate(hook.id)}
+                  onClick={() => setConfirmDeleteId(hook.id)}
                   disabled={deleteMutation.isPending}
                   className="shrink-0"
                 >
@@ -392,6 +453,35 @@ function WebhooksSection() {
                   <AlertDescription>{(createMutation.error as Error).message}</AlertDescription>
                 </Alert>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Webhook</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this webhook? You will no longer receive
+              notifications at this endpoint.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (confirmDeleteId) {
+                    deleteMutation.mutate(confirmDeleteId);
+                    setConfirmDeleteId(null);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -1,0 +1,210 @@
+---
+title: CLI
+description: Riferimento completo per la Sifter CLI — installazione, autenticazione e tutti i comandi.
+---
+
+# CLI
+
+La Sifter CLI (`sifter`) permette di gestire sift, cartelle e documenti direttamente dal terminale, integrando l'estrazione AI in script e pipeline CI/CD.
+
+## Installazione
+
+```bash
+npm install -g @sifter-ai/cli
+```
+
+Verifica l'installazione:
+
+```bash
+sifter --help
+```
+
+## Autenticazione
+
+La CLI si autentica tramite variabili d'ambiente. Non è necessario nessun file di configurazione.
+
+```bash
+export SIFTER_API_KEY="sk-..."
+export SIFTER_BASE_URL="https://api.sifter.ai"   # ometti per self-hosted su localhost:8000
+```
+
+Puoi anche passare le credenziali inline per singoli comandi:
+
+```bash
+sifter --api-key sk-... --api-url http://localhost:8000 sifts list
+```
+
+## Flag globali
+
+| Flag | Env var | Default | Descrizione |
+|------|---------|---------|-------------|
+| `--api-key <key>` | `SIFTER_API_KEY` | — | Chiave API (obbligatoria) |
+| `--api-url <url>` | `SIFTER_BASE_URL` | `http://localhost:8000` | URL del server Sifter |
+| `--json` | — | auto su non-TTY | Forza output JSON |
+| `--quiet` | — | `false` | Sopprime log di avanzamento |
+
+## Sifts
+
+### Listare i sifts
+
+```bash
+sifter sifts list [--limit N] [--json]
+```
+
+### Ottenere un sift
+
+```bash
+sifter sifts get <sift_id> [--json]
+```
+
+### Creare un sift
+
+```bash
+sifter sifts create -n "Fatture" -i "cliente, data, importo totale, numero IVA" \
+  [--description "Elaborazione fatture Q1"] [--json]
+```
+
+### Aggiornare un sift
+
+```bash
+sifter sifts update <sift_id> [-n "Nuovo nome"] [-i "Nuove istruzioni"]
+```
+
+### Eliminare un sift
+
+```bash
+sifter sifts delete <sift_id> [-y]   # -y salta la conferma interattiva
+```
+
+### Schema di un sift
+
+Esporta lo schema dedotto dall'AI in vari formati:
+
+```bash
+sifter sifts schema <sift_id> [-f ts|json|pydantic] [--watch]
+```
+
+`--watch` riemette lo schema ogni volta che il sift viene aggiornato.
+
+## Cartelle
+
+Le cartelle raggruppano documenti e possono essere collegate a più sifts.
+
+### Listare le cartelle
+
+```bash
+sifter folders list [--limit N] [--json]
+```
+
+### Creare una cartella
+
+```bash
+sifter folders create -n "Contratti Q1" [--description "..."] [--json]
+```
+
+### Caricare documenti
+
+```bash
+sifter folders upload <folder_id> ./documents/ [--quiet]
+```
+
+Accetta un file singolo o una directory. Il progresso viene mostrato per ciascun file caricato.
+
+### Collegare a un sift
+
+```bash
+sifter folders link <folder_id> <sift_id>
+```
+
+Dopo il collegamento, i documenti della cartella vengono elaborati dal sift.
+
+## Estrazione rapida
+
+Carica file, attendi l'estrazione e stampa i record in un unico comando.
+
+```bash
+sifter extract ./fattura.pdf ./contratto.pdf \
+  --instructions "cliente, data, importo totale" \
+  [--sift <id>]        # riutilizza un sift esistente invece di crearne uno temporaneo
+  [--no-wait]          # ritorna subito senza attendere il completamento
+  [--json]
+  [--quiet]
+```
+
+Esempio pipeline — estrarre e filtrare via `jq`:
+
+```bash
+sifter extract ./invoices/ -i "client, total" --json \
+  | jq '.[] | select(.total > 1000)'
+```
+
+## Record
+
+### Listare i record
+
+```bash
+sifter records list <sift_id> \
+  [--limit N] [--cursor C] \
+  [--filter '{"client": "Acme"}'] \
+  [--json]
+```
+
+### Interrogare in linguaggio naturale
+
+```bash
+sifter records query <sift_id> "totale per cliente" [--json]
+```
+
+### Esportare in CSV
+
+```bash
+sifter records export <sift_id> [-o output.csv]
+```
+
+Se `-o` è omesso, il CSV viene scritto su stdout.
+
+## Codici di uscita
+
+| Codice | Significato |
+|--------|-------------|
+| `0` | Successo |
+| `1` | Errore di utilizzo / validazione (es. API key mancante) |
+| `2` | Errore del server (risposta non 2xx) |
+
+## Esempi
+
+### Workflow base: crea, carica, esporta
+
+```bash
+export SIFTER_API_KEY="sk-..."
+
+# Crea un sift
+SIFT=$(sifter sifts create -n "Fatture" -i "cliente, data, importo" --json | jq -r '.id')
+
+# Carica una cartella di PDF
+sifter extract ./fatture/ --sift $SIFT --quiet
+
+# Esporta i risultati
+sifter records export $SIFT -o fatture.csv
+```
+
+### Pipeline CI/CD
+
+```bash
+# In un job GitHub Actions
+- name: Extract invoices
+  run: |
+    sifter extract ./artifacts/invoices/ \
+      --instructions "vendor, amount, due_date" \
+      --json > records.json
+  env:
+    SIFTER_API_KEY: ${{ secrets.SIFTER_API_KEY }}
+    SIFTER_BASE_URL: ${{ vars.SIFTER_BASE_URL }}
+```
+
+### Schema TypeScript aggiornato in tempo reale
+
+```bash
+# Tieni aggiornato il tipo generato durante lo sviluppo
+sifter sifts schema $SIFT -f ts --watch > src/types/invoice.ts
+```

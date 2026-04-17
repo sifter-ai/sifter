@@ -459,6 +459,10 @@ class FolderHandle:
     def name(self) -> str:
         return self._data.get("name", "")
 
+    @property
+    def path(self) -> str:
+        return self._data.get("path", "")
+
     def on(
         self,
         event: Union[str, list[str]],

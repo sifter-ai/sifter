@@ -5,7 +5,7 @@ on:
     tags: ["v*.*.*"]
 
 jobs:
-  publish:
+  publish-sdk:
     name: "@sifter-ai/sdk"
     runs-on: ubuntu-latest
     steps:
@@ -16,13 +16,36 @@ jobs:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
 
-      - run: npm ci
-        working-directory: code/sdk-ts
-
-      - run: npm run build
+      - run: npm ci && npm run build
         working-directory: code/sdk-ts
 
       - run: npm publish --access public
         working-directory: code/sdk-ts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-cli:
+    name: "@sifter-ai/cli"
+    runs-on: ubuntu-latest
+    needs: publish-sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Replace local SDK dependency with published version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
+        working-directory: code/cli
+
+      - run: npm ci && npm run build
+        working-directory: code/cli
+
+      - run: npm publish --access public
+        working-directory: code/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,136 +1,105 @@
 ---
 title: CLI (`sifter` command)
 status: synced
-version: "1.0"
+version: "2.0"
 last-modified: "2026-04-17T00:00:00.000Z"
 ---
 
 # CLI
 
-`sifter` is the official command-line tool for Sifter. It wraps the Python SDK and covers the common developer workflows — login, sift CRUD, upload, extract, query, export, run the MCP server — without writing any Python.
+`sifter` is the official command-line tool for Sifter. It wraps the TypeScript SDK and covers the common developer workflows — sift CRUD, upload, extract, query, export — without writing any code.
 
 ## Package
 
 | Property | Value |
 |----------|-------|
-| Package name | `sifter-cli` (PyPI) |
+| Package name | `@sifter-ai/cli` (npm) |
 | Location | `code/cli/` |
-| Install | `pip install sifter-cli` — registers the `sifter` entry point |
-| Zero-install | `uvx sifter` |
-| Dependencies | `sifter-ai`, `typer`, `rich`, `tomli`/`tomli_w` |
+| Install | `npm install -g @sifter-ai/cli` — registers the `sifter` entry point |
+| Zero-install | `npx @sifter-ai/cli` |
+| Dependencies | `@sifter-ai/sdk`, `commander`, `chalk`, `cli-table3`, `ora` |
 
 ## Command Surface
 
 ```
-sifter login                              # save api_url + api_key to ~/.sifter/config.toml
-sifter logout
-sifter whoami                             # print active profile (api_url, key fingerprint)
-
 sifter sifts list
 sifter sifts get <sift_id>
 sifter sifts create --name N --instructions "…"
 sifter sifts update <sift_id> --name N --instructions "…"
 sifter sifts delete <sift_id>
-sifter sifts schema <sift_id> [--format pydantic|ts|json] [--watch]
+sifter sifts schema <sift_id> [--format ts|json|pydantic] [--watch]
 
 sifter folders list
 sifter folders create --name N
 sifter folders upload <folder_id> <path>  # file or directory
 sifter folders link <folder_id> <sift_id>
 
-sifter extract <path>… --instructions "…" [--sift <id>] [--wait] [--json|--table]
+sifter extract <path>… --instructions "…" [--sift <id>] [--wait] [--json]
 # one-shot: creates a temp sift (or uses --sift), uploads, waits, prints records
 
 sifter records list <sift_id> [--limit N] [--cursor C] [--filter '<json>']
 sifter records query <sift_id> "natural language question"
 sifter records export <sift_id> --output records.csv
-
-sifter mcp run                            # launch sifter-mcp stdio bound to current profile
 ```
 
 ## Global Flags
 
 | Flag | Purpose |
 |------|---------|
-| `--api-url URL` | Override config |
-| `--api-key KEY` | Override config |
-| `--profile NAME` | Use a named profile from `~/.sifter/config.toml` |
-| `--json` / `--table` | Output format. Default: `--table` on TTY, `--json` otherwise |
-| `--quiet` | Suppress progress spinners |
+| `--api-url URL` | Sifter server URL (default: `SIFTER_BASE_URL` env, fallback `http://localhost:8000`) |
+| `--api-key KEY` | API key (default: `SIFTER_API_KEY` env) |
+| `--json` | Force JSON output (default on non-TTY) |
+| `--quiet` | Suppress progress output |
 
-`SIFTER_API_KEY` env var wins over config when set.
+## Auth
 
-## Config File
+Set `SIFTER_API_KEY` (and optionally `SIFTER_BASE_URL`) in your environment, or pass `--api-key` / `--api-url` per command. There is no config file — credentials live in the environment.
 
-Profiles live in `~/.sifter/config.toml` (created `chmod 600` at first `sifter login`):
-
-```toml
-[default]
-api_url = "http://localhost:8000"
-api_key = "sk-…"
-
-[profile.production]
-api_url = "https://api.sifter.ai"
-api_key = "sk-…"
+```bash
+export SIFTER_API_KEY=sk-...
+export SIFTER_BASE_URL=https://api.sifter.ai  # omit for localhost
+sifter sifts list
 ```
 
 ## Output Formatting
 
-- `--table` — `rich.table.Table`, human-readable.
-- `--json` — raw SDK response; pipeable: `sifter records list $SIFT --json | jq '.items[].total'`.
-- `sifter extract --wait` streams a per-document progress spinner (document IDs → `queued` → `running` → `done`). `--wait=false` returns document IDs immediately.
-
-## Auth Flow
-
-`sifter login` prompts for:
-1. **API URL** — default `https://api.sifter.ai`, with a local suggestion.
-2. **API key** — paste, or follow the printed URL to `/settings/api-keys`.
-
-Device-authorized browser login (`sifter login --browser`) is a future CR.
-
-## Shell Completion
-
-```
-sifter --install-completion zsh    # or bash / fish / pwsh
-```
-
-Typer generates the completion script natively.
+- `--table` — human-readable table (default on TTY).
+- `--json` — raw JSON, pipeable: `sifter records list $SIFT --json | jq '.[].extracted_data.total'`.
+- `sifter extract --wait` polls until processing completes and prints records. `--no-wait` returns the sift ID immediately.
 
 ## Typed Schemas (watch mode)
 
-```
-sifter sifts schema <sift_id> --format pydantic --watch > models.py
+```bash
+sifter sifts schema <sift_id> --format ts --watch > types.ts
 ```
 
-Regenerates the model on `sift.schema.changed` webhook events (see `product/features/server/typed-schemas.md`). Used in dev loops where the schema is still evolving.
+Polls every 5 seconds and re-emits whenever the schema version changes. Used in dev loops where the schema is still evolving.
 
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Usage / config error (missing API key, bad flag) |
-| 2 | Server error (SDK raised) — message printed to stderr |
-| 130 | Interrupted (Ctrl-C) |
+| 1 | Usage error (missing API key, no files found) |
+| 2 | Server error (API returned non-2xx) |
 
 ## MCP Integration
 
-`sifter mcp run` is the simplest way to wire a local Sifter into Claude Desktop / Cursor:
+The MCP server (`sifter-mcp`, Python) is launched separately. For Claude Desktop / Cursor:
 
 ```json
 {
   "mcpServers": {
     "sifter": {
-      "command": "sifter",
-      "args": ["mcp", "run"]
+      "command": "uvx",
+      "args": ["sifter-mcp"],
+      "env": { "SIFTER_API_KEY": "sk-..." }
     }
   }
 }
 ```
 
-Reuses the active CLI profile — no separate env-var setup.
-
 ## Scope
 
-Included: login, sifts, folders, extract, records, mcp, schema emit, shell completion.
+Included: sifts, folders, extract, records, schema emit.  
 Excluded (future): browser device login, Homebrew packaging, interactive TUI, admin/org commands (those belong to the `sifter-cloud` CLI).

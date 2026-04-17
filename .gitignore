@@ -1,4 +1,11 @@
 
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.env
+.venv/
+
 # Generated sample PDFs (run generate_samples.py to recreate)
 code/examples/invoices/
 code/examples/contracts/

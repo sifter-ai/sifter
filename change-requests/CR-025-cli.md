@@ -5,9 +5,11 @@ author: "Bruno Fortunato"
 created-at: "2026-04-17T00:00:00.000Z"
 ---
 
+> **Note:** This CR was originally designed with a Python implementation (typer + rich). The final implementation is TypeScript (`@sifter-ai/cli`, npm), wrapping the TypeScript SDK. Auth uses `SIFTER_API_KEY` env var only (no config file). See `product/features/sdk/cli.md` for the current specification.
+
 ## Summary
 
-New `sifter` command-line tool at `code/cli/`, installable via `pip install sifter-cli` (or `uvx sifter`). Wraps the Python SDK to cover the most common developer workflows: login, sift CRUD, upload, extract, query, export. Matches the de-facto DX standard set by tools like `stripe`, `supabase`, `vercel`.
+New `sifter` command-line tool at `code/cli/`, installable via `npm install -g @sifter-ai/cli` (or `npx @sifter-ai/cli`). Wraps the TypeScript SDK to cover the most common developer workflows: sift CRUD, upload, extract, query, export. Matches the de-facto DX standard set by tools like `stripe`, `supabase`, `vercel`.
 
 ## Motivation
 

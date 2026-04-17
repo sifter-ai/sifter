@@ -15,7 +15,7 @@ Four first-class clients against the public REST API — all shipped from this r
 |--------|---------|----------|---------|
 | Python SDK | `sifter-ai` (PyPI) | `code/sdk/` | Server-side Python integrations, scripts |
 | TypeScript SDK | `@sifter-ai/sdk` (npm) | `code/sdk-ts/` | Node / edge / browser; ESM-only, zero runtime deps, first-class types |
-| CLI | `sifter-cli` (PyPI) / `uvx sifter` | `code/cli/` | Terminal scripting, CI, quick evaluation |
+| CLI | `@sifter-ai/cli` (npm) / `npx @sifter-ai/cli` | `code/cli/` | Terminal scripting, CI, quick evaluation |
 | MCP Server | `sifter-mcp` (PyPI) / `uvx sifter-mcp` | `code/mcp/` | AI agent integration (Claude Desktop, Cursor, custom agents) via Model Context Protocol — read + write + structured query |
 | Zapier App | `@sifter-ai/zapier` (Zapier Developer Platform) | `code/zapier/` | Triggers and actions over the public REST API + webhooks; consumes only public endpoints, no private surface |
 
