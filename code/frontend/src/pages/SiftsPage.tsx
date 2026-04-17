@@ -231,13 +231,17 @@ function SkeletonCard() {
 }
 
 function StatsStrip({ sifts }: { sifts: Sift[] }) {
-  const active = sifts.filter((s) => s.status === "active").length;
   const indexing = sifts.filter((s) => s.status === "indexing").length;
+  const errors = sifts.filter((s) => s.status === "error").length;
   const totalDocs = sifts.reduce((sum, s) => sum + s.processed_documents, 0);
+  const totalFields = sifts.reduce((sum, s) => {
+    if (!s.schema) return sum;
+    return sum + s.schema.split(",").filter(Boolean).length;
+  }, 0);
 
   const stats = [
     {
-      label: "Sifts",
+      label: "Total sifts",
       value: sifts.length,
       icon: Database,
       iconBg: "bg-violet-100 dark:bg-violet-900/40",
@@ -245,30 +249,29 @@ function StatsStrip({ sifts }: { sifts: Sift[] }) {
       accent: "border-l-violet-400",
     },
     {
-      label: "Active",
-      value: active,
+      label: "Indexing now",
+      value: indexing,
       icon: Zap,
-      iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
-      iconColor: "text-emerald-600 dark:text-emerald-400",
-      accent: "border-l-emerald-400",
+      iconBg: "bg-amber-100 dark:bg-amber-900/40",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      accent: indexing > 0 ? "border-l-amber-400" : "border-l-border",
     },
     {
-      label: indexing > 0 ? `Indexing (${indexing})` : "Processing",
+      label: "Docs processed",
       value: totalDocs,
       icon: FolderOpen,
       iconBg: "bg-blue-100 dark:bg-blue-900/40",
       iconColor: "text-blue-600 dark:text-blue-400",
       accent: "border-l-blue-400",
-      sublabel: "docs processed",
     },
     {
-      label: "Records",
-      value: "—",
-      icon: Layers,
-      iconBg: "bg-amber-100 dark:bg-amber-900/40",
-      iconColor: "text-amber-600 dark:text-amber-400",
-      accent: "border-l-amber-400",
-      sublabel: "coming soon",
+      label: errors > 0 ? `${errors} with errors` : "No errors",
+      value: totalFields,
+      icon: errors > 0 ? AlertCircle : Layers,
+      iconBg: errors > 0 ? "bg-red-100 dark:bg-red-900/40" : "bg-emerald-100 dark:bg-emerald-900/40",
+      iconColor: errors > 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
+      accent: errors > 0 ? "border-l-red-400" : "border-l-emerald-400",
+      sublabel: errors > 0 ? "need attention" : "schema fields total",
     },
   ];
 
