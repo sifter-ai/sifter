@@ -1,0 +1,65 @@
+/**
+ * Authenticated fetch wrapper.
+ * Injects Authorization: Bearer <token> header from localStorage.
+ * On 401: clears token and dispatches "sifter:auth-expired" event.
+ */
+
+const TOKEN_KEY = "sifter_token";
+
+export class AuthError extends Error {
+  constructor() {
+    super("Authentication expired");
+    this.name = "AuthError";
+  }
+}
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export async function apiFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = getToken();
+  const headers = new Headers(options.headers);
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    clearToken();
+    window.dispatchEvent(new CustomEvent("sifter:auth-expired"));
+    throw new AuthError();
+  }
+
+  return response;
+}
+
+export async function apiFetchJson<T = unknown>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await apiFetch(url, options);
+  if (!response.ok) {
+    const text = await response.text();
+    let detail = text;
+    try {
+      const json = JSON.parse(text);
+      detail = json.detail || json.message || text;
+    } catch {}
+    throw new Error(detail || `Request failed: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}

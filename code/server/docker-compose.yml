@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - sifter-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SIFTER_MONGODB_URI=mongodb://mongodb:27017
+      - SIFTER_LLM_MODEL=${SIFTER_LLM_MODEL:-openai/gpt-4o}
+      - SIFTER_LLM_API_KEY=${SIFTER_LLM_API_KEY}
+      - SIFTER_PIPELINE_MODEL=${SIFTER_PIPELINE_MODEL:-openai/gpt-4o-mini}
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  sifter-data:

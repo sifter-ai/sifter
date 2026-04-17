@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sifter-mcp"
+version = "0.1.0"
+description = "MCP server for Sifter — read-only access to extracted records for Claude Desktop, Cursor, and AI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "mcp>=1.0.0",
+    "sifter-ai>=0.1.0",
+]
+
+[project.scripts]
+sifter-mcp = "sifter_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://sifter.ai"
+Documentation = "https://docs.sifter.ai/integrations/mcp-server"
+Repository = "https://github.com/bfortunato/sifter"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-mock>=3.14.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+sifter-ai = { path = "../sdk", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
