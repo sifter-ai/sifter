@@ -1,29 +1,35 @@
 """
-Q&A Agent: schema-aware conversational assistant for sift data.
-Used by both /api/chat and /api/sifts/{id}/chat.
+Q&A Agent: agentic chat loop with tool-calling.
+Uses LiteLLM tool-calling to give the LLM access to sift query tools.
 """
 import json
-import re
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import litellm
 import structlog
 
 from ..config import config
-from .aggregation_service import AggregationService
-from .sift_results import SiftResultsService
-from .sift_service import SiftService
+from .agent_tools import AGENT_TOOL_SCHEMAS, AgentToolRunner, ToolCallTrace
 
 logger = structlog.get_logger()
 
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "qa_agent.md"
-_PROMPT_TEMPLATE = _PROMPT_PATH.read_text(encoding="utf-8")
+_SYSTEM_PROMPT = """You are Sifter, an AI assistant that helps users explore and analyze their document data.
 
-# Fallback prompt for global chat (no extraction context)
-_FALLBACK_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "chat_agent.md"
-_FALLBACK_PROMPT = _FALLBACK_PROMPT_PATH.read_text(encoding="utf-8")
+You have tools to query extracted records from documents (invoices, contracts, receipts, reports, etc.).
+
+## Guidelines
+
+- Call `list_sifts` first if you don't know which sift contains the relevant data.
+- Use `query_sift` for most data questions — it translates natural language to queries automatically.
+- Use `aggregate_sift` only when you need precise control over aggregation logic.
+- Use `find_records` for structured filtering without a natural language roundtrip.
+- You can call tools for multiple sifts in sequence to answer cross-sift questions.
+- Provide a clear, concise summary of your findings. Include numbers with context (currency, units) when evident.
+- If no data is found, say so clearly and suggest alternatives.
+"""
+
+MAX_ITERATIONS = 8
 
 
 @dataclass
@@ -31,6 +37,7 @@ class QAResponse:
     response: str
     data: Optional[list[dict[str, Any]]]
     pipeline: Optional[list]
+    trace: list[ToolCallTrace] = field(default_factory=list)
 
 
 async def chat(
@@ -39,89 +46,85 @@ async def chat(
     history: list[dict],
     db,
 ) -> QAResponse:
-    """
-    Main Q&A entrypoint. Accepts optional extraction_id for schema-aware mode.
-    """
-    extraction_svc = SiftService(db)
-    results_svc = SiftResultsService(db)
-    agg_svc = AggregationService(db)
+    runner = AgentToolRunner(db)
+    trace: list[ToolCallTrace] = []
 
-    # Build system prompt with extraction context
+    system_content = _SYSTEM_PROMPT
     if extraction_id:
-        extraction = await extraction_svc.get(extraction_id)
-        if extraction:
-            sample_records = await results_svc.get_sample_records(extraction_id, limit=5)
-            extraction_context = _build_extraction_context(extraction, sample_records)
-            system = _PROMPT_TEMPLATE.replace("{extraction_context}", extraction_context)
-        else:
-            system = _FALLBACK_PROMPT
-            extraction_id = None  # can't query a nonexistent extraction
-    else:
-        # Global chat — list available extractions for context
-        sifts, _ = await extraction_svc.list_all()
-        if sifts:
-            names = ", ".join(f'"{e.name}" (id: {e.id})' for e in sifts[:5])
-            global_context = f"\n## Available Sifts\n{names}\n"
-        else:
-            global_context = "\n## Available Sifts\nNo sifts found.\n"
-        system = _FALLBACK_PROMPT + global_context
+        system_content += f"\n\nThe user is currently viewing sift with ID: {extraction_id}. Prefer this sift when relevant."
 
-    # Build messages
-    messages = [{"role": "system", "content": system}]
+    messages: list[dict] = [{"role": "system", "content": system_content}]
     for msg in history[-10:]:
         messages.append({"role": msg["role"], "content": msg["content"]})
     messages.append({"role": "user", "content": message})
 
-    response = await litellm.acompletion(
-        model=config.pipeline_model,
-        messages=messages,
-        temperature=0.3,
-        api_key=config.llm_api_key or None,
-    )
+    last_data: Optional[list] = None
+    last_pipeline: Optional[list] = None
 
-    raw = response.choices[0].message.content
-    logger.debug("qa_agent_response", raw=raw[:200])
+    for _ in range(MAX_ITERATIONS):
+        response = await litellm.acompletion(
+            model=config.chat_model,
+            messages=messages,
+            tools=AGENT_TOOL_SCHEMAS,
+            tool_choice="auto",
+            temperature=0.3,
+            api_key=config.llm_api_key or None,
+        )
 
-    # Parse structured response
-    try:
-        cleaned = _strip_markdown_fences(raw)
-        data = json.loads(cleaned)
-        response_text = data.get("response", raw)
-        query_used = data.get("query")
-        result_data = data.get("data")
-        pipeline_used = None
+        msg = response.choices[0].message
+        msg_dict: dict = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            msg_dict["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                }
+                for tc in msg.tool_calls
+            ]
+        messages.append(msg_dict)
 
-        # Execute query if provided
-        if query_used and extraction_id:
+        if not msg.tool_calls:
+            return QAResponse(
+                response=msg.content or "",
+                data=last_data,
+                pipeline=last_pipeline,
+                trace=trace,
+            )
+
+        for tc in msg.tool_calls:
             try:
-                results, pipeline_used = await agg_svc.live_query(extraction_id, query_used)
-                result_data = results
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {}
+
+            logger.debug("agent_tool_call", tool=tc.function.name, args=args)
+
+            try:
+                result, call_trace = await runner.call(tc.function.name, args)
+                trace.append(call_trace)
+                if isinstance(result, dict) and "results" in result:
+                    last_data = result["results"]
+                    if "pipeline" in result:
+                        last_pipeline = result["pipeline"]
             except Exception as e:
-                logger.warning("qa_agent_query_failed", error=str(e))
+                logger.warning("agent_tool_error", tool=tc.function.name, error=str(e))
+                result = {"error": str(e)}
 
-        return QAResponse(response=response_text, data=result_data, pipeline=pipeline_used)
-    except (json.JSONDecodeError, AttributeError):
-        return QAResponse(response=raw, data=None, pipeline=None)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": json.dumps(result, default=str),
+            })
 
-
-def _build_extraction_context(extraction, sample_records: list[dict]) -> str:
-    lines = [
-        f"Name: {extraction.name}",
-        f"Instructions: {extraction.instructions}",
-        f"Schema: {extraction.schema or 'not yet inferred'}",
-        f"Documents processed: {extraction.processed_documents}",
-    ]
-    if sample_records:
-        # Show field names from first record
-        first = sample_records[0].get("extracted_data", {})
-        if first:
-            fields = ", ".join(f"{k}: {type(v).__name__}" for k, v in list(first.items())[:10])
-            lines.append(f"Sample fields: {fields}")
-    return "\n".join(lines)
-
-
-def _strip_markdown_fences(text: str) -> str:
-    text = text.strip()
-    text = re.sub(r"^```(?:json)?\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
-    return text.strip()
+    # Exceeded max iterations — return last assistant content
+    last_msg = next(
+        (m for m in reversed(messages) if m["role"] == "assistant" and m.get("content")),
+        None,
+    )
+    return QAResponse(
+        response=(last_msg["content"] if last_msg else "I couldn't complete the analysis."),
+        data=last_data,
+        pipeline=last_pipeline,
+        trace=trace,
+    )

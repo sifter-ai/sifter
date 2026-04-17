@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChatInterface } from "@/components/ChatInterface";
 import { useSifts } from "@/hooks/useExtractions";
 
 export function ChatPage() {
-  const [selectedSiftId, setSelectedSiftId] = useState<string | undefined>();
   const { data: sifts } = useSifts();
+  const siftCount = sifts?.length ?? 0;
 
   return (
     <div className="h-full flex flex-col">
@@ -17,21 +16,10 @@ export function ChatPage() {
           <h1 className="text-lg font-semibold">Chat</h1>
           <p className="text-muted-foreground text-xs">Ask questions about your extracted data</p>
         </div>
-        {sifts && sifts.length > 0 && (
-          <div className="ml-auto flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">Sift:</label>
-            <select
-              className="flex h-8 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={selectedSiftId ?? ""}
-              onChange={(e) => setSelectedSiftId(e.target.value || undefined)}
-            >
-              <option value="">Auto-detect</option>
-              {sifts.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
+        {siftCount > 0 && (
+          <div className="ml-auto flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/5 px-3 py-1 text-xs text-amber-600 dark:text-amber-400">
+            <Sparkles className="h-3 w-3" />
+            <span>Agent · {siftCount} sift{siftCount !== 1 ? "s" : ""} available</span>
           </div>
         )}
       </div>
@@ -40,7 +28,7 @@ export function ChatPage() {
       <div className="flex-1 overflow-hidden">
         <Card className="h-full rounded-none border-0">
           <CardContent className="p-0 h-full">
-            <ChatInterface siftId={selectedSiftId} height="100%" />
+            <ChatInterface height="100%" />
           </CardContent>
         </Card>
       </div>

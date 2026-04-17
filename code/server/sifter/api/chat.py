@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,11 +23,19 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = []
 
 
+class ToolCallTraceOut(BaseModel):
+    tool: str
+    args: dict[str, Any]
+    result_preview: str
+    duration_ms: int
+
+
 class ChatResponse(BaseModel):
     response: str
     data: Optional[list[dict]] = None
     query: Optional[str] = None
     pipeline: Optional[list] = None
+    trace: list[ToolCallTraceOut] = []
 
 
 @router.post("", response_model=ChatResponse)
@@ -52,4 +60,13 @@ async def chat(
         response=result.response,
         data=result.data,
         pipeline=result.pipeline,
+        trace=[
+            ToolCallTraceOut(
+                tool=t.tool,
+                args=t.args,
+                result_preview=t.result_preview,
+                duration_ms=t.duration_ms,
+            )
+            for t in result.trace
+        ],
     )

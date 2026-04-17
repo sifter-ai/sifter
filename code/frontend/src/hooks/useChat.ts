@@ -20,6 +20,7 @@ export function useChat(extractionId?: string) {
         content: response.response,
         data: response.data,
         pipeline: response.pipeline,
+        trace: response.trace,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (e) {
