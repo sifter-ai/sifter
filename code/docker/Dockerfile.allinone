@@ -1,0 +1,47 @@
+# Stage 1: Build React frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /build/frontend
+COPY code/frontend/package*.json ./
+RUN npm ci
+COPY code/frontend/ ./
+RUN npm run build
+
+# Stage 2: All-in-one runtime (MongoDB + Python API + built frontend)
+FROM python:3.12-slim AS runtime
+
+# System dependencies: MongoDB 7, pymupdf, supervisord
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg curl ca-certificates supervisor \
+    libmupdf-dev libffi-dev libssl-dev \
+    && curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc \
+       | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+    && echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] \
+       https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
+       > /etc/apt/sources.list.d/mongodb-org-7.0.list \
+    && apt-get update && apt-get install -y --no-install-recommends mongodb-org \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN pip install --no-cache-dir uv
+
+# Install Python dependencies
+WORKDIR /app/server
+COPY code/server/pyproject.toml code/server/uv.lock* ./
+RUN uv sync --no-dev --frozen || uv sync --no-dev
+
+# Copy server source
+COPY code/server/ ./
+
+# Copy built frontend into the server's static path
+COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+
+# Copy supervisord config and entrypoint
+COPY code/docker/supervisord.conf /etc/supervisor/conf.d/sifter.conf
+COPY code/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Data volume for MongoDB
+VOLUME ["/data"]
+EXPOSE 8000
+
+ENTRYPOINT ["/entrypoint.sh"]
