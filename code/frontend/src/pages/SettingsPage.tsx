@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart2,
   ClipboardList,
   Code2,
   Copy,
@@ -81,9 +80,6 @@ export default function SettingsPage() {
               <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cloud</p>
               <NavLink to="/settings/billing" className={settingsNavClass}>
                 <CreditCard className="h-4 w-4 shrink-0" />Billing
-              </NavLink>
-              <NavLink to="/settings/usage" className={settingsNavClass}>
-                <BarChart2 className="h-4 w-4 shrink-0" />Usage
               </NavLink>
               <NavLink to="/settings/audit" className={settingsNavClass}>
                 <ClipboardList className="h-4 w-4 shrink-0" />Audit log

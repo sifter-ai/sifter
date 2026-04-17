@@ -45,6 +45,44 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   canceled: { label: "Canceled", cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
 };
 
+// ─── UsageRow ────────────────────────────────────────────────────────────────
+
+function UsageRow({
+  label,
+  display,
+  bar,
+}: {
+  label: string;
+  value: number;
+  limit: number | null;
+  display: string;
+  bar: { pct: number | null; color: string };
+}) {
+  const { pct, color } = bar;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-foreground/60 font-medium">{label}</span>
+        <span className="text-foreground/70 tabular-nums">
+          {display}
+          {pct !== null && pct >= 80 && (
+            <span className={`ml-2 font-semibold ${pct >= 100 ? "text-destructive" : "text-amber-500"}`}>
+              {Math.round(pct)}%
+            </span>
+          )}
+        </span>
+      </div>
+      <div className="h-[3px] rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+        {pct !== null ? (
+          <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${pct}%` }} />
+        ) : (
+          <div className="h-full w-full bg-primary/15 rounded-full" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
@@ -73,15 +111,26 @@ export default function BillingPage() {
   const currentPlan = PLANS.find((p) => p.code === sub?.plan_code) ?? PLANS[0];
   const currentIdx  = PLANS.indexOf(currentPlan);
 
-  // Progress bar
-  const used  = usage?.docs_processed ?? 0;
-  const limit = usage?.docs_limit;
-  const pct   = limit ? Math.min(100, (used / limit) * 100) : null;
-  const barColor =
-    pct === null     ? "bg-primary"
-    : pct >= 100     ? "bg-destructive"
-    : pct >= 80      ? "bg-amber-500"
-    : "bg-primary";
+  // Usage helpers
+  function usageBar(value: number, limit: number | null) {
+    const pct = limit ? Math.min(100, (value / limit) * 100) : null;
+    const color =
+      pct === null  ? "bg-primary"
+      : pct >= 100  ? "bg-destructive"
+      : pct >= 80   ? "bg-amber-500"
+      : "bg-primary";
+    return { pct, color };
+  }
+
+  function fmtBytes(b: number) {
+    if (b >= 1_073_741_824) return `${(b / 1_073_741_824).toFixed(1)} GB`;
+    if (b >= 1_048_576)     return `${(b / 1_048_576).toFixed(1)} MB`;
+    return `${Math.round(b / 1024)} KB`;
+  }
+
+  const docsBar     = usageBar(usage?.docs_processed ?? 0, usage?.docs_limit ?? null);
+  const siftsBar    = usageBar(usage?.sifts_count ?? 0,    usage?.sifts_limit ?? null);
+  const storageBar  = usageBar(usage?.storage_bytes ?? 0,  usage?.storage_limit_mb ? usage.storage_limit_mb * 1_048_576 : null);
 
   return (
     <div className="space-y-8">
@@ -130,28 +179,30 @@ export default function BillingPage() {
             </Button>
           </div>
 
-          {/* Docs usage */}
-          {pct !== null && (
-            <div className="space-y-1.5">
-              <div className="h-[3px] rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-foreground/70">
-                  <span className="font-semibold tabular-nums">{used.toLocaleString()}</span>
-                  {" / "}
-                  <span className="tabular-nums">{limit?.toLocaleString()}</span>
-                  {" docs this month"}
-                </span>
-                {pct >= 80 && (
-                  <span className={`font-semibold ${pct >= 100 ? "text-destructive" : "text-amber-600"}`}>
-                    {Math.round(pct)}% used
-                  </span>
-                )}
-              </div>
+          {/* Usage metrics */}
+          {usage && (
+            <div className="space-y-3 pt-1">
+              <UsageRow
+                label="Documents"
+                value={usage.docs_processed}
+                limit={usage.docs_limit}
+                display={`${(usage.docs_processed).toLocaleString()} / ${usage.docs_limit?.toLocaleString() ?? "∞"} this month`}
+                bar={docsBar}
+              />
+              <UsageRow
+                label="Sifts"
+                value={usage.sifts_count}
+                limit={usage.sifts_limit}
+                display={`${usage.sifts_count} / ${usage.sifts_limit ?? "∞"}`}
+                bar={siftsBar}
+              />
+              <UsageRow
+                label="Storage"
+                value={usage.storage_bytes}
+                limit={usage.storage_limit_mb ? usage.storage_limit_mb * 1_048_576 : null}
+                display={`${fmtBytes(usage.storage_bytes)} / ${usage.storage_limit_mb ? fmtBytes(usage.storage_limit_mb * 1_048_576) : "∞"}`}
+                bar={storageBar}
+              />
             </div>
           )}
         </div>

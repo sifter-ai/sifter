@@ -40,7 +40,6 @@ const SidebarPlanWidget = lazy(() =>
 
 // Cloud pages — lazy loaded so they don't affect OSS bundle size
 const BillingPage = lazy(() => import("@/pages/cloud/BillingPage"));
-const UsagePage = lazy(() => import("@/pages/cloud/UsagePage"));
 const AuditLogPage = lazy(() => import("@/pages/cloud/AuditLogPage"));
 const ConnectorsPage = lazy(() => import("@/pages/cloud/ConnectorsPage"));
 const ConnectorCallbackPage = lazy(() => import("@/pages/cloud/ConnectorCallbackPage"));
@@ -189,7 +188,6 @@ function CloudRoutes() {
   return (
     <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading…</div>}>
       <Route path="/settings/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-      <Route path="/settings/usage" element={<ProtectedRoute><UsagePage /></ProtectedRoute>} />
       <Route path="/settings/audit" element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
       <Route path="/settings/connectors" element={<ProtectedRoute><ConnectorsPage /></ProtectedRoute>} />
       <Route path="/settings/shares" element={<ProtectedRoute><SharesPage /></ProtectedRoute>} />
@@ -240,7 +238,6 @@ function AppRoutes() {
                 {mode === "cloud" && (
                   <>
                     <Route path="billing" element={<BillingPage />} />
-                    <Route path="usage" element={<UsagePage />} />
                     <Route path="audit" element={<AuditLogPage />} />
                     <Route path="connectors" element={<ConnectorsPage />} />
                     <Route path="shares" element={<SharesPage />} />

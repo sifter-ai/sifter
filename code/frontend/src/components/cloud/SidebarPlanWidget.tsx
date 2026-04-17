@@ -48,7 +48,7 @@ export function SidebarPlanWidget() {
 
   return (
     <Link
-      to="/settings/usage"
+      to="/settings/billing"
       className="group mx-2 mb-1 block rounded-lg px-2.5 py-2.5 hover:bg-muted/60 transition-colors"
     >
       {/* Plan name + upgrade */}
