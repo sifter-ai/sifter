@@ -237,7 +237,16 @@ class SiftService:
         doc_id = document_id or str(uuid4())
         stored: list[SiftResult] = []
 
+        from .citation_resolver import resolve_citations
+
         for idx, record_data in enumerate(result.extracted_data):
+            citations = None
+            if result.page_blocks:
+                try:
+                    citations = resolve_citations(doc_id, record_data, result.page_blocks)
+                except Exception as e:
+                    logger.warning("citation_resolution_failed", error=str(e))
+
             s = await self.results_service.insert_result(
                 sift_id=sift_id,
                 document_id=doc_id,
@@ -245,6 +254,7 @@ class SiftService:
                 document_type=result.document_type,
                 confidence=result.confidence,
                 extracted_data=record_data,
+                citations=citations,
                 record_index=idx,
             )
             stored.append(s)
