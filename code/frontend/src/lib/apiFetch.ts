@@ -13,6 +13,19 @@ export class AuthError extends Error {
   }
 }
 
+export class PlanLimitError extends Error {
+  code: string;
+  plan: string;
+  upgrade_url: string;
+  constructor(detail: { code: string; plan: string; upgrade_url: string }) {
+    super(`Plan limit: ${detail.code}`);
+    this.name = "PlanLimitError";
+    this.code = detail.code;
+    this.plan = detail.plan;
+    this.upgrade_url = detail.upgrade_url;
+  }
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -54,12 +67,19 @@ export async function apiFetchJson<T = unknown>(
   const response = await apiFetch(url, options);
   if (!response.ok) {
     const text = await response.text();
-    let detail = text;
     try {
       const json = JSON.parse(text);
-      detail = json.detail || json.message || text;
-    } catch {}
-    throw new Error(detail || `Request failed: ${response.status}`);
+      if (response.status === 402 && json.detail?.error === "plan_limit") {
+        const err = new PlanLimitError(json.detail);
+        window.dispatchEvent(new CustomEvent("sifter:plan-limit", { detail: json.detail }));
+        throw err;
+      }
+      const detail = json.detail || json.message || text;
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    } catch (e) {
+      if (e instanceof PlanLimitError || e instanceof AuthError) throw e;
+      throw new Error(text || `Request failed: ${response.status}`);
+    }
   }
   return response.json() as Promise<T>;
 }

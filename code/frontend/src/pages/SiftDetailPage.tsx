@@ -35,6 +35,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { RecordsTable } from "@/components/RecordsTable";
 import { QueryPanel } from "@/components/QueryPanel";
 import { ChatInterface } from "@/components/ChatInterface";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   useAggregations,
   useCreateAggregation,
@@ -103,6 +104,7 @@ function AggregationCard({
   siftId: string;
 }) {
   const [result, setResult] = useState<AggregationResult | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const runMutation = useRunAggregation(siftId);
   const regenerateMutation = useRegenerateAggregation(siftId);
   const deleteMutation = useDeleteAggregation(siftId);
@@ -150,7 +152,7 @@ function AggregationCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => deleteMutation.mutate(agg.id)}
+            onClick={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending}
             className="h-7 px-2 text-destructive hover:text-destructive"
           >
@@ -158,6 +160,18 @@ function AggregationCard({
           </Button>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete aggregation?"
+        description={<>
+          <strong>{agg.name}</strong> will be permanently removed.
+        </>}
+        confirmLabel="Delete aggregation"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(agg.id, { onSuccess: () => setConfirmDelete(false) })}
+      />
       {agg.description && (
         <p className="text-xs text-muted-foreground">{agg.description}</p>
       )}

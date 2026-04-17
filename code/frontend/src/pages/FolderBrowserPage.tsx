@@ -373,64 +373,27 @@ export default function FolderBrowserPage() {
   };
 
   return (
-    <div className="flex h-full">
-      {/* ---- Left panel: folder tree ---- */}
-      <div className="w-52 border-r flex flex-col shrink-0 bg-card">
-        <div className="p-2 flex-1 overflow-y-auto">
-          {/* All Documents */}
+    <div className="flex flex-col h-full bg-background">
+      {/* Unified top rail — mirrors CloudChatPage for visual consistency between submenu pages */}
+      <header className="flex h-14 shrink-0 border-b">
+        {/* Left slot: matches sidebar width + bg so the sidebar column reads as one continuous strip top-to-bottom */}
+        <div className="w-60 shrink-0 flex items-center px-3 border-r bg-muted/20">
           <button
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all w-full text-left border-l-2 mb-0.5 ${
-              isAllDocs
-                ? "bg-primary/10 font-medium text-foreground border-primary pl-[10px]"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent pl-[10px]"
-            }`}
-            onClick={() => navigate("/folders")}
-          >
-            All Documents
-          </button>
-
-          {foldersLoading ? (
-            <div className="space-y-1 mt-1 px-1">
-              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
-            </div>
-          ) : (
-            <div className="mt-0.5">
-              {folderTree.map((node) => (
-                <FolderTreeItem
-                  key={node.folder.id}
-                  node={node}
-                  activeFolderId={folderId}
-                  expanded={effectiveExpanded}
-                  onToggle={handleToggle}
-                  onSelect={(id) => navigate(`/folders/${id}`)}
-                  depth={0}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* New Folder */}
-        <div className="p-2 border-t border-border/50">
-          <button
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors w-full text-left text-muted-foreground hover:text-foreground hover:bg-muted/60"
             onClick={() => openCreateDialog(null)}
+            className="group relative w-full h-9 rounded-lg overflow-hidden bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all hover:-translate-y-px active:translate-y-0 active:shadow-sm"
           >
-            <Plus className="h-3.5 w-3.5 shrink-0" />
-            New Folder
+            <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Plus className="h-3.5 w-3.5 relative transition-transform group-hover:rotate-90" />
+            <span className="relative">New folder</span>
           </button>
         </div>
-      </div>
 
-      {/* ---- Right panel ---- */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b flex-wrap min-h-[48px]">
-          {/* Breadcrumb / rename */}
+        {/* Right slot: breadcrumb + contextual actions */}
+        <div className="flex-1 flex items-center gap-2 px-5 min-w-0">
           {folderId && editingName ? (
-            <div className="flex items-center gap-2 mr-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <Input
-                className="h-7 text-sm w-44"
+                className="h-8 text-sm w-56"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -439,109 +402,165 @@ export default function FolderBrowserPage() {
                 }}
                 autoFocus
               />
-              <Button size="sm" className="h-7 px-2 text-xs"
+              <Button size="sm" className="h-8 px-3 text-xs"
                 onClick={() => nameInput.trim() && renameMutation.mutate(nameInput.trim())}
                 disabled={renameMutation.isPending || !nameInput.trim()}
               >
-                {renameMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                {renameMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingName(false)}>
+              <Button size="sm" variant="ghost" className="h-8 px-3 text-xs" onClick={() => setEditingName(false)}>
                 Cancel
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1 mr-2 min-w-0">
-              {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+              <span className="text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
+                Folders
+              </span>
               {breadcrumbPath.length > 0 ? (
-                <div className="flex items-center gap-0.5 text-sm flex-wrap">
-                  <button
-                    className="text-muted-foreground hover:text-foreground transition-colors text-xs"
-                    onClick={() => navigate("/folders")}
-                  >
-                    Folders
-                  </button>
-                  {breadcrumbPath.map((bc, i) => (
-                    <span key={bc.id} className="flex items-center gap-0.5">
-                      <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                      {i === breadcrumbPath.length - 1 ? (
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-foreground text-sm">{bc.name}</span>
-                          <button
-                            className="text-muted-foreground/50 hover:text-foreground transition-colors"
-                            onClick={() => { setNameInput(bc.name); setEditingName(true); }}
-                            title="Rename"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="text-muted-foreground hover:text-foreground transition-colors text-xs"
-                          onClick={() => navigate(`/folders/${bc.id}`)}
-                        >
-                          {bc.name}
-                        </button>
-                      )}
+                <>
+                  {breadcrumbPath.slice(0, -1).map((bc) => (
+                    <span key={bc.id} className="flex items-center gap-1.5 shrink-0 min-w-0">
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+                      <button
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
+                        onClick={() => navigate(`/folders/${bc.id}`)}
+                      >
+                        {bc.name}
+                      </button>
                     </span>
                   ))}
-                </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                  <span className="text-sm font-semibold tracking-tight text-foreground truncate">
+                    {breadcrumbPath[breadcrumbPath.length - 1].name}
+                  </span>
+                  <button
+                    className="text-muted-foreground/50 hover:text-foreground transition-colors p-1 rounded shrink-0"
+                    onClick={() => {
+                      const last = breadcrumbPath[breadcrumbPath.length - 1];
+                      setNameInput(last.name);
+                      setEditingName(true);
+                    }}
+                    title="Rename"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                </>
               ) : (
-                <span className="text-sm font-medium text-muted-foreground">All Documents</span>
+                <>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                  <span className="text-sm font-semibold tracking-tight text-foreground truncate">
+                    All Documents
+                  </span>
+                </>
               )}
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 ml-auto">
-            <Button variant="outline" size="sm" className="h-7 flex items-center gap-1 text-xs"
-              onClick={() => setShowUpload(true)} disabled={folders.length === 0}
-            >
-              <Upload className="h-3 w-3" /> Upload
-            </Button>
-            {folderId && (
-              <Button variant="outline" size="sm" className="h-7 flex items-center gap-1 text-xs"
-                onClick={() => openCreateDialog(folderId)}
-                title="New subfolder"
-              >
-                <Plus className="h-3 w-3" /> Subfolder
-              </Button>
-            )}
-            <Button variant="outline" size="sm" className="h-7 flex items-center gap-1 text-xs"
-              onClick={() => openCreateDialog(null)}
-            >
-              <Plus className="h-3 w-3" /> Folder
-            </Button>
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-7 w-36 pl-6 pr-2 text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            {folderId && (
+          {/* Right-side action cluster */}
+          {!editingName && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 w-40 pl-8 pr-2.5 text-xs rounded-md border border-input bg-background placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-shadow"
+                />
+              </div>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={handleDeleteFolder}
-                disabled={deleteMutation.isPending}
-                title="Delete folder"
+                className="h-8 gap-1.5 text-xs"
+                onClick={() => setShowUpload(true)}
+                disabled={folders.length === 0}
               >
-                {deleteMutation.isPending
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Trash2 className="h-3.5 w-3.5" />
-                }
+                <Upload className="h-3.5 w-3.5" /> Upload
               </Button>
-            )}
-          </div>
+              {folderId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => openCreateDialog(folderId)}
+                  title="New subfolder"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Subfolder
+                </Button>
+              )}
+              {folderId && (
+                <button
+                  onClick={handleDeleteFolder}
+                  disabled={deleteMutation.isPending}
+                  className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors shrink-0 disabled:opacity-50"
+                  title="Delete folder"
+                >
+                  {deleteMutation.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Trash2 className="h-4 w-4" />
+                  }
+                </button>
+              )}
+            </div>
+          )}
         </div>
+      </header>
 
-        {/* Linked sifts bar */}
+      {/* Body: folder tree sidebar + main panel */}
+      <div className="flex flex-1 min-h-0">
+        {/* Folder tree sidebar */}
+        <aside className="w-60 shrink-0 border-r flex flex-col bg-muted/20">
+          <nav className="flex-1 overflow-y-auto p-2">
+            <div className="space-y-0.5">
+              {/* All Documents */}
+              <button
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all w-full text-left border-l-2 ${
+                  isAllDocs
+                    ? "bg-primary/10 font-medium text-foreground border-primary pl-[10px]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent pl-[10px]"
+                }`}
+                onClick={() => navigate("/folders")}
+              >
+                <FolderIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                <span className="truncate flex-1">All Documents</span>
+              </button>
+
+              {foldersLoading ? (
+                <div className="space-y-1 mt-1 px-1">
+                  {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+                </div>
+              ) : folders.length === 0 ? (
+                <div className="px-3 py-8 text-center space-y-2">
+                  <FolderIcon className="h-5 w-5 mx-auto text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                    Your folders<br />will appear here
+                  </p>
+                </div>
+              ) : (
+                folderTree.map((node) => (
+                  <FolderTreeItem
+                    key={node.folder.id}
+                    node={node}
+                    activeFolderId={folderId}
+                    expanded={effectiveExpanded}
+                    onToggle={handleToggle}
+                    onSelect={(id) => navigate(`/folders/${id}`)}
+                    depth={0}
+                  />
+                ))
+              )}
+            </div>
+          </nav>
+        </aside>
+
+        {/* Main panel */}
+        <div className="flex-1 flex flex-col min-w-0">
+        {/* Linked sifts bar — folder-specific secondary header */}
         {folderId && (
-          <div className="px-4 py-2 border-b bg-muted/20 flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Linked Sifts</span>
+          <div className="px-5 py-2 border-b bg-muted/20 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.14em]">Linked Sifts</span>
             {folder?.extractors?.length === 0 && !folder?.inherited_extractors?.length ? (
               <span className="text-xs text-muted-foreground/60">None</span>
             ) : (
@@ -681,7 +700,6 @@ export default function FolderBrowserPage() {
                     {filteredDocs.map((doc) => (
                       <DocumentRow key={doc.id} doc={doc} allSifts={allSifts}
                         onOpen={() => navigate(`/documents/${doc.id}`)}
-                        onChat={() => navigate("/chat")}
                       />
                     ))}
                   </div>
@@ -689,6 +707,7 @@ export default function FolderBrowserPage() {
               </>
             )
           )}
+        </div>
         </div>
       </div>
 
@@ -764,10 +783,9 @@ interface DocumentRowProps {
   doc: DocumentWithStatuses;
   allSifts: Array<{ id: string; name: string; description?: string }>;
   onOpen: () => void;
-  onChat: () => void;
 }
 
-function DocumentRow({ doc, allSifts, onOpen, onChat }: DocumentRowProps) {
+function DocumentRow({ doc, allSifts, onOpen }: DocumentRowProps) {
   const agg = aggregateStatus(doc.sift_statuses ?? []);
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-primary/[0.03] transition-colors group cursor-pointer"
@@ -794,8 +812,6 @@ function DocumentRow({ doc, allSifts, onOpen, onChat }: DocumentRowProps) {
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-          onClick={onChat}>Chat</Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">

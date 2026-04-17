@@ -122,11 +122,19 @@ export interface CreateAggregationPayload {
 
 // ---- Chat ----
 
+export interface ToolCallTrace {
+  tool: string;
+  args: Record<string, unknown>;
+  result_preview: string;
+  duration_ms: number;
+}
+
 export interface ChatResponse {
   response: string;
   data: Record<string, unknown>[] | null;
   query: string | null;
   pipeline: Record<string, unknown>[] | null;
+  trace?: ToolCallTrace[];
 }
 
 export interface ChatMessage {
@@ -134,6 +142,7 @@ export interface ChatMessage {
   content: string;
   data?: Record<string, unknown>[] | null;
   pipeline?: Record<string, unknown>[] | null;
+  trace?: ToolCallTrace[];
 }
 
 // ---- Folders & Documents ----

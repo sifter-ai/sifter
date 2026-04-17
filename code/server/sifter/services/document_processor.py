@@ -127,9 +127,8 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
 
             logger.info("document_processed", document_id=document_id, sift_id=sift_id)
 
-            # Record usage (no-op in OSS; cloud overrides get_usage_limiter)
-            from .limits import NoopLimiter
-            await NoopLimiter().record_processed(org_id="default", doc_count=1)
+            from .limits import get_usage_limiter, _default_org_id
+            await get_usage_limiter().record_processed(org_id=_default_org_id, doc_count=1)
 
             await _dispatch_webhook(
                 db=db,

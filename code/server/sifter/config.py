@@ -10,9 +10,23 @@ class SifterConfig(BaseSettings):
     mongodb_database: str = "sifter"
 
     # AI Provider (via LiteLLM)
-    llm_model: str = "openai/gpt-4o"
+    # `default_model` is the single fallback used when a task-specific model is
+    # not set. Set task-specific overrides only when you need a different model
+    # for that concern (e.g. a vision-capable model for extraction).
+    default_model: str = "vertex_ai/gemini-2.5-flash"
     llm_api_key: str = ""
-    pipeline_model: str = "openai/gpt-4o-mini"
+
+    # Task-specific models. Empty string ⇒ fall back to `default_model`.
+    llm_model: str = ""          # extraction (PDFs/images → structured data)
+    pipeline_model: str = ""     # NL query → MongoDB aggregation pipeline
+    chat_model: str = ""         # conversational Q&A agent
+    dashboard_model: str = ""    # dashboard widget-generation agent
+
+    def model_post_init(self, __context) -> None:
+        # Resolve empty task models to the default, so call sites can just read them.
+        for name in ("llm_model", "pipeline_model", "chat_model", "dashboard_model"):
+            if not getattr(self, name):
+                object.__setattr__(self, name, self.default_model)
 
     # Sift defaults
     extraction_temperature: float = 0.2

@@ -11,12 +11,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .api import aggregations, auth, chat, config as config_api, documents, enterprise, sifts, folders, keys, webhooks
+from .api import aggregations, auth, chat, config as config_api, dashboards, documents, enterprise, sifts, folders, keys, webhooks
 from .config import config
 from .db import close as close_db, get_db
 from .limiter import limiter
 from .services.aggregation_service import AggregationService
 from .services.api_key_service import ApiKeyService
+from .services.dashboard_service import DashboardService
 from .services.document_processor import ensure_indexes as ensure_queue_indexes, start_workers
 from .services.document_service import DocumentService
 from .services.sift_service import SiftService
@@ -59,6 +60,7 @@ async def lifespan(app: FastAPI):
     await DocumentService(db).ensure_indexes()
     await WebhookService(db).ensure_indexes()
     await ensure_queue_indexes(db)
+    await DashboardService(db).ensure_indexes()
 
     # Start background document processing workers
     _worker_tasks = start_workers(config.max_workers, db)
@@ -121,6 +123,7 @@ app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(webhooks.router)
 app.include_router(enterprise.router)
+app.include_router(dashboards.router)
 
 
 @app.get("/health")
