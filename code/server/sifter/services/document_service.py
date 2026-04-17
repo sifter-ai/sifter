@@ -140,6 +140,9 @@ class DocumentService:
                 folder = Folder(name=segment, description="", parent_id=parent_id, path=current_path)
                 result = await self.db["folders"].insert_one(folder.to_mongo())
                 folder.id = str(result.inserted_id)
+                if parent_id:
+                    for sid in await self.collect_effective_sift_ids(parent_id):
+                        await self.link_extractor(folder.id, sid)
             parent_id = folder.id
 
         return folder  # type: ignore[return-value]
@@ -168,6 +171,56 @@ class DocumentService:
         await self.db["folder_extractors"].delete_many({"folder_id": folder_id})
         result = await self.db["folders"].delete_one({"_id": ObjectId(folder_id)})
         return result.deleted_count > 0
+
+    async def get_subfolder_ids(self, folder_id: str) -> list[str]:
+        result: list[str] = []
+        children = await self.db["folders"].find({"parent_id": folder_id}).to_list(length=None)
+        for child in children:
+            child_id = str(child["_id"])
+            result.append(child_id)
+            result.extend(await self.get_subfolder_ids(child_id))
+        return result
+
+    async def collect_effective_sift_ids(self, folder_id: str) -> list[str]:
+        """Collect sift IDs from this folder and all ancestor folders (max depth 10)."""
+        seen: set[str] = set()
+        sift_ids: list[str] = []
+        current_id: Optional[str] = folder_id
+        for _ in range(10):
+            if not current_id:
+                break
+            links = await self.list_folder_extractors(current_id)
+            for link in links:
+                if link.sift_id not in seen:
+                    seen.add(link.sift_id)
+                    sift_ids.append(link.sift_id)
+            folder = await self.get_folder(current_id)
+            if not folder or not folder.parent_id:
+                break
+            current_id = folder.parent_id
+        return sift_ids
+
+    async def list_inherited_extractors(self, folder_id: str) -> list[FolderSift]:
+        """Return sift links inherited from parent/ancestor folders (not directly linked)."""
+        direct_ids = {l.sift_id for l in await self.list_folder_extractors(folder_id)}
+        inherited: list[FolderSift] = []
+        current_id: Optional[str] = None
+        folder = await self.get_folder(folder_id)
+        if folder and folder.parent_id:
+            current_id = folder.parent_id
+        for _ in range(10):
+            if not current_id:
+                break
+            links = await self.list_folder_extractors(current_id)
+            for link in links:
+                if link.sift_id not in direct_ids:
+                    inherited.append(link)
+                    direct_ids.add(link.sift_id)
+            parent = await self.get_folder(current_id)
+            if not parent or not parent.parent_id:
+                break
+            current_id = parent.parent_id
+        return inherited
 
     # ---- Folder ↔ Sift links ----
 

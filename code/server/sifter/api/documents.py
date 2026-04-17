@@ -108,8 +108,7 @@ async def reprocess_document(
     if body.sift_id:
         sift_ids = [body.sift_id]
     else:
-        links = await svc.list_folder_extractors(doc.folder_id)
-        sift_ids = [l.sift_id for l in links]
+        sift_ids = await svc.collect_effective_sift_ids(doc.folder_id)
 
     if not sift_ids:
         raise HTTPException(status_code=400, detail="No sifts linked to this document's folder")

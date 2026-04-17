@@ -1,6 +1,7 @@
 from typing import Optional
 
 import structlog
+from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
 
@@ -16,6 +17,49 @@ from ..storage import get_storage_backend
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/folders", tags=["folders"])
+
+
+async def _do_link_and_propagate(
+    svc: DocumentService,
+    db,
+    folder_id: str,
+    sift_id: str,
+):
+    """Link sift to folder + all subfolders, enqueue existing docs. Returns (link, enqueued, subfolder_count)."""
+    link = await svc.link_extractor(folder_id, sift_id)
+    subfolder_ids = await svc.get_subfolder_ids(folder_id)
+    for sub_id in subfolder_ids:
+        await svc.link_extractor(sub_id, sift_id)
+
+    enqueued = 0
+    for fid in [folder_id] + subfolder_ids:
+        docs = await db["documents"].find({"folder_id": fid}).to_list(length=None)
+        for doc in docs:
+            doc_id = str(doc["_id"])
+            storage_path = doc.get("storage_path")
+            if not storage_path:
+                continue
+            if await db["document_sift_statuses"].find_one({"document_id": doc_id, "sift_id": sift_id}):
+                continue
+            await svc.create_sift_status(doc_id, sift_id)
+            await enqueue(doc_id, sift_id, storage_path)
+            enqueued += 1
+
+    if enqueued > 0:
+        await db["sifts"].update_one(
+            {"_id": ObjectId(sift_id)},
+            {"$inc": {"total_documents": enqueued}, "$set": {"status": "indexing"}},
+        )
+
+    return link, enqueued, len(subfolder_ids)
+
+
+async def _do_unlink_and_propagate(svc: DocumentService, folder_id: str, sift_id: str) -> bool:
+    """Unlink sift from folder and all subfolders."""
+    ok = await svc.unlink_extractor(folder_id, sift_id)
+    for sub_id in await svc.get_subfolder_ids(folder_id):
+        await svc.unlink_extractor(sub_id, sift_id)
+    return ok
 
 
 class CreateFolderRequest(BaseModel):
@@ -76,6 +120,11 @@ async def create_folder(
     svc = DocumentService(db)
     await svc.ensure_indexes()
     folder = await svc.create_folder(body.name, body.description, parent_id=body.parent_id)
+
+    if body.parent_id:
+        for sid in await svc.collect_effective_sift_ids(body.parent_id):
+            await svc.link_extractor(folder.id, sid)
+
     return _folder_dict(folder)
 
 
@@ -109,11 +158,16 @@ async def get_folder(
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     extractors = await svc.list_folder_extractors(folder_id)
+    inherited = await svc.list_inherited_extractors(folder_id)
     return {
         **_folder_dict(folder),
         "extractors": [
             {"id": e.id, "sift_id": e.sift_id, "created_at": e.created_at.isoformat()}
             for e in extractors
+        ],
+        "inherited_extractors": [
+            {"id": e.id, "sift_id": e.sift_id, "folder_id": e.folder_id, "created_at": e.created_at.isoformat()}
+            for e in inherited
         ],
     }
 
@@ -181,41 +235,16 @@ async def link_sift(
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
-    if not folder:
+    if not await svc.get_folder(folder_id):
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    link = await svc.link_extractor(folder_id, body.sift_id)
-
-    existing_docs = await db["documents"].find({"folder_id": folder_id}).to_list(length=None)
-
-    enqueued = 0
-    for doc in existing_docs:
-        doc_id = str(doc["_id"])
-        storage_path = doc.get("storage_path")
-        if not storage_path:
-            continue
-        existing = await db["document_sift_statuses"].find_one(
-            {"document_id": doc_id, "sift_id": body.sift_id}
-        )
-        if existing:
-            continue
-        await svc.create_sift_status(doc_id, body.sift_id)
-        await enqueue(doc_id, body.sift_id, storage_path)
-        enqueued += 1
-
-    if enqueued > 0:
-        await db["sifts"].update_one(
-            {"_id": __import__("bson").ObjectId(body.sift_id)},
-            {"$inc": {"total_documents": enqueued}, "$set": {"status": "indexing"}},
-        )
-
+    link, enqueued, sub_count = await _do_link_and_propagate(svc, db, folder_id, body.sift_id)
     return {
         "id": link.id,
         "folder_id": link.folder_id,
         "sift_id": link.sift_id,
         "created_at": link.created_at.isoformat(),
         "enqueued_existing": enqueued,
+        "propagated_to_subfolders": sub_count,
     }
 
 
@@ -227,7 +256,7 @@ async def unlink_sift(
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    ok = await svc.unlink_extractor(folder_id, sift_id)
+    ok = await _do_unlink_and_propagate(svc, folder_id, sift_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Link not found")
 
@@ -261,37 +290,10 @@ async def link_extractor(
     sift_id = body.get("sift_id") or body.get("extraction_id")
     if not sift_id:
         raise HTTPException(status_code=422, detail="sift_id is required")
-
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
-    if not folder:
+    if not await svc.get_folder(folder_id):
         raise HTTPException(status_code=404, detail="Folder not found")
-
-    link = await svc.link_extractor(folder_id, sift_id)
-
-    existing_docs = await db["documents"].find({"folder_id": folder_id}).to_list(length=None)
-
-    enqueued = 0
-    for doc in existing_docs:
-        doc_id = str(doc["_id"])
-        storage_path = doc.get("storage_path")
-        if not storage_path:
-            continue
-        existing = await db["document_sift_statuses"].find_one(
-            {"document_id": doc_id, "sift_id": sift_id}
-        )
-        if existing:
-            continue
-        await svc.create_sift_status(doc_id, sift_id)
-        await enqueue(doc_id, sift_id, storage_path)
-        enqueued += 1
-
-    if enqueued > 0:
-        await db["sifts"].update_one(
-            {"_id": __import__("bson").ObjectId(sift_id)},
-            {"$inc": {"total_documents": enqueued}, "$set": {"status": "indexing"}},
-        )
-
+    link, enqueued, sub_count = await _do_link_and_propagate(svc, db, folder_id, sift_id)
     return {
         "id": link.id,
         "folder_id": link.folder_id,
@@ -299,6 +301,7 @@ async def link_extractor(
         "extraction_id": link.sift_id,
         "created_at": link.created_at.isoformat(),
         "enqueued_existing": enqueued,
+        "propagated_to_subfolders": sub_count,
     }
 
 
@@ -310,7 +313,7 @@ async def unlink_extractor(
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    ok = await svc.unlink_extractor(folder_id, sift_id)
+    ok = await _do_unlink_and_propagate(svc, folder_id, sift_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Link not found")
 
@@ -369,15 +372,15 @@ async def upload_document(
         storage_path=storage_path,
     )
 
-    links = await svc.list_folder_extractors(folder_id)
+    sift_ids = await svc.collect_effective_sift_ids(folder_id)
+
     enqueued = []
-    for link in links:
-        await svc.create_sift_status(doc.id, link.sift_id)
-        await enqueue(doc.id, link.sift_id, doc.storage_path)
-        enqueued.append(link.sift_id)
-        # Update sift counters so the UI can track progress
+    for sid in sift_ids:
+        await svc.create_sift_status(doc.id, sid)
+        await enqueue(doc.id, sid, doc.storage_path)
+        enqueued.append(sid)
         await db["sifts"].update_one(
-            {"_id": __import__("bson").ObjectId(link.sift_id)},
+            {"_id": ObjectId(sid)},
             {"$inc": {"total_documents": 1}, "$set": {"status": "indexing"}},
         )
 
