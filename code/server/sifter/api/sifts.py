@@ -180,6 +180,24 @@ async def update_sift(
     return _sift_to_dict(sift)
 
 
+@router.get("/{sift_id}/folders")
+async def list_sift_folders(
+    sift_id: str,
+    _: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    """Return folders that have this sift linked to them."""
+    links = await db["folder_extractors"].find({"sift_id": sift_id}).to_list(length=None)
+    folder_ids = [ObjectId(lnk["folder_id"]) for lnk in links if lnk.get("folder_id")]
+    if not folder_ids:
+        return {"items": []}
+    folders = await db["folders"].find({"_id": {"$in": folder_ids}}).to_list(length=None)
+    result = []
+    for f in folders:
+        result.append({"id": str(f["_id"]), "name": f.get("name", "")})
+    return {"items": result}
+
+
 @router.delete("/{sift_id}")
 async def delete_sift(
     sift_id: str,

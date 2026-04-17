@@ -275,6 +275,21 @@ class SiftService:
 
         return stored
 
+    async def mark_document_failed(self, sift_id: str, error_message: str) -> None:
+        """Increment processed_documents after a permanent failure and transition the sift
+        out of INDEXING once all documents are accounted for."""
+        updated = await self.col.find_one_and_update(
+            {"_id": ObjectId(sift_id)},
+            {"$inc": {"processed_documents": 1}},
+            return_document=True,
+        )
+        if not updated:
+            return
+        if updated.get("processed_documents", 0) >= updated.get("total_documents", 1):
+            result_count = await self.results_service.col.count_documents({"sift_id": sift_id})
+            new_status = SiftStatus.ACTIVE if result_count > 0 else SiftStatus.ERROR
+            await self.update(sift_id, {"status": new_status, "error": error_message})
+
     async def _update_schema_if_changed(self, sift: Sift, extracted_data: dict) -> None:
         from .schema_service import infer_schema_fields
         from .webhook_service import WebhookService

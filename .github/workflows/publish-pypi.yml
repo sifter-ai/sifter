@@ -1,0 +1,56 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  id-token: write  # OIDC Trusted Publisher — no token needed
+
+jobs:
+  publish-sdk:
+    name: sifter-ai
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sifter-ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv build
+        working-directory: code/sdk
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: code/sdk/dist/
+
+  publish-mcp:
+    name: sifter-mcp
+    runs-on: ubuntu-latest
+    needs: publish-sdk
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sifter-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv build
+        working-directory: code/mcp
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: code/mcp/dist/
+
+  publish-cli:
+    name: sifter-cli
+    runs-on: ubuntu-latest
+    needs: publish-sdk
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sifter-cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv build
+        working-directory: code/cli
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: code/cli/dist/

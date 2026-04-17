@@ -1,6 +1,6 @@
 ---
 title: "Cloud: Mail-to-Upload folder settings panel"
-status: open
+status: applied
 author: "Bruno Fortunato"
 created-at: "2026-04-17T00:00:00.000Z"
 cloud-cr: "CR-015"

@@ -1,0 +1,2 @@
+/api/*  https://api.sifter.run/api/:splat  200
+/health https://api.sifter.run/health      200

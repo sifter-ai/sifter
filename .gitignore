@@ -1,0 +1,8 @@
+
+# Generated sample PDFs (run generate_samples.py to recreate)
+code/examples/invoices/
+code/examples/contracts/
+code/examples/receipts/
+code/examples/docs/
+code/examples/*.csv
+.secrets
