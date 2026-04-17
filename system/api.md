@@ -33,10 +33,13 @@ Enforced via `slowapi`, keyed by client IP.
 | POST | `/api/auth/login` | Login; returns JWT + user info |
 | POST | `/api/auth/google` | Google OAuth login; exchange authorization code for JWT + user info |
 | GET | `/api/auth/me` | Current user info (requires JWT or API key) |
+| PATCH | `/api/auth/me` | Update profile (`full_name`, `email`); returns updated user |
+| POST | `/api/auth/change-password` | Change password — email-auth only; body `{ current_password, new_password }` |
+| POST | `/api/auth/avatar` | Upload avatar (multipart JPEG/PNG/WebP ≤ 2 MB); returns updated user |
 
 Register/Login body: `{ "email", "password", "full_name"? }`
 Google body: `{ "code": "<Google OAuth authorization code>" }`
-JWT response: `{ "access_token": str, "token_type": "bearer", "user": { id, email, full_name, auth_provider, created_at } }`
+JWT response: `{ "access_token": str, "token_type": "bearer", "user": { id, email, full_name, auth_provider, avatar_url, created_at } }`
 
 Google auth is only available when `SIFTER_GOOGLE_CLIENT_ID` is configured. When not configured, the endpoint returns 404.
 

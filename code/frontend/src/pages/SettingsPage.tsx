@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, Outlet, NavLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Key, Plus, Trash2, Webhook as WebhookIcon, CreditCard, BarChart2, ClipboardList, Plug, Share2 } from "lucide-react";
+import { Copy, Key, Plus, Trash2, Webhook as WebhookIcon, CreditCard, BarChart2, ClipboardList, Plug, Share2, UserCircle } from "lucide-react";
 import { createApiKey, fetchApiKeys, revokeApiKey } from "../api/keys";
 import { createWebhook, deleteWebhook, fetchWebhooks, Webhook } from "../api/webhooks";
 import { Alert, AlertDescription } from "../components/ui/alert";
@@ -63,12 +63,15 @@ export default function SettingsPage() {
         {/* Settings sidebar */}
         <nav className="w-44 shrink-0 space-y-0.5">
           <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">General</p>
+          <NavLink to="/settings/account" className={settingsNavClass}>
+            <UserCircle className="h-4 w-4 shrink-0" />Account
+          </NavLink>
           <NavLink to="/settings" end className={settingsNavClass}>
             <Key className="h-4 w-4 shrink-0" />API Keys
           </NavLink>
           {mode === "cloud" && (
             <>
-              <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</p>
+              <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cloud</p>
               <NavLink to="/settings/billing" className={settingsNavClass}>
                 <CreditCard className="h-4 w-4 shrink-0" />Billing
               </NavLink>

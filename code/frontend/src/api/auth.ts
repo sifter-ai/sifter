@@ -47,3 +47,25 @@ export async function switchOrg(org_id: string): Promise<AuthResponse> {
     body: JSON.stringify({ org_id }),
   });
 }
+
+export async function updateProfile(data: { full_name?: string; email?: string }): Promise<User> {
+  return apiFetchJson<User>("/api/auth/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function changePassword(current_password: string, new_password: string): Promise<void> {
+  await apiFetchJson("/api/auth/change-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password, new_password }),
+  });
+}
+
+export async function uploadAvatar(file: File): Promise<User> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetchJson<User>("/api/auth/avatar", { method: "POST", body: form });
+}

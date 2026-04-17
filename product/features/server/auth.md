@@ -15,12 +15,19 @@ status: synced
 | POST | `/api/auth/login` | Login with email + password; returns JWT + user info |
 | POST | `/api/auth/google` | Login/register with Google ID token; returns JWT + user info |
 | GET | `/api/auth/me` | Current user info (requires JWT or API key) |
+| PATCH | `/api/auth/me` | Update profile (full_name, email); returns updated user |
+| POST | `/api/auth/change-password` | Change password (email-auth only); returns `{"ok": true}` |
+| POST | `/api/auth/avatar` | Upload avatar image (multipart, JPEG/PNG/WebP, max 2 MB); returns updated user |
 | GET | `/api/keys` | List active API keys (prefix + metadata, no hashes) |
 | POST | `/api/keys` | Create API key; returns full key **once** |
 | DELETE | `/api/keys/{key_id}` | Revoke API key |
 
 Register/Login body: `{ "email", "password", "full_name"? }`
-JWT response: `{ "access_token": str, "token_type": "bearer", "user": { id, email, full_name, created_at, auth_provider } }`
+JWT response: `{ "access_token": str, "token_type": "bearer", "user": { id, email, full_name, created_at, auth_provider, avatar_url } }`
+
+`PATCH /api/auth/me` body: `{ "full_name"?: str, "email"?: str }` — email change rejected with 400 for Google-auth users; duplicate email returns 409.
+`POST /api/auth/change-password` body: `{ "current_password": str, "new_password": str }` — rejected with 400 for Google-auth users or wrong current password; `new_password` must be ≥ 8 chars.
+`POST /api/auth/avatar` — multipart `file` field; stores via storage backend; sets `avatar_url` on user document.
 
 Google auth body: `{ "credential": "<Google ID token>" }`
 Google auth response: same JWT response shape as login.
@@ -67,6 +74,7 @@ An invalid key (present but unrecognized) always returns HTTP 401.
 | `hashed_password` | str \| None | `None` for Google-only accounts |
 | `google_id` | str \| None | Google `sub` claim; uniquely indexed (sparse) |
 | `auth_provider` | str | `"email"` (default) or `"google"` |
+| `avatar_url` | str \| None | Public URL to profile avatar image; `None` if not set |
 
 Google login flow:
 1. Verify Google ID token server-side using `google-auth` and `SIFTER_GOOGLE_CLIENT_ID` as audience

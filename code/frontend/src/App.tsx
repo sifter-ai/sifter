@@ -17,6 +17,7 @@ import { ChatPage } from "@/pages/ChatPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import SettingsPage, { SettingsIndex } from "@/pages/SettingsPage";
+import AccountSettingsPage from "@/pages/AccountSettingsPage";
 import FolderBrowserPage from "@/pages/FolderBrowserPage";
 import DocumentDetailPage from "@/pages/DocumentDetailPage";
 import LandingPage from "@/pages/LandingPage";
@@ -164,6 +165,7 @@ function AppRoutes() {
               <Route path="/documents/:id" element={<ProtectedRoute><DocumentDetailPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
                 <Route index element={<SettingsIndex />} />
+                <Route path="account" element={<AccountSettingsPage />} />
                 {mode === "cloud" && (
                   <>
                     <Route path="billing" element={<BillingPage />} />

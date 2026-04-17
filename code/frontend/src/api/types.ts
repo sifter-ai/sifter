@@ -14,6 +14,8 @@ export interface User {
   email: string;
   full_name: string;
   created_at: string;
+  auth_provider: "email" | "google";
+  avatar_url: string | null;
 }
 
 export interface Organization {
