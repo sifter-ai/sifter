@@ -755,6 +755,7 @@ export function SiftDetailPage() {
         />
         <Button
           variant="outline"
+          size="sm"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadMutation.isPending}
         >
@@ -766,6 +767,7 @@ export function SiftDetailPage() {
         </Button>
         <Button
           variant="outline"
+          size="sm"
           onClick={() => reindexMutation.mutate()}
           disabled={reindexMutation.isPending || isIndexing(extraction.status)}
         >
@@ -774,6 +776,7 @@ export function SiftDetailPage() {
         </Button>
         <Button
           variant="outline"
+          size="sm"
           onClick={() => exportMutation.mutate({ id: id!, name: extraction.name })}
           disabled={exportMutation.isPending || !records?.length}
         >
