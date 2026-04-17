@@ -1,6 +1,6 @@
 ---
 title: REST API Endpoints
-status: changed
+status: synced
 version: "1.1"
 last-modified: "2026-04-17T00:00:00.000Z"
 ---

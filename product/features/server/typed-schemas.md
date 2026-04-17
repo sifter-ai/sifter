@@ -1,6 +1,6 @@
 ---
 title: "Server: Typed Schema Generation"
-status: new
+status: synced
 version: "1.0"
 last-modified: "2026-04-17T00:00:00.000Z"
 ---
