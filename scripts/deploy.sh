@@ -28,8 +28,6 @@ GITHUB_PAT=$(get GITHUB_PAT)
 NPM_TOKEN=$(get NPM_TOKEN)
 CLOUDFLARE_API_TOKEN=$(get CLOUDFLARE_API_TOKEN)
 CLOUDFLARE_ACCOUNT_ID=$(get CLOUDFLARE_ACCOUNT_ID)
-DOCKERHUB_USERNAME=$(get DOCKERHUB_USERNAME)
-DOCKERHUB_TOKEN=$(get DOCKERHUB_TOKEN)
 RAILWAY_TOKEN=$(get RAILWAY_TOKEN)
 
 # ── Versione dal tag git più recente ─────────────────────────
@@ -111,22 +109,22 @@ deploy_docker() {
 # ─────────────────────────────────────────────────────────────
 deploy_cloud() {
     echo ""
-    echo "── sifter-cloud (Docker Hub + Railway) ──────────────"
-    [ -z "$DOCKERHUB_TOKEN" ] && echo "ERROR: DOCKERHUB_TOKEN mancante in .secrets" && exit 1
-    [ -z "$RAILWAY_TOKEN" ]   && echo "ERROR: RAILWAY_TOKEN mancante in .secrets" && exit 1
-    [ ! -d "$CLOUD_ROOT" ]    && echo "ERROR: sifter-cloud non trovato in $CLOUD_ROOT" && exit 1
+    echo "── sifter-cloud (ghcr.io + Railway) ─────────────────"
+    [ -z "$GITHUB_PAT" ]    && echo "ERROR: GITHUB_PAT mancante in .secrets" && exit 1
+    [ -z "$RAILWAY_TOKEN" ] && echo "ERROR: RAILWAY_TOKEN mancante in .secrets" && exit 1
+    [ ! -d "$CLOUD_ROOT" ]  && echo "ERROR: sifter-cloud non trovato in $CLOUD_ROOT" && exit 1
 
-    echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    echo "$GITHUB_PAT" | docker login ghcr.io -u bimbobruno --password-stdin
 
     docker build \
         -f "$CLOUD_ROOT/Dockerfile" \
-        -t "bimbobruno/sifter-cloud:$VERSION" \
-        -t "bimbobruno/sifter-cloud:latest" \
+        -t "ghcr.io/sifter-ai/sifter-cloud:$VERSION" \
+        -t "ghcr.io/sifter-ai/sifter-cloud:latest" \
         "$CLOUD_ROOT"
 
-    docker push "bimbobruno/sifter-cloud:$VERSION"
-    docker push "bimbobruno/sifter-cloud:latest"
-    echo "  ✓ Cloud image pubblicata"
+    docker push "ghcr.io/sifter-ai/sifter-cloud:$VERSION"
+    docker push "ghcr.io/sifter-ai/sifter-cloud:latest"
+    echo "  ✓ Cloud image pubblicata su ghcr.io (privata)"
 
     echo "  → Railway deploy"
     (
