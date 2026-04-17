@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, AlertCircle, Loader2, PauseCircle, CheckCircle2, Layers } from "lucide-react";
+import { Plus, FileText, AlertCircle, Loader2, PauseCircle, CheckCircle2, Layers, Zap, FolderOpen, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiftForm } from "@/components/SiftForm";
 import { useSifts } from "@/hooks/useExtractions";
+import { useAuthContext } from "@/context/AuthContext";
 import type { Sift } from "@/api/types";
 
 // Parse "client_name (string), date (string), amount (number)" → ["client_name", "date", "amount"]
@@ -229,16 +230,85 @@ function SkeletonCard() {
   );
 }
 
+function StatsStrip({ sifts }: { sifts: Sift[] }) {
+  const active = sifts.filter((s) => s.status === "active").length;
+  const indexing = sifts.filter((s) => s.status === "indexing").length;
+  const totalDocs = sifts.reduce((sum, s) => sum + s.processed_documents, 0);
+
+  const stats = [
+    {
+      label: "Sifts",
+      value: sifts.length,
+      icon: Database,
+      iconBg: "bg-violet-100 dark:bg-violet-900/40",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      accent: "border-l-violet-400",
+    },
+    {
+      label: "Active",
+      value: active,
+      icon: Zap,
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      accent: "border-l-emerald-400",
+    },
+    {
+      label: indexing > 0 ? `Indexing (${indexing})` : "Processing",
+      value: totalDocs,
+      icon: FolderOpen,
+      iconBg: "bg-blue-100 dark:bg-blue-900/40",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      accent: "border-l-blue-400",
+      sublabel: "docs processed",
+    },
+    {
+      label: "Records",
+      value: "—",
+      icon: Layers,
+      iconBg: "bg-amber-100 dark:bg-amber-900/40",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      accent: "border-l-amber-400",
+      sublabel: "coming soon",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className={`bg-card border border-border/60 rounded-xl px-4 py-3.5 flex items-center gap-3 border-l-2 ${s.accent} shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)]`}
+        >
+          <div className={`${s.iconBg} rounded-lg p-2 shrink-0`}>
+            <s.icon className={`h-4 w-4 ${s.iconColor}`} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xl font-bold tracking-tight tabular-nums leading-none">{s.value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              {s.sublabel ?? s.label}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SiftsPage() {
   const navigate = useNavigate();
   const { data: sifts, isLoading, error } = useSifts();
+  const { user } = useAuthContext();
+
+  const firstName = user?.full_name?.split(" ")[0] ?? null;
 
   return (
     <div className="px-6 py-8 max-w-6xl mx-auto">
       {/* Page header */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Sifts</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            {firstName ? `Hey, ${firstName}` : "Sifts"}
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             AI extraction pipelines — define once, run on every document
           </p>
@@ -253,6 +323,9 @@ export function SiftsPage() {
           onCreated={(id) => navigate(`/sifts/${id}`)}
         />
       </div>
+
+      {/* KPI strip — shown once data is loaded */}
+      {sifts && <StatsStrip sifts={sifts} />}
 
       {/* Loading */}
       {isLoading && (
