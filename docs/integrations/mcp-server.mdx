@@ -1,0 +1,157 @@
+---
+title: MCP Server
+description: Connect Claude Desktop, Cursor, or any MCP client to your Sifter data — hosted or self-hosted.
+---
+
+# MCP Server
+
+`sifter-mcp` exposes Sifter's extracted records to AI agents via the [Model Context Protocol](https://modelcontextprotocol.io). Two connection modes:
+
+| Mode | How | When to use |
+|------|-----|-------------|
+| **HTTP (hosted)** | Connect directly to `https://api.sifter.ai/mcp` | Sifter Cloud — zero install |
+| **stdio (uvx)** | Run `uvx sifter-mcp` locally | Self-hosted Sifter, or prefer local process |
+
+---
+
+## HTTP — Sifter Cloud
+
+No installation required. Claude Desktop connects directly to the hosted MCP endpoint using your API key as a Bearer token.
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://api.sifter.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer sk-your-api-key"
+      }
+    }
+  }
+}
+```
+
+Get your API key from **Settings → API Keys** in the Sifter web app.
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://api.sifter.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer sk-your-api-key"
+      }
+    }
+  }
+}
+```
+
+---
+
+## stdio — Self-hosted or local
+
+Use `uvx` (zero install) and point to your own Sifter instance.
+
+### Install
+
+```bash
+pip install sifter-mcp
+# or use without installing:
+uvx sifter-mcp
+```
+
+### Claude Desktop (self-hosted Sifter)
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "command": "uvx",
+      "args": ["sifter-mcp", "--base-url", "http://localhost:8000"],
+      "env": {
+        "SIFTER_API_KEY": "sk-dev"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop (Sifter Cloud via uvx)
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "command": "uvx",
+      "args": ["sifter-mcp", "--base-url", "https://api.sifter.ai"],
+      "env": {
+        "SIFTER_API_KEY": "sk-your-api-key"
+      }
+    }
+  }
+}
+```
+
+### CLI options
+
+```bash
+uvx sifter-mcp --help
+
+# Options:
+#   --base-url    Sifter server URL (default: SIFTER_BASE_URL env var or http://localhost:8000)
+#   --transport   stdio | sse | streamable-http (default: stdio)
+#   --host        Host for HTTP transport (default: 0.0.0.0)
+#   --port        Port for HTTP transport (default: 8001)
+```
+
+---
+
+## Self-hosted: HTTP endpoint
+
+If you run your own Sifter instance with `sifter-mcp` installed, the HTTP MCP endpoint is available automatically at `/mcp`:
+
+```
+http://your-sifter-instance.com/mcp
+```
+
+Authenticate with `Authorization: Bearer <your-api-key>`.
+
+---
+
+## Available tools
+
+| Tool | Description |
+|------|-------------|
+| `list_sifts` | List all sifts with name, instructions, and document/record counts |
+| `get_sift` | Get sift metadata and inferred schema |
+| `list_records` | Get extracted records (paginated, max 100 per call) |
+| `query_sift` | Run a natural language query over a sift's records |
+| `list_folders` | List all folders |
+| `get_folder` | Get folder metadata, linked sifts, and document list |
+
+## Resources
+
+| URI | Description |
+|-----|-------------|
+| `sift://{id}/records` | All records for a sift as a JSON resource |
+
+---
+
+## Example prompts
+
+Once connected, you can ask Claude:
+
+- *"List my sifts"*
+- *"Show me the last 10 records from my Invoices sift"*
+- *"What is the total revenue by client this month?"*
+- *"Which folders have more than 50 documents?"*

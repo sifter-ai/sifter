@@ -1,0 +1,77 @@
+---
+title: Introduction
+description: Sifter turns unstructured documents into structured, queryable data — without writing parsing code.
+---
+
+# What is Sifter?
+
+<img src="/images/hero.png" alt="Documents becoming structured data" className="rounded-xl w-full mb-6" />
+
+Sifter is an open-source AI-powered document extraction engine. It takes documents and turns them into a structured, queryable database — defined in natural language, no templates required.
+
+## Why not RAG?
+
+RAG is the default answer for "AI + documents." It works well on diverse corpora — manuals, research papers, knowledge bases. It breaks on **homogeneous collections** like invoices, contracts, or receipts.
+
+<img src="/images/why-nor-rag.png" alt="RAG vs Sifter" className="rounded-xl w-full mb-4" />
+
+<CardGroup cols={2}>
+  <Card title="RAG on 500 invoices" icon="x-circle">
+    Ask *"How much did I invoice to Acme in September?"* — RAG searches by similarity. All invoices look alike. It returns the highest-scoring chunks, not all the matching ones. It can't filter by date or sum totals. You get a guess.
+  </Card>
+  <Card title="Sifter on 500 invoices" icon="check-circle">
+    Sifter extracts *client, date, total* from every invoice once, and stores them as rows in a database. The same query becomes a real aggregation: filter by client and month, sum the totals. Exact and reproducible, every time.
+  </Card>
+</CardGroup>
+
+<Info>
+"Total invoiced per client per month" is an aggregation query, not a retrieval query. RAG was built for retrieval. Sifter was built for this.
+</Info>
+
+## How it works
+
+<Steps>
+  <Step title="Define a Sift">
+    Give it a name and describe what to extract in natural language: `"Extract: client name, invoice date, total amount, VAT number"`. Sifter infers the JSON schema automatically from the first processed document.
+  </Step>
+  <Step title="Upload documents">
+    Upload PDFs or images via the web UI, the REST API, or the Python SDK. Organize documents into folders to run multiple extractors automatically.
+  </Step>
+  <Step title="Query and export">
+    Browse extracted records in a table. Filter, sort, run aggregations, or ask questions in natural language. Export to CSV or query programmatically via the API.
+  </Step>
+</Steps>
+
+## Key concepts
+
+| Concept | Description |
+|---------|-------------|
+| [Sift](/concepts/sifts) | An extraction schema defined in natural language. One sift → one structured table. |
+| [Folder](/concepts/folders) | A document container. Link it to multiple sifts — every upload triggers all of them. |
+| [Record](/concepts/records) | A single extracted result: one document processed by one sift. |
+| [Aggregation](/concepts/aggregations) | A saved MongoDB pipeline generated from natural language. Reusable and refreshable. |
+| [Webhook](/concepts/webhooks) | HTTP callback fired on extraction events. Wildcard patterns, retry on failure. |
+
+## Interfaces
+
+Sifter ships with three ways to interact with your data:
+
+<CardGroup cols={3}>
+  <Card title="Web UI" icon="browser">
+    Built-in React UI for managing sifts, folders, documents, and results. No separate deployment needed.
+  </Card>
+  <Card title="REST API + SDK" icon="code">
+    Full REST API and Python SDK for programmatic access. Authenticate with an API key or JWT.
+  </Card>
+  <Card title="MCP server" icon="cpu-chip">
+    Connect Claude Desktop or Cursor to your extracted records via the Model Context Protocol.
+  </Card>
+</CardGroup>
+
+## Open source
+
+Sifter is Apache 2.0. Self-host with a single `docker compose up`. Bring your own LLM API key. The managed cloud offering (`sifter-cloud`) adds multi-tenant billing on top of the same engine.
+
+<Card title="Quickstart" icon="rocket" href="/overview/quickstart">
+  Get up and running in 5 minutes
+</Card>

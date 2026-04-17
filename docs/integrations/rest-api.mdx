@@ -1,0 +1,103 @@
+---
+title: REST API
+description: Authentication, key endpoints, and pagination for the Sifter REST API.
+---
+
+# REST API
+
+Full interactive docs available at `/docs` (Swagger) or `/redoc` on any running Sifter instance.
+
+## Authentication
+
+All endpoints accept either:
+
+- **API key** — `X-API-Key: sk-...` header
+- **JWT** — `Authorization: Bearer <token>` header (obtained from `POST /api/auth/login`)
+
+Create API keys in **Settings → API Keys**.
+
+## Base URL
+
+| Environment | URL |
+|-------------|-----|
+| Cloud | `https://api.sifter.ai` |
+| Self-hosted | `http://localhost:8000` (default) |
+
+## Key endpoints
+
+### Auth
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/auth/register` | Create account, returns JWT |
+| `POST` | `/api/auth/login` | Login, returns JWT |
+
+### Sifts
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/sifts` | List sifts |
+| `POST` | `/api/sifts` | Create sift |
+| `GET` | `/api/sifts/{id}` | Get sift |
+| `PATCH` | `/api/sifts/{id}` | Update sift |
+| `DELETE` | `/api/sifts/{id}` | Delete sift |
+| `POST` | `/api/sifts/{id}/upload` | Upload documents |
+| `GET` | `/api/sifts/{id}/records` | List records |
+| `POST` | `/api/sifts/{id}/query` | Natural language query |
+| `GET` | `/api/sifts/{id}/records/csv` | Export records as CSV |
+
+### Folders
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/folders` | List folders |
+| `POST` | `/api/folders` | Create folder |
+| `GET` | `/api/folders/{id}` | Get folder |
+| `DELETE` | `/api/folders/{id}` | Delete folder |
+| `POST` | `/api/folders/{id}/documents` | Upload to folder |
+| `POST` | `/api/folders/{id}/extractors` | Link sift to folder |
+| `DELETE` | `/api/folders/{id}/extractors/{sift_id}` | Unlink sift |
+
+### Webhooks
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/webhooks` | List webhooks |
+| `POST` | `/api/webhooks` | Register webhook |
+| `DELETE` | `/api/webhooks/{id}` | Delete webhook |
+
+### Other
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check (DB + queue status) |
+| `GET` | `/docs` | Swagger UI |
+| `POST` | `/api/enterprise/contact` | Enterprise contact form |
+
+## Pagination
+
+All list endpoints support `limit` and `offset` query params:
+
+```bash
+GET /api/sifts/{id}/records?limit=50&offset=100
+```
+
+Response envelope:
+```json
+{
+  "items": [...],
+  "total": 350,
+  "limit": 50,
+  "offset": 100
+}
+```
+
+## Error codes
+
+| Code | Meaning |
+|------|---------|
+| 401 | Missing or invalid API key / JWT |
+| 403 | Insufficient permissions |
+| 404 | Resource not found |
+| 422 | Validation error (check `detail` field) |
+| 429 | Rate limit exceeded |

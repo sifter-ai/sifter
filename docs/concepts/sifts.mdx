@@ -1,0 +1,69 @@
+---
+title: Sifts
+description: Extraction schemas defined in natural language. One sift produces one structured table.
+---
+
+# Sifts
+
+A **Sift** is Sifter's core abstraction. It defines:
+
+- A **name** and optional description
+- **Instructions** — natural language description of what to extract
+- A **schema** — automatically inferred from the first processed document
+- A persistent **table of results** — one record per `(document, sift)` pair
+
+## Creating a sift
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+sift = s.create_sift(
+    name="Invoices",
+    instructions="Extract: client name, invoice date, line items, total amount, VAT number",
+)
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+POST /api/sifts
+{
+  "name": "Invoices",
+  "instructions": "Extract: client name, invoice date, line items, total amount, VAT number"
+}
+```
+  </Tab>
+</Tabs>
+
+## Writing good instructions
+
+Instructions are natural language. Be specific about field names and types:
+
+```
+Extract: client_name (string), invoice_date (ISO date), line_items (array of {description, quantity, unit_price}), total_amount (number), vat_number (string)
+```
+
+You don't need to specify types — Sifter infers them. But naming fields explicitly (snake_case) produces cleaner schemas.
+
+## Status lifecycle
+
+| Status | Meaning |
+|--------|---------|
+| `active` | Ready and accepting new documents |
+| `indexing` | One or more documents are being processed |
+| `paused` | Processing is suspended |
+| `error` | One or more documents failed extraction |
+
+## Schema inference
+
+Sifter infers the JSON schema from the first processed document. The schema is stored on the sift and shown in the UI. Subsequent documents are extracted using the same schema.
+
+If a field is missing in a document, its value is `null` in the record.
+
+## Uploading documents
+
+Documents can reach a sift in two ways:
+
+1. **Direct upload** — via `POST /api/sifts/{id}/upload` or `sift.upload()`
+2. **Via a folder** — link a folder to the sift; every new document in the folder triggers extraction automatically
+
+See [Folders](/concepts/folders) for the multi-sift pipeline pattern.

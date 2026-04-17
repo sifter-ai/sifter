@@ -1,0 +1,116 @@
+---
+title: Webhooks Reference
+description: Full event list, payload schemas, wildcard patterns, and delivery behavior.
+---
+
+# Webhooks Reference
+
+## Events
+
+| Event | Trigger |
+|-------|---------|
+| `sift.document.processed` | A document was extracted successfully by a sift |
+| `sift.completed` | All documents in a sift finished processing |
+| `sift.error` | A document extraction failed |
+| `folder.document.uploaded` | A new document was added to a folder |
+
+## Wildcard patterns
+
+| Pattern | Matches |
+|---------|---------|
+| `sift.*` | `sift.document.processed`, `sift.completed`, `sift.error` |
+| `sift.document.*` | `sift.document.processed` |
+| `folder.*` | `folder.document.uploaded` |
+| `**` | All events |
+
+## Payload schema
+
+All events share this envelope:
+
+```json
+{
+  "event": "sift.document.processed",
+  "timestamp": "2024-03-15T10:30:00Z",
+  "sift_id": "sift-abc",
+  "document_id": "doc-xyz",
+  "data": { ... }
+}
+```
+
+### `sift.document.processed`
+
+```json
+{
+  "data": {
+    "document": {
+      "id": "doc-xyz",
+      "filename": "invoice_march.pdf",
+      "status": "done"
+    },
+    "record": {
+      "id": "rec-123",
+      "extracted_data": {
+        "client_name": "Acme Corp",
+        "invoice_date": "2024-03-15",
+        "total_amount": 1500.00
+      },
+      "confidence": 0.97
+    }
+  }
+}
+```
+
+### `sift.completed`
+
+```json
+{
+  "data": {
+    "sift_id": "sift-abc",
+    "document_count": 42,
+    "record_count": 42
+  }
+}
+```
+
+### `sift.error`
+
+```json
+{
+  "data": {
+    "document": { "id": "doc-xyz", "filename": "corrupt.pdf" },
+    "error": "PDF could not be parsed"
+  }
+}
+```
+
+### `folder.document.uploaded`
+
+```json
+{
+  "data": {
+    "document": {
+      "id": "doc-xyz",
+      "filename": "contract.pdf",
+      "folder_id": "folder-abc"
+    }
+  }
+}
+```
+
+## Delivery
+
+- Sifter delivers webhooks via HTTP POST to your URL
+- Your endpoint must return a 2xx status within 10 seconds
+- On failure: retried up to 3 times with exponential backoff (5s, 30s, 5min)
+- After 3 failures: delivery is abandoned (no dead letter queue in v1)
+
+## Registering
+
+```bash
+POST /api/webhooks
+{
+  "events": ["sift.document.processed", "sift.error"],
+  "url": "https://example.com/hooks/sifter",
+  "sift_id": "sift-abc"   # optional — omit to receive events from all sifts
+}
+```

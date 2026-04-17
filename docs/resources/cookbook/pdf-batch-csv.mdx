@@ -1,0 +1,38 @@
+---
+title: "Cookbook: PDF batch to CSV"
+description: Generic pattern for extracting any structured data from a folder of PDFs and saving to CSV.
+---
+
+# PDF batch → CSV
+
+A minimal generic pattern: give Sifter a folder of PDFs and a description of what to extract, get a CSV back.
+
+## Code
+
+```python
+from sifter import Sifter
+import sys
+
+def batch_extract(folder_path: str, instructions: str, output_csv: str) -> None:
+    s = Sifter(api_key="sk-...")
+    sift = s.create_sift(name="Batch extraction", instructions=instructions)
+    sift.upload(folder_path).wait()
+    sift.export_csv(output_csv)
+    print(f"Exported {len(sift.records())} records to {output_csv}")
+
+if __name__ == "__main__":
+    batch_extract(
+        folder_path="./documents/",
+        instructions="Extract: title, author, date, summary (one sentence)",
+        output_csv="output.csv",
+    )
+```
+
+## One-liner
+
+```python
+from sifter import Sifter
+
+records = Sifter(api_key="sk-...").sift("./documents/", "title, author, date, summary")
+print(records)
+```

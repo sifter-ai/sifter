@@ -1,0 +1,113 @@
+---
+title: Python SDK
+description: Full reference for the sifter-ai Python SDK — SiftHandle, FolderHandle, polling, and event callbacks.
+---
+
+# Python SDK
+
+The `sifter-ai` SDK is a pure HTTP client that connects to a running Sifter server (cloud or self-hosted).
+
+## Install
+
+```bash
+pip install sifter-ai
+```
+
+## Client
+
+```python
+from sifter import Sifter
+
+s = Sifter(
+    api_url="https://api.sifter.ai",  # or http://localhost:8000 for self-hosted
+    api_key="sk-...",                  # or set SIFTER_API_KEY env var
+)
+```
+
+## Sifts
+
+```python
+# Create
+sift = s.create_sift("Invoices", "client, date, total amount, VAT number")
+
+# Read
+sift = s.get_sift("sift-id")
+sifts = s.list_sifts()
+
+# Update / delete
+sift.update(name="Invoices 2024")
+sift.delete()
+```
+
+## Documents and results
+
+```python
+sift.upload("./invoices/")           # file or directory
+sift.wait(poll_interval=2, timeout=300)  # block until done
+records = sift.records(limit=100, offset=0)
+results = sift.query("Total by client")
+sift.export_csv("invoices.csv")
+```
+
+## Folders
+
+```python
+folder = s.create_folder("Q1 Contracts")
+folder.add_sift(sift)
+folder.upload("./contracts/q1/")
+docs = folder.documents()
+folder.sifts()
+folder.delete()
+```
+
+## Multi-sift pipeline
+
+```python
+parties = s.create_sift("Parties", "contracting parties, dates, signatories")
+clauses = s.create_sift("Clauses", "non-compete, termination conditions")
+
+folder = s.create_folder("Contracts 2024")
+folder.add_sift(parties)
+folder.add_sift(clauses)
+folder.upload("./contracts/")
+
+parties.wait()
+print(parties.records())
+```
+
+## One-liner
+
+```python
+# Create temp sift, upload, wait, return records
+records = s.sift("./invoices/", "client, date, total")
+```
+
+## Event callbacks
+
+Register local callbacks for events on a sift or folder. Callbacks fire during `wait()`.
+
+```python
+sift.on("sift.document.processed", lambda doc_id, record: print(record))
+sift.on("sift.error", lambda doc_id, error: print(f"Error: {error}"))
+sift.on("sift.*", lambda *args: print(args))  # wildcard
+
+folder.on("folder.document.uploaded", lambda doc: print(f"New: {doc}"))
+```
+
+Wildcard patterns: `*` matches any single segment, `**` matches any number.
+
+## Webhooks
+
+Register server-side HTTP callbacks:
+
+```python
+s.register_hook(
+    events=["sift.document.processed", "sift.error"],
+    url="https://example.com/webhook",
+    sift_id=sift.id,  # optional: scope to one sift
+)
+hooks = s.list_hooks()
+s.delete_hook(hook_id)
+```
+
+See [Webhooks Reference](/integrations/webhooks-reference) for payload schemas.

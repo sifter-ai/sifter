@@ -1,0 +1,66 @@
+---
+title: Records
+description: The structured output of a sift — one record per document processed.
+---
+
+# Records
+
+A **Record** is the result of one document being processed by one sift. It contains:
+
+| Field | Description |
+|-------|-------------|
+| `id` | Record identifier |
+| `sift_id` | The sift that produced this record |
+| `document_id` | The source document |
+| `extracted_data` | JSON object with extracted fields |
+| `document_type` | Inferred document type (e.g. `"invoice"`) |
+| `confidence` | Extraction confidence score (0–1) |
+| `created_at` | ISO timestamp |
+
+## Fetching records
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+for record in sift.records():
+    print(record["extracted_data"])
+    print(record["confidence"])
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+GET /api/sifts/{id}/records?limit=50&offset=0
+```
+Response:
+```json
+{
+  "items": [...],
+  "total": 142,
+  "limit": 50,
+  "offset": 0
+}
+```
+  </Tab>
+</Tabs>
+
+## Schema
+
+The `extracted_data` shape is defined by the sift's inferred schema. Fields missing in a document appear as `null`.
+
+Example for an invoice sift:
+```json
+{
+  "client_name": "Acme Corp",
+  "invoice_date": "2024-03-15",
+  "total_amount": 1500.00,
+  "vat_number": "IT12345678901"
+}
+```
+
+## Exporting
+
+```python
+sift.export_csv("invoices.csv")
+```
+
+Or download from the UI table via the **Export CSV** button.

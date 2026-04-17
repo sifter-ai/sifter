@@ -1,0 +1,89 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Sifter",
+  "colors": {
+    "primary": "#18181B",
+    "light": "#71717A",
+    "dark": "#18181B"
+  },
+  "favicon": "/logo.svg",
+  "redirects": [
+    { "source": "/", "destination": "/overview/introduction" }
+  ],
+  "navigation": {
+    "groups": [
+      {
+        "group": "Overview",
+        "pages": [
+          "overview/introduction",
+          "overview/quickstart",
+          "overview/pricing"
+        ]
+      },
+      {
+        "group": "Concepts",
+        "pages": [
+          "concepts/sifts",
+          "concepts/folders",
+          "concepts/records",
+          "concepts/aggregations",
+          "concepts/queries-and-chat",
+          "concepts/webhooks"
+        ]
+      },
+      {
+        "group": "Integrations",
+        "pages": [
+          "integrations/python-sdk",
+          "integrations/rest-api",
+          "integrations/mcp-server",
+          "integrations/webhooks-reference"
+        ]
+      },
+      {
+        "group": "Self-hosting",
+        "pages": [
+          "self-hosting/docker-compose",
+          "self-hosting/configuration",
+          "self-hosting/storage-backends",
+          "self-hosting/llm-providers"
+        ]
+      },
+      {
+        "group": "Resources",
+        "pages": [
+          "resources/cookbook/invoices-to-excel",
+          "resources/cookbook/contracts-clauses",
+          "resources/cookbook/receipts-bulk",
+          "resources/cookbook/pdf-batch-csv",
+          "resources/tutorials/gmail-to-sifter",
+          "resources/tutorials/webhook-pipeline",
+          "resources/changelog"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo.svg",
+    "dark": "/logo.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/bfortunato/sifter"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://sifter.ai/register"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/bfortunato/sifter"
+    }
+  }
+}

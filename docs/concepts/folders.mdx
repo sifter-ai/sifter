@@ -1,0 +1,50 @@
+---
+title: Folders
+description: Document containers linked to one or more sifts. Upload once, process everywhere.
+---
+
+# Folders
+
+A **Folder** is a document container. Its key property: it can be linked to multiple sifts. Upload a document once — every linked sift processes it automatically.
+
+## Use cases
+
+- **Multi-extractor pipelines**: a folder of contracts linked to both a "Parties" sift and a "Clauses" sift
+- **Shared document library**: multiple teams share the same folder; each team's sift extracts what they need
+- **Inbox automation**: point a webhook or Zapier trigger at a folder; every incoming file is automatically processed
+
+## Creating a folder
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+folder = s.create_folder("Q1 Contracts")
+folder.add_sift(parties_sift)
+folder.add_sift(clauses_sift)
+folder.upload("./contracts/q1/")
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+POST /api/folders
+{"name": "Q1 Contracts"}
+
+POST /api/folders/{id}/extractors
+{"sift_id": "sift-abc"}
+
+POST /api/folders/{id}/documents
+# multipart file upload
+```
+  </Tab>
+</Tabs>
+
+## Document status per sift
+
+Each `(document, sift)` pair has its own processing status. A document can be `done` for one sift and `processing` for another.
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Queued, not yet started |
+| `processing` | Worker currently running |
+| `done` | Extraction complete |
+| `error` | Extraction failed (retried up to 3×) |

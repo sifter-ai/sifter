@@ -1,0 +1,114 @@
+---
+title: Quickstart
+description: Create your first sift and extract structured data in minutes.
+---
+
+# Quickstart
+
+<Tabs>
+  <Tab title="Python SDK">
+
+## Install
+
+```bash
+pip install sifter-ai
+```
+
+## Get an API key
+
+Sign up at [sifter.ai](https://sifter.ai) and go to **Settings → API Keys → Create API Key**.
+
+Or, if you're self-hosting, use `sk-dev` (the default key) or create one in the Settings page.
+
+## Extract your first documents
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+
+# Create an extractor
+sift = s.create_sift(
+    name="Invoices",
+    instructions="Extract: client name, invoice date, total amount, VAT number",
+)
+
+# Upload a folder of PDFs and wait for processing
+sift.upload("./invoices/").wait()
+
+# Retrieve structured records
+for record in sift.records():
+    print(record["extracted_data"])
+```
+
+That's it. The schema is inferred from the first document — no templates, no training data.
+
+## Query your data
+
+```python
+# Natural language query
+results = sift.query("What is the total revenue by client?")
+
+# Export to CSV
+sift.export_csv("invoices.csv")
+```
+
+  </Tab>
+  <Tab title="REST API">
+
+## Get an API key
+
+Sign up at [sifter.ai](https://sifter.ai) and go to **Settings → API Keys → Create API Key**.
+
+## Create a sift
+
+```bash
+curl -X POST https://api.sifter.ai/api/sifts \
+  -H "X-API-Key: sk-..." \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Invoices", "instructions": "client name, invoice date, total amount"}'
+```
+
+## Upload documents
+
+```bash
+curl -X POST https://api.sifter.ai/api/sifts/{id}/upload \
+  -H "X-API-Key: sk-..." \
+  -F "files=@invoice.pdf"
+```
+
+## Fetch records
+
+```bash
+curl https://api.sifter.ai/api/sifts/{id}/records \
+  -H "X-API-Key: sk-..."
+```
+
+  </Tab>
+  <Tab title="Web UI">
+
+1. Sign up at [sifter.ai](https://sifter.ai) (or open `http://localhost:3000` if self-hosting)
+2. Click **New Sift** — enter a name and instructions
+3. Go to **Folders**, create a folder, link the sift to it
+4. Upload PDFs — processing starts automatically
+5. Click the sift to view extracted records, run queries, or export CSV
+
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Concepts" icon="book-open" href="/concepts/sifts">
+    Understand sifts, folders, records, and aggregations
+  </Card>
+  <Card title="Python SDK" icon="python" href="/integrations/python-sdk">
+    Full SDK reference with handles, polling, and callbacks
+  </Card>
+  <Card title="MCP server" icon="cpu-chip" href="/integrations/mcp-server">
+    Connect Claude Desktop or Cursor to your data
+  </Card>
+  <Card title="Self-hosting" icon="server" href="/self-hosting/docker-compose">
+    Run Sifter on your own infrastructure
+  </Card>
+</CardGroup>

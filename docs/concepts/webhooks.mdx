@@ -1,0 +1,68 @@
+---
+title: Webhooks
+description: HTTP callbacks fired on extraction events. Wildcard patterns, automatic retry.
+---
+
+# Webhooks
+
+Webhooks let you react to extraction events in real time — trigger a downstream pipeline, notify a Slack channel, or sync results to another system.
+
+## Events
+
+| Event | When |
+|-------|------|
+| `sift.document.processed` | A document was extracted successfully |
+| `sift.completed` | All documents in a sift finished processing |
+| `sift.error` | A document extraction failed |
+| `folder.document.uploaded` | A new document was added to a folder |
+
+## Wildcard patterns
+
+Sifter supports `*` (single segment) and `**` (any segments):
+
+| Pattern | Matches |
+|---------|---------|
+| `sift.*` | All sift events |
+| `sift.document.*` | `sift.document.processed` |
+| `**` | All events |
+
+## Registering a webhook
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+s.register_hook(
+    events=["sift.document.processed", "sift.error"],
+    url="https://example.com/hooks/sifter",
+    sift_id="sift-abc",  # optional: scope to one sift
+)
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+POST /api/webhooks
+{
+  "events": ["sift.document.processed"],
+  "url": "https://example.com/hooks/sifter",
+  "sift_id": "sift-abc"
+}
+```
+  </Tab>
+</Tabs>
+
+## Payload
+
+```json
+{
+  "event": "sift.document.processed",
+  "timestamp": "2024-03-15T10:30:00Z",
+  "sift_id": "sift-abc",
+  "document_id": "doc-xyz",
+  "data": {
+    "document": { "id": "doc-xyz", "filename": "invoice.pdf" },
+    "record": { "extracted_data": { "client": "Acme", "total": 1500 } }
+  }
+}
+```
+
+See [Webhooks Reference](/integrations/webhooks-reference) for the full payload schema and delivery details.

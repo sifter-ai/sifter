@@ -1,0 +1,45 @@
+---
+title: "Cookbook: Contract clause extraction"
+description: Extract parties, key dates, and critical clauses from contracts using multiple sifts on the same folder.
+---
+
+# Contract clause extraction
+
+Use two sifts on the same folder to extract different aspects of contracts in parallel.
+
+## Code
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+
+parties = s.create_sift(
+    name="Contract parties",
+    instructions="Extract: party_a (name, address), party_b (name, address), effective_date, expiry_date, governing_law",
+)
+
+clauses = s.create_sift(
+    name="Key clauses",
+    instructions="""
+    Extract:
+    - non_compete (object: {present: bool, duration_months, geographic_scope})
+    - termination (object: {notice_days, grounds})
+    - liability_cap (number or null)
+    - confidentiality (object: {present: bool, duration_months})
+    """,
+)
+
+folder = s.create_folder("Contracts 2024")
+folder.add_sift(parties)
+folder.add_sift(clauses)
+folder.upload("./contracts/2024/")
+
+# Wait for both sifts
+parties.wait()
+clauses.wait()
+
+# Query across sifts
+print(parties.query("Which contracts expire before June 2025?"))
+print(clauses.query("Contracts with non-compete clauses longer than 12 months"))
+```

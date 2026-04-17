@@ -1,0 +1,80 @@
+---
+title: Configuration
+description: Full reference for all SIFTER_* environment variables.
+---
+
+# Configuration
+
+All settings use the `SIFTER_` prefix and can be set in `code/.env` or as environment variables.
+
+## LLM
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_LLM_API_KEY` | *(required)* | API key for your LLM provider |
+| `SIFTER_LLM_MODEL` | `openai/gpt-4o` | LiteLLM model string for extraction |
+| `SIFTER_PIPELINE_MODEL` | `openai/gpt-4o-mini` | Faster model for aggregation pipelines |
+| `SIFTER_EXTRACTION_TEMPERATURE` | `0.2` | Temperature for extraction calls |
+| `SIFTER_MAX_CONCURRENT_EXTRACTIONS` | `5` | Max parallel LLM calls |
+
+## Auth
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_API_KEY` | `sk-dev` | Bootstrap API key — **change in production** |
+| `SIFTER_REQUIRE_API_KEY` | `false` | If true, all requests require `X-API-Key` |
+| `SIFTER_JWT_SECRET` | `dev-secret-...` | JWT signing secret — **change in production** |
+| `SIFTER_JWT_EXPIRE_MINUTES` | `1440` | JWT TTL (24h) |
+| `SIFTER_GOOGLE_CLIENT_ID` | `""` | Enable Google OAuth (leave empty to disable) |
+
+## Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
+| `SIFTER_MONGODB_DATABASE` | `sifter` | Database name |
+
+## Storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_STORAGE_BACKEND` | `filesystem` | `filesystem` \| `s3` \| `gcs` |
+| `SIFTER_STORAGE_PATH` | `./uploads` | Base path for filesystem storage |
+| `SIFTER_MAX_FILE_SIZE_MB` | `50` | Maximum upload size |
+
+## S3 / S3-compatible
+
+Used when `SIFTER_STORAGE_BACKEND=s3`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_S3_BUCKET` | `""` | Bucket name |
+| `SIFTER_S3_REGION` | `us-east-1` | AWS region |
+| `SIFTER_S3_ACCESS_KEY_ID` | `""` | Access key |
+| `SIFTER_S3_SECRET_ACCESS_KEY` | `""` | Secret key |
+| `SIFTER_S3_ENDPOINT_URL` | `""` | Custom endpoint (MinIO, Cloudflare R2, etc.) |
+
+## Google Cloud Storage
+
+Used when `SIFTER_STORAGE_BACKEND=gcs`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_GCS_BUCKET` | `""` | Bucket name |
+| `SIFTER_GCS_PROJECT` | `""` | GCP project ID |
+| `SIFTER_GCS_CREDENTIALS_FILE` | `""` | Path to service account JSON (empty = Application Default Credentials) |
+
+## Workers and server
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_MAX_WORKERS` | `4` | Concurrent document processing workers |
+| `SIFTER_HOST` | `0.0.0.0` | Bind address |
+| `SIFTER_PORT` | `8000` | Server port |
+| `SIFTER_CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed CORS origins (JSON array or comma-separated) |
+
+## Enterprise
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_SALES_EMAIL` | `""` | If set, enterprise contact form sends a notification email |

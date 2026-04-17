@@ -1,0 +1,68 @@
+---
+title: "Cookbook: Invoices to Excel"
+description: Extract structured data from a folder of PDF invoices and export to a spreadsheet.
+---
+
+# Invoices → Excel
+
+Extract client, date, line items, and totals from a batch of PDF invoices and export everything to a CSV you can open in Excel or Google Sheets.
+
+## Setup
+
+```bash
+pip install sifter-ai
+```
+
+Get an API key from [sifter.ai/register](https://sifter.ai/register) or your self-hosted instance.
+
+## Code
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+
+# Create extractor
+sift = s.create_sift(
+    name="Invoice extractor",
+    instructions="""
+    Extract:
+    - vendor_name (string)
+    - invoice_number (string)
+    - invoice_date (ISO date)
+    - due_date (ISO date)
+    - line_items (array of {description, quantity, unit_price, total})
+    - subtotal (number)
+    - tax_amount (number)
+    - total_amount (number)
+    - currency (string, ISO 4217)
+    """,
+)
+
+# Upload all PDFs in a folder
+sift.upload("./invoices/").wait()
+
+# Export to CSV
+sift.export_csv("invoices_extracted.csv")
+print(f"Exported {len(sift.records())} records")
+```
+
+## Running on new invoices
+
+Link a folder for ongoing processing — every new upload is extracted automatically:
+
+```python
+folder = s.create_folder("Incoming invoices")
+folder.add_sift(sift)
+
+# From now on, just upload to the folder:
+folder.upload("./new_invoices/")
+```
+
+## Querying the results
+
+```python
+# Natural language aggregation
+result = sift.query("Total invoiced amount by vendor, sorted descending")
+print(result)
+```

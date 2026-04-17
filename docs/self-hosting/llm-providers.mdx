@@ -1,0 +1,49 @@
+---
+title: LLM Providers
+description: Configure any LiteLLM-compatible LLM provider for extraction.
+---
+
+# LLM Providers
+
+Sifter uses [LiteLLM](https://docs.litellm.ai/) internally, which means any LiteLLM-compatible provider works by changing two env vars.
+
+## Supported providers
+
+| Provider | `SIFTER_LLM_MODEL` example | Notes |
+|----------|---------------------------|-------|
+| OpenAI | `openai/gpt-4o` | Best quality |
+| Anthropic | `anthropic/claude-opus-4-7` | Excellent for complex docs |
+| Azure OpenAI | `azure/gpt-4o` | Set `AZURE_API_BASE` and `AZURE_API_VERSION` too |
+| Google Gemini | `gemini/gemini-2.0-flash` | Fast and cost-effective |
+| Ollama (local) | `ollama/llama3.2` | No API key required |
+| Any OpenAI-compatible | `openai/your-model` + `OPENAI_API_BASE` | vLLM, LM Studio, etc. |
+
+## Recommended setup
+
+For best extraction quality, use a frontier model for `SIFTER_LLM_MODEL` and a faster/cheaper model for `SIFTER_PIPELINE_MODEL` (used for aggregation pipeline generation):
+
+```bash
+SIFTER_LLM_API_KEY=sk-...
+SIFTER_LLM_MODEL=openai/gpt-4o
+SIFTER_PIPELINE_MODEL=openai/gpt-4o-mini
+```
+
+## Local models with Ollama
+
+```bash
+SIFTER_LLM_MODEL=ollama/llama3.2
+SIFTER_LLM_API_KEY=   # leave empty
+```
+
+<Note>
+Local models work but may produce less consistent schemas than frontier models, especially for complex or multi-page documents.
+</Note>
+
+## Azure OpenAI
+
+```bash
+SIFTER_LLM_MODEL=azure/gpt-4o
+SIFTER_LLM_API_KEY=your-azure-key
+AZURE_API_BASE=https://your-resource.openai.azure.com/
+AZURE_API_VERSION=2024-08-01-preview
+```

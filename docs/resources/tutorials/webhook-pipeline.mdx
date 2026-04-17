@@ -1,0 +1,53 @@
+---
+title: "Tutorial: Webhook-driven pipeline"
+description: Build a downstream pipeline that triggers when Sifter finishes extracting a document.
+---
+
+# Webhook-driven pipeline
+
+Trigger downstream processing the moment Sifter finishes extracting a document — no polling required.
+
+## Register a webhook
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+s.register_hook(
+    events=["sift.document.processed"],
+    url="https://your-app.com/hooks/sifter",
+    sift_id="sift-abc",
+)
+```
+
+## Receive the webhook (FastAPI example)
+
+```python
+from fastapi import FastAPI, Request
+
+app = FastAPI()
+
+@app.post("/hooks/sifter")
+async def handle_sifter_event(request: Request):
+    payload = await request.json()
+    event = payload["event"]
+    data = payload["data"]
+
+    if event == "sift.document.processed":
+        record = data["record"]
+        extracted = record["extracted_data"]
+
+        # Downstream action: save to your DB, trigger another service, etc.
+        await save_to_database(extracted)
+        await notify_slack(f"New invoice from {extracted.get('client_name')}")
+
+    return {"ok": True}
+```
+
+## Using with n8n / Make / Zapier
+
+Point your automation platform's webhook trigger at the URL above. Sifter POSTs the event payload — map fields like `data.record.extracted_data.client_name` directly to your workflow.
+
+## Event reference
+
+See [Webhooks Reference](/integrations/webhooks-reference) for the full payload schema.

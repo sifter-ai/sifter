@@ -1,0 +1,36 @@
+---
+title: Changelog
+description: What's new in Sifter.
+---
+
+# Changelog
+
+## v0.2.0 — 2026-04-17
+
+### New
+- **MCP server** (`sifter-mcp`) — read-only tools for Claude Desktop, Cursor, and AI agents
+- **Enterprise contact form** — `/enterprise` page with contact form and `POST /api/enterprise/contact` endpoint
+- **Docs site** — migrated from VitePress to Mintlify with new structure (Overview / Concepts / Integrations / Self-hosting / Resources)
+- **Landing page redesign** — two product cards (Sifter App / Sifter Developer), MCP snippet, enterprise CTA
+- **SDK pagination** — `sift.records(limit, offset)` now passes params to the API
+
+### Updated
+- `product/vision.md` — 2-surface model (App + Developer + Contact CTA)
+- `product/users.md` — new personas: Business User, Developer, Enterprise Buyer
+- `system/roadmap.md` — Phase 3 (positioning/docs/MCP), Phase 4 (cloud GA), Phase 5 (enterprise/scale/Telegram)
+
+---
+
+## v0.1.0 — 2026-04-13
+
+Initial release.
+
+- FastAPI backend with Motor/MongoDB
+- React UI (Vite + shadcn/ui)
+- Python SDK (`sifter-ai`)
+- Docker Compose
+- Sifts, Folders, Records, Aggregations, Chat, Webhooks
+- Google OAuth
+- S3/GCS storage backends
+- Folder tree navigation
+- Records search, sort, and detail drawer

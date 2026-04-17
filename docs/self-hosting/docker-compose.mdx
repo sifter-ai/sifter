@@ -1,0 +1,95 @@
+---
+title: Docker Compose
+description: Run Sifter on your own infrastructure with a single command.
+---
+
+# Self-hosting with Docker Compose
+
+## Quick start
+
+```bash
+git clone https://github.com/bfortunato/sifter.git
+cd sifter/code
+cp .env.example .env
+# Edit .env — set SIFTER_LLM_API_KEY at minimum
+docker compose up -d
+```
+
+- UI: `http://localhost:3000`
+- API: `http://localhost:8000`
+- Swagger: `http://localhost:8000/docs`
+
+## What's in the Compose stack
+
+- **MongoDB 7** with a persistent volume
+- **Sifter API** on port 8000
+- **Sifter UI** (nginx serving the built React app) on port 3000
+
+## Updating
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+## Local development (without Docker)
+
+Requirements: `uv`, `npm`, MongoDB running locally.
+
+```bash
+cd code
+./run.sh
+```
+
+This starts the FastAPI backend (with `uvicorn --reload`) and Vite dev server in parallel.
+
+## Reverse proxy with nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name sifter.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/sifter.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/sifter.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        client_max_body_size 100M;
+    }
+}
+```
+
+## Reverse proxy with Caddy
+
+```caddyfile
+sifter.yourdomain.com {
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+    handle {
+        reverse_proxy localhost:3000
+    }
+}
+```
+
+Caddy provisions TLS automatically.
+
+## Production checklist
+
+- [ ] Set `SIFTER_JWT_SECRET` to a random 64-char string: `openssl rand -hex 32`
+- [ ] Use a managed MongoDB instance (Atlas free tier works well)
+- [ ] Set `SIFTER_CORS_ORIGINS` to your frontend domain
+- [ ] Put behind a reverse proxy with TLS
+- [ ] Mount `SIFTER_STORAGE_PATH` to a persistent volume
+- [ ] Set `SIFTER_MAX_WORKERS` to match your CPU core count
+
+See [Configuration](/self-hosting/configuration) for all available environment variables.

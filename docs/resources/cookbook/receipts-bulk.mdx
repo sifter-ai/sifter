@@ -1,0 +1,48 @@
+---
+title: "Cookbook: Bulk receipt processing"
+description: Process hundreds of expense receipts in parallel with webhook notifications.
+---
+
+# Bulk receipt processing
+
+Process a large batch of receipts with webhook notifications as each one completes.
+
+## Code
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+
+sift = s.create_sift(
+    name="Expense receipts",
+    instructions="Extract: merchant_name, date, amount, currency, category (food/transport/accommodation/other), payment_method",
+)
+
+# Register webhook for real-time notifications
+s.register_hook(
+    events=["sift.document.processed", "sift.completed"],
+    url="https://example.com/hooks/sifter",
+    sift_id=sift.id,
+)
+
+# Upload bulk
+sift.upload("./receipts/")
+
+# Or poll until done
+sift.wait()
+sift.export_csv("expense_report.csv")
+```
+
+## With SDK callbacks
+
+For scripts that need to react to each receipt as it's processed:
+
+```python
+processed = []
+
+sift.on("sift.document.processed", lambda doc_id, record: processed.append(record))
+sift.upload("./receipts/").wait()
+
+print(f"Processed {len(processed)} receipts")
+```

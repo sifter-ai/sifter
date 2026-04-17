@@ -1,0 +1,45 @@
+---
+title: Queries & Chat
+description: Ad-hoc natural language questions over your extracted records.
+---
+
+# Queries & Chat
+
+Sifter lets you ask questions about your extracted data in natural language — without writing MongoDB queries.
+
+## Ad-hoc query
+
+A one-off question that returns results immediately without saving.
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+results = sift.query("List all invoices from Acme Corp over $1000")
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+POST /api/sifts/{id}/query
+{"query": "List all invoices from Acme Corp over $1000"}
+```
+  </Tab>
+  <Tab title="Web UI">
+Open a sift → **Query** tab → type your question → Enter.
+  </Tab>
+</Tabs>
+
+## Chat
+
+The **Chat** page gives you a conversational interface over all your sifts. Ask multi-turn questions, explore data across extractors, or ask for summaries.
+
+The AI generates and executes MongoDB queries on your behalf, then explains the results in plain language.
+
+Chat is a secondary interface — useful for exploration. For regular reporting, save your queries as [Aggregations](/concepts/aggregations).
+
+## When to use what
+
+| | Use case |
+|---|---|
+| **Query** | Quick one-off questions on a single sift |
+| **Aggregation** | Recurring reports run against new documents |
+| **Chat** | Exploratory analysis, cross-sift questions |

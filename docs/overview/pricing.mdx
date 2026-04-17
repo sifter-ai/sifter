@@ -1,0 +1,87 @@
+---
+title: Pricing
+description: Sifter cloud plans and self-hosting options.
+---
+
+# Pricing
+
+## Cloud plans
+
+Each plan includes a monthly document allowance. One **document credit** = one document up to 10 pages. Documents longer than 10 pages count as additional credits (one credit per additional 10 pages).
+
+<CardGroup cols={2}>
+  <Card title="Free" icon="circle">
+    **$0 / month**
+
+    - 25 documents/month
+    - 1 sift
+    - 7-day result retention
+    - Web UI only (no API, no export)
+
+    [Get started →](https://sifter.ai/register)
+  </Card>
+  <Card title="Starter" icon="bolt">
+    **$19 / month**
+
+    - 300 documents/month
+    - 5 sifts
+    - Permanent result retention
+    - REST API + Python SDK
+    - CSV export
+
+    [Get started →](https://sifter.ai/register)
+  </Card>
+  <Card title="Pro" icon="star">
+    **$79 / month**
+
+    - 3,000 documents/month
+    - Unlimited sifts
+    - REST API + Python SDK + MCP
+    - Webhooks
+    - 3 team members
+
+    [Get started →](https://sifter.ai/register)
+  </Card>
+  <Card title="Business" icon="building">
+    **$249 / month**
+
+    - 20,000 documents/month
+    - Unlimited sifts
+    - REST API + Python SDK + MCP
+    - Webhooks
+    - 10 team members
+
+    [Get started →](https://sifter.ai/register)
+  </Card>
+</CardGroup>
+
+<Info>
+All paid plans include natural language queries, aggregations, and chat over extracted data. No per-page fees — pricing is per document, capped at 10 pages per document.
+</Info>
+
+Need more volume? [Contact us](https://sifter.ai/enterprise) for a custom plan.
+
+---
+
+## Self-hosting
+
+The OSS engine is **free forever** under Apache 2.0. Run it on your own infrastructure — no document limits, no usage fees. You pay only for your own LLM API key.
+
+```bash
+git clone https://github.com/bfortunato/sifter
+cd sifter/code
+cp .env.example .env  # set SIFTER_LLM_API_KEY
+docker compose up -d
+```
+
+See [Self-hosting](/self-hosting/docker-compose) for the full setup guide.
+
+---
+
+## Enterprise
+
+Need SSO, on-premises deployment, RBAC, audit logging, BYOK LLM, or a custom SLA?
+
+<Card title="Contact us" icon="envelope" href="https://sifter.ai/enterprise">
+  Talk to us about enterprise deployments — dedicated cloud, on-prem, custom volume.
+</Card>
