@@ -9,7 +9,9 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  Moon,
   Settings,
+  Sun,
   User as UserIcon,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
@@ -75,7 +77,7 @@ function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string
 function Sidebar() {
   const { isAuthenticated, user, logout } = useAuthContext();
   const { mode } = useConfig();
-  useDarkMode();
+  const { dark, toggle } = useDarkMode();
 
   if (!isAuthenticated) return null;
 
@@ -153,6 +155,13 @@ function Sidebar() {
               <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
             </div>
           </Link>
+          <button
+            onClick={toggle}
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors shrink-0"
+          >
+            {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
           <button
             onClick={logout}
             title="Sign out"
