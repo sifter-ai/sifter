@@ -122,15 +122,8 @@ export default function BillingPage() {
     return { pct, color };
   }
 
-  function fmtBytes(b: number) {
-    if (b >= 1_073_741_824) return `${(b / 1_073_741_824).toFixed(1)} GB`;
-    if (b >= 1_048_576)     return `${(b / 1_048_576).toFixed(1)} MB`;
-    return `${Math.round(b / 1024)} KB`;
-  }
-
-  const docsBar     = usageBar(usage?.docs_processed ?? 0, usage?.docs_limit ?? null);
-  const siftsBar    = usageBar(usage?.sifts_count ?? 0,    usage?.sifts_limit ?? null);
-  const storageBar  = usageBar(usage?.storage_bytes ?? 0,  usage?.storage_limit_mb ? usage.storage_limit_mb * 1_048_576 : null);
+  const docsBar  = usageBar(usage?.docs_processed ?? 0, usage?.docs_limit ?? null);
+  const siftsBar = usageBar(usage?.sifts_count ?? 0,    usage?.sifts_limit ?? null);
 
   return (
     <div className="space-y-8">
@@ -186,7 +179,7 @@ export default function BillingPage() {
                 label="Documents"
                 value={usage.docs_processed}
                 limit={usage.docs_limit}
-                display={`${(usage.docs_processed).toLocaleString()} / ${usage.docs_limit?.toLocaleString() ?? "∞"} this month`}
+                display={`${usage.docs_processed.toLocaleString()} / ${usage.docs_limit?.toLocaleString() ?? "∞"} this month`}
                 bar={docsBar}
               />
               <UsageRow
@@ -195,13 +188,6 @@ export default function BillingPage() {
                 limit={usage.sifts_limit}
                 display={`${usage.sifts_count} / ${usage.sifts_limit ?? "∞"}`}
                 bar={siftsBar}
-              />
-              <UsageRow
-                label="Storage"
-                value={usage.storage_bytes}
-                limit={usage.storage_limit_mb ? usage.storage_limit_mb * 1_048_576 : null}
-                display={`${fmtBytes(usage.storage_bytes)} / ${usage.storage_limit_mb ? fmtBytes(usage.storage_limit_mb * 1_048_576) : "∞"}`}
-                bar={storageBar}
               />
             </div>
           )}
