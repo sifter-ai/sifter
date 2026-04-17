@@ -7,6 +7,7 @@ import {
   Bot,
   FileText,
   Folder,
+  LayoutDashboard,
   LogOut,
   MessageCircle,
   Settings,
@@ -17,6 +18,7 @@ import logo from "@/assets/logo.svg";
 import { SiftsPage } from "@/pages/SiftsPage";
 import { SiftDetailPage } from "@/pages/SiftDetailPage";
 import MCPSetupPage from "@/pages/MCPSetupPage";
+import { ChatPage } from "@/pages/ChatPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import SettingsPage, { SettingsIndex } from "@/pages/SettingsPage";
@@ -37,6 +39,9 @@ import { ConfigProvider, useConfig } from "@/context/ConfigContext";
 const SidebarPlanWidget = lazy(() =>
   import("@/components/cloud/SidebarPlanWidget").then((m) => ({ default: m.SidebarPlanWidget }))
 );
+const PlanLimitDialog = lazy(() =>
+  import("@/components/cloud/PlanLimitDialog").then((m) => ({ default: m.PlanLimitDialog }))
+);
 
 // Cloud pages — lazy loaded so they don't affect OSS bundle size
 const BillingPage = lazy(() => import("@/pages/cloud/BillingPage"));
@@ -47,7 +52,7 @@ const SharesPage = lazy(() => import("@/pages/cloud/SharesPage"));
 const PublicViewerPage = lazy(() => import("@/pages/cloud/PublicViewerPage"));
 const CloudChatPage = lazy(() => import("@/pages/cloud/CloudChatPage"));
 const DashboardListPage = lazy(() => import("@/pages/cloud/DashboardListPage"));
-const SiftDashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
+const DashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -109,22 +114,18 @@ function Sidebar() {
           <FileText className="h-4 w-4 shrink-0" />
           Sifts
         </NavLink>
+        <NavLink to="/dashboards" className={navLinkClass}>
+          <LayoutDashboard className="h-4 w-4 shrink-0" />
+          Dashboards
+        </NavLink>
         <NavLink to="/folders" className={navLinkClass}>
           <Folder className="h-4 w-4 shrink-0" />
           Folders
         </NavLink>
-        {mode === "cloud" ? (
-          <NavLink to="/chat" className={navLinkClass}>
-            <MessageCircle className="h-4 w-4 shrink-0" />
-            Chat
-          </NavLink>
-        ) : (
-          <NavLink to="/chat" className={navLinkClass}>
-            <Bot className="h-4 w-4 shrink-0" />
-            Use with AI
-          </NavLink>
-        )}
-        {/* Dashboards nav link removed — dashboard accessed per-sift via /sifts/:id/dashboard */}
+        <NavLink to="/chat" className={navLinkClass}>
+          <MessageCircle className="h-4 w-4 shrink-0" />
+          Chat
+        </NavLink>
 
         {/* Secondary nav — pushed to bottom of the nav flex */}
         <div className="mt-auto pt-3 flex flex-col gap-0.5">
@@ -193,7 +194,7 @@ function CloudRoutes() {
       <Route path="/settings/shares" element={<ProtectedRoute><SharesPage /></ProtectedRoute>} />
       <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
       <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-      <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><SiftDashboardPage /></ProtectedRoute>} />
+      <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
     </Suspense>
   );
 }
@@ -214,6 +215,11 @@ function AppRoutes() {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
+        {mode === "cloud" && (
+          <Suspense fallback={null}>
+            <PlanLimitDialog />
+          </Suspense>
+        )}
         <main className="flex-1 overflow-y-auto">
           <Suspense fallback={null}>
             <Routes>
@@ -223,10 +229,13 @@ function AppRoutes() {
                 path="/chat"
                 element={
                   <ProtectedRoute>
-                    {mode === "cloud" ? <CloudChatPage /> : <MCPSetupPage />}
+                    {mode === "cloud" ? <CloudChatPage /> : <ChatPage />}
                   </ProtectedRoute>
                 }
               />
+              {/* Dashboards — available in both OSS and cloud */}
+              <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
+              <Route path="/dashboards/:id" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
               <Route path="/folders" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
               <Route path="/folders/:id" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
               <Route path="/documents/:id" element={<ProtectedRoute><DocumentDetailPage /></ProtectedRoute>} />
@@ -248,10 +257,6 @@ function AppRoutes() {
               {mode === "cloud" && (
                 <>
                   <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
-                  {/* Legacy dashboard list — kept for backward compat */}
-                  <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-                  {/* Per-sift dashboard */}
-                  <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><SiftDashboardPage /></ProtectedRoute>} />
                 </>
               )}
               {/* Public / auth callbacks */}

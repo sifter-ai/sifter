@@ -74,6 +74,19 @@
     100% { transform: translateX(100%); }
   }
 
+  /* Staggered tile reveal for dashboards */
+  @keyframes tile-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-tile-in {
+    opacity: 0;
+    animation: tile-in 480ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-tile-in { animation: none; opacity: 1; }
+  }
+
   /* Refined scrollbars */
   ::-webkit-scrollbar {
     width: 6px;

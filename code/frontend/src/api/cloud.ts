@@ -25,14 +25,18 @@ export const fetchUsage = (): Promise<Usage> =>
   apiFetchJson("/api/usage");
 
 export const openBillingPortal = (): Promise<{ url: string }> =>
-  apiFetchJson("/api/billing/portal", { method: "POST" });
+  apiFetchJson("/api/billing/portal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ return_url: window.location.href }),
+  });
 
 export const startCheckout = (
   plan_code: string,
   success_url: string,
   cancel_url: string
 ): Promise<{ checkout_url: string }> =>
-  apiFetchJson("/api/cloud/billing/checkout", {
+  apiFetchJson("/api/billing/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plan_code, success_url, cancel_url }),
@@ -71,8 +75,10 @@ export interface ConnectorConnection {
   status: "active" | "error" | "paused";
   last_error?: string | null;
   label_id?: string | null;
+  label_name?: string | null;
   folder_id?: string | null;
-  options?: Record<string, unknown>;
+  drive_folder_id?: string | null;
+  drive_folder_name?: string | null;
 }
 
 export const fetchGmailConnections = (): Promise<ConnectorConnection[]> =>
@@ -253,11 +259,18 @@ export interface ChatBlock {
   sift_id?: string;
 }
 
+export interface ChatStep {
+  tool: string;
+  label: string;
+  result_count: number;
+}
+
 export interface ChatMessageCloud {
   id: string;
   role: "user" | "assistant";
   content: string;
   blocks?: ChatBlock[];
+  steps?: ChatStep[];
   created_at: string;
 }
 
@@ -409,6 +422,139 @@ export const reorderDashboardTiles = (
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(order),
+  });
+
+// ---- Standalone Dashboards ----
+
+export interface DashboardTile {
+  id: string;
+  sift_id: string;
+  kind: "kpi" | "table" | "bar_chart" | "line_chart";
+  title: string;
+  pipeline: Record<string, unknown>[];
+  chart_x: string | null;
+  chart_y: string | null;
+  is_auto_generated: boolean;
+  created_at: string;
+}
+
+export interface DashboardSnapshot {
+  tile_id: string;
+  sift_id: string;
+  result: Record<string, unknown>[];
+  ran_at: string;
+}
+
+export interface StandaloneDashboard {
+  _id: string;
+  name: string;
+  description: string;
+  spec: string;
+  tiles: DashboardTile[];
+  snapshots: Record<string, DashboardSnapshot>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardsListResponse {
+  items: StandaloneDashboard[];
+  total: number;
+}
+
+export const fetchDashboards = (): Promise<DashboardsListResponse> =>
+  apiFetchJson("/api/dashboards");
+
+export const createDashboard = (payload: { name: string; description?: string; spec?: string }): Promise<StandaloneDashboard> =>
+  apiFetchJson("/api/dashboards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+export const fetchDashboard = (dashboardId: string): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}`);
+
+export const updateDashboard = (
+  dashboardId: string,
+  updates: { name?: string; description?: string; spec?: string }
+): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+
+export const deleteDashboard = (dashboardId: string): Promise<{ status: string }> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}`, { method: "DELETE" });
+
+export const addDashboardTileStandalone = (
+  dashboardId: string,
+  tile: { sift_id: string; kind: string; title: string; pipeline: Record<string, unknown>[]; chart_x?: string; chart_y?: string }
+): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/tiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tile),
+  });
+
+export const updateDashboardTileStandalone = (
+  dashboardId: string,
+  tileId: string,
+  updates: Partial<DashboardTile>
+): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/tiles/${tileId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+
+export const deleteDashboardTileStandalone = (dashboardId: string, tileId: string): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/tiles/${tileId}`, { method: "DELETE" });
+
+export const refreshDashboardTileStandalone = (dashboardId: string, tileId: string): Promise<DashboardSnapshot> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/tiles/${tileId}/refresh`, { method: "POST" });
+
+export const reorderStandaloneDashboardTiles = (
+  dashboardId: string,
+  tileIds: string[]
+): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/tiles/reorder`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tile_ids: tileIds }),
+  });
+
+export interface GenerateTilesResult {
+  dashboard: StandaloneDashboard;
+  added: number;
+  trace: Array<{
+    tool: string;
+    args: Record<string, unknown>;
+    result_preview: string;
+    duration_ms: number;
+  }>;
+  refresh_errors: Array<{ tile_id: string; error: string }>;
+}
+
+export const generateDashboardTiles = (
+  dashboardId: string,
+  prompt: string,
+  siftId?: string
+): Promise<GenerateTilesResult> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, sift_id: siftId || null }),
+  });
+
+export const regenerateDashboard = (
+  dashboardId: string,
+  spec: string
+): Promise<GenerateTilesResult> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/regenerate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ spec }),
   });
 
 // ---- GitHub Auth ----
