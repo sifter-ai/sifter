@@ -52,8 +52,6 @@
         "cloud/overview",
         "cloud/billing",
         "cloud/mail-to-upload",
-        "cloud/shares",
-        "cloud/audit-log",
         "cloud/sso"
       ]
     },
