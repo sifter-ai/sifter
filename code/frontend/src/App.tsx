@@ -15,6 +15,7 @@ import {
   LogOut,
   MessageCircle,
   Plug,
+  Plus,
   Settings,
   User as UserIcon,
   Webhook,
@@ -27,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { listOrgs, switchOrg } from "@/api/orgs";
+import { listOrgs, switchOrg, createOrg } from "@/api/orgs";
 import { setToken } from "@/lib/apiFetch";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import logo from "@/assets/logo.svg";
@@ -107,6 +108,9 @@ function OrgSwitcher() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["orgs"],
@@ -129,63 +133,120 @@ function OrgSwitcher() {
     } catch {}
   }
 
+  async function handleCreate() {
+    if (!newOrgName.trim()) return;
+    setCreating(true);
+    try {
+      const res = await createOrg(newOrgName.trim());
+      setToken(res.access_token);
+      qc.clear();
+      setCreateOpen(false);
+      setNewOrgName("");
+      navigate("/");
+    } catch {} finally {
+      setCreating(false);
+    }
+  }
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2.5 w-full px-4 py-3 hover:bg-muted/70 transition-colors text-left">
-          <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={27} />
-          <div className="min-w-0 flex-1">
-            {user?.full_name && (
-              <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
-            )}
-            <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
+    <>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-2.5 w-full px-4 py-3 hover:bg-muted/70 transition-colors text-left">
+            <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={27} />
+            <div className="min-w-0 flex-1">
+              {user?.full_name && (
+                <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
+              )}
+              <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
+            </div>
+            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="w-64 mb-1">
+          <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+            {user?.email}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          {mode === "cloud" && orgs.length > 0 && (
+            <>
+              {orgs.map((org) => (
+                <DropdownMenuItem
+                  key={org.org_id}
+                  onClick={() => handleSwitch(org.org_id)}
+                  className="flex items-center gap-2.5 cursor-pointer"
+                >
+                  <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{org.name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{org.role}</p>
+                  </div>
+                  {org.org_id === currentOrgId && (
+                    <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          {mode === "cloud" && (
+            <DropdownMenuItem
+              onClick={() => { setOpen(false); setCreateOpen(true); }}
+              className="cursor-pointer"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New organization
+            </DropdownMenuItem>
+          )}
+
+          <DropdownMenuItem asChild>
+            <Link to="/settings/account" className="cursor-pointer">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {createOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setCreateOpen(false)}>
+          <div className="bg-background rounded-lg shadow-xl p-6 w-80 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <h2 className="text-base font-semibold">New organization</h2>
+              <p className="text-sm text-muted-foreground mt-1">Create a separate workspace with its own data and billing.</p>
+            </div>
+            <input
+              autoFocus
+              className="w-full border rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Organization name"
+              value={newOrgName}
+              onChange={(e) => setNewOrgName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted"
+                onClick={() => { setCreateOpen(false); setNewOrgName(""); }}
+              >Cancel</button>
+              <button
+                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                disabled={!newOrgName.trim() || creating}
+                onClick={handleCreate}
+              >{creating ? "Creating…" : "Create"}</button>
+            </div>
           </div>
-          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-64 mb-1">
-        <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
-          {user?.email}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        {mode === "cloud" && orgs.length > 0 && (
-          <>
-            {orgs.map((org) => (
-              <DropdownMenuItem
-                key={org.org_id}
-                onClick={() => handleSwitch(org.org_id)}
-                className="flex items-center gap-2.5 cursor-pointer"
-              >
-                <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                  <Building2 className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{org.name}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize">{org.role}</p>
-                </div>
-                {org.org_id === currentOrgId && (
-                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                )}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-          </>
-        )}
-
-        <DropdownMenuItem asChild>
-          <Link to="/settings/account" className="cursor-pointer">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -241,9 +302,9 @@ function Sidebar() {
           Build
         </p>
         <div className="flex flex-col gap-0.5">
-          <NavLink to="/connectors" className={navLinkClass}>
-            <Plug className="h-4 w-4 shrink-0" />
-            Connectors
+          <NavLink to="/api-keys" className={navLinkClass}>
+            <Key className="h-4 w-4 shrink-0" />
+            API Keys
           </NavLink>
           <NavLink to="/webhooks" className={navLinkClass}>
             <Webhook className="h-4 w-4 shrink-0" />
@@ -253,9 +314,9 @@ function Sidebar() {
             <Bot className="h-4 w-4 shrink-0" />
             MCP
           </NavLink>
-          <NavLink to="/api-keys" className={navLinkClass}>
-            <Key className="h-4 w-4 shrink-0" />
-            API Keys
+          <NavLink to="/connectors" className={navLinkClass}>
+            <Plug className="h-4 w-4 shrink-0" />
+            Connectors
           </NavLink>
         </div>
 
