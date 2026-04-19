@@ -51,7 +51,7 @@ export const useSiftRecords = (id: string, options?: { refetchInterval?: Refetch
     refetchInterval: options?.refetchInterval,
   });
 
-export const useSiftDocuments = (siftId: string, options?: { refetchInterval?: number | false }) =>
+export const useSiftDocuments = (siftId: string, options?: { refetchInterval?: RefetchInterval }) =>
   useQuery({
     queryKey: ["sift-documents", siftId],
     queryFn: () => fetchSiftDocuments(siftId),
@@ -112,6 +112,7 @@ export const useUploadDocuments = (siftId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sift", siftId] });
       qc.invalidateQueries({ queryKey: ["sift-records", siftId] });
+      qc.invalidateQueries({ queryKey: ["sift-documents", siftId] });
     },
   });
 };
