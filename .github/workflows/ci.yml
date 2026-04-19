@@ -34,11 +34,11 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        working-directory: code
+        working-directory: code/server
         run: uv sync
 
       - name: Run tests
-        working-directory: code
+        working-directory: code/server
         env:
           SIFTER_MONGODB_URI: mongodb://localhost:27017
           SIFTER_LLM_API_KEY: test-key
