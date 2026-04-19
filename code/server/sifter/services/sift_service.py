@@ -44,6 +44,7 @@ class SiftService:
         instructions: str,
         schema: Optional[str] = None,
         multi_record: bool = False,
+        org_id: str = "default",
     ) -> Sift:
         sift = Sift(
             name=name,
@@ -52,6 +53,7 @@ class SiftService:
             schema=schema,
             status=SiftStatus.ACTIVE,
             multi_record=multi_record,
+            org_id=org_id,
         )
         doc = sift.to_mongo()
         result = await self.col.insert_one(doc)
@@ -68,9 +70,11 @@ class SiftService:
         self,
         skip: int = 0,
         limit: int = 50,
+        org_id: str = "default",
     ) -> tuple[list[Sift], int]:
-        total = await self.col.count_documents({})
-        cursor = self.col.find({}).sort("created_at", -1).skip(skip).limit(limit)
+        q = {"org_id": org_id}
+        total = await self.col.count_documents(q)
+        cursor = self.col.find(q).sort("created_at", -1).skip(skip).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [Sift.from_mongo(d) for d in docs], total
 
@@ -343,7 +347,7 @@ class SiftService:
             }
             try:
                 wh_svc = WebhookService(self.db)
-                await wh_svc.dispatch("sift.schema.changed", payload)
+                await wh_svc.dispatch("sift.schema.changed", payload, sift_id=sift.id, org_id=sift.org_id)
             except Exception as e:
                 logger.error("schema_changed_webhook_failed", sift_id=sift.id, error=str(e))
 

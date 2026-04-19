@@ -28,11 +28,11 @@ def _key_dict(key) -> dict:
 async def list_keys(
     limit: int = 100,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = ApiKeyService(db)
-    keys = await svc.list_api_keys()
+    keys = await svc.list_api_keys(org_id=principal.org_id)
     items = [_key_dict(k) for k in keys]
     return paginated(items[offset:offset + limit], len(items), limit, offset)
 
@@ -40,21 +40,21 @@ async def list_keys(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_key(
     body: CreateKeyRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = ApiKeyService(db)
-    key, plaintext = await svc.create_api_key(body.name)
+    key, plaintext = await svc.create_api_key(body.name, org_id=principal.org_id)
     return {"key": _key_dict(key), "plaintext": plaintext}
 
 
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_key(
     key_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = ApiKeyService(db)
-    ok = await svc.revoke_api_key(key_id)
+    ok = await svc.revoke_api_key(key_id, org_id=principal.org_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Key not found")

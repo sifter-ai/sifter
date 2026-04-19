@@ -26,7 +26,14 @@ class DocumentService:
 
     async def ensure_indexes(self):
         await self.db["folders"].create_index("parent_id", name="parent_id_idx", sparse=True)
-        await self.db["folders"].create_index("path", name="path_unique_idx", unique=True, sparse=True)
+        # Drop the old single-field path index if it exists (replaced by compound below)
+        try:
+            await self.db["folders"].drop_index("path_unique_idx")
+        except Exception:
+            pass
+        await self.db["folders"].create_index(
+            [("path", 1), ("org_id", 1)], unique=True, sparse=True, name="path_org_unique_idx"
+        )
         await self.db["documents"].create_index([("folder_id", 1), ("filename", 1)], unique=True)
 
         # Drop stale indexes
@@ -74,19 +81,19 @@ class DocumentService:
         parent_path = parent.path if parent and parent.path else f"/{self._normalize_segment(parent.name)}" if parent else ""
         return f"{parent_path}/{segment}"
 
-    async def create_folder(self, name: str, description: str, parent_id: Optional[str] = None) -> Folder:
+    async def create_folder(self, name: str, description: str, parent_id: Optional[str] = None, org_id: str = "default") -> Folder:
         path = await self._compute_path(name, parent_id)
-        folder = Folder(name=name, description=description, parent_id=parent_id, path=path)
+        folder = Folder(name=name, description=description, parent_id=parent_id, path=path, org_id=org_id)
         result = await self.db["folders"].insert_one(folder.to_mongo())
         folder.id = str(result.inserted_id)
         return folder
 
     async def list_folders(
-        self, skip: int = 0, limit: int = 200, parent_id: Optional[str] = "ALL"
+        self, skip: int = 0, limit: int = 200, parent_id: Optional[str] = "ALL", org_id: str = "default"
     ) -> tuple[list[Folder], int]:
         """List folders. parent_id='ALL' returns all (default), None returns roots,
         a string ID returns direct children of that folder."""
-        query: dict = {}
+        query: dict = {"org_id": org_id}
         if parent_id != "ALL":
             query["parent_id"] = parent_id  # None → {parent_id: null} which matches missing/null
         total = await self.db["folders"].count_documents(query)

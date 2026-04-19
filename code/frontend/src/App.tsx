@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useState } from "react";
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   BookOpen,
@@ -28,10 +28,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { listOrgs, switchOrg, createOrg } from "@/api/orgs";
+import { listOrgs, switchOrg, createOrg, getMyOrg } from "@/api/orgs";
 import { setToken } from "@/lib/apiFetch";
 import { useDarkMode } from "@/hooks/useDarkMode";
-import logo from "@/assets/logo.svg";
+import { SifterLogo } from "@/components/SifterLogo";
 import { SiftsPage } from "@/pages/SiftsPage";
 import { SiftDetailPage } from "@/pages/SiftDetailPage";
 import MCPSetupPage from "@/pages/MCPSetupPage";
@@ -105,12 +105,17 @@ function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string
 function OrgSwitcher() {
   const { user, logout } = useAuthContext();
   const { mode } = useConfig();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const { data: myOrg } = useQuery({
+    queryKey: ["my-org"],
+    queryFn: getMyOrg,
+    enabled: mode === "cloud",
+    staleTime: 60_000,
+  });
 
   const { data } = useQuery({
     queryKey: ["orgs"],
@@ -127,9 +132,8 @@ function OrgSwitcher() {
     try {
       const res = await switchOrg(orgId);
       setToken(res.access_token);
-      qc.clear();
       setOpen(false);
-      navigate("/");
+      window.location.href = "/";
     } catch {}
   }
 
@@ -139,10 +143,9 @@ function OrgSwitcher() {
     try {
       const res = await createOrg(newOrgName.trim());
       setToken(res.access_token);
-      qc.clear();
       setCreateOpen(false);
       setNewOrgName("");
-      navigate("/");
+      window.location.href = "/";
     } catch {} finally {
       setCreating(false);
     }
@@ -159,6 +162,9 @@ function OrgSwitcher() {
                 <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
               )}
               <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
+              {mode === "cloud" && myOrg?.name && (
+                <p className="text-[10px] text-primary/70 truncate leading-snug font-medium">{myOrg.name}</p>
+              )}
             </div>
             <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           </button>
@@ -266,7 +272,7 @@ function Sidebar() {
           className="font-bold text-[15px] tracking-tight flex items-center gap-2.5 group"
         >
           <div className="relative">
-            <img src={logo} alt="Sifter" className="h-7 w-7 transition-transform group-hover:scale-105" />
+            <SifterLogo className="h-7 w-7 transition-transform group-hover:scale-105" />
           </div>
           <span className="text-primary">Sifter</span>
         </Link>

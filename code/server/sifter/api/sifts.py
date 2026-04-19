@@ -130,6 +130,7 @@ async def create_sift(
         instructions=body.instructions,
         schema=body.schema,
         multi_record=body.multi_record,
+        org_id=principal.org_id,
     )
 
     return _sift_to_dict(sift)
@@ -139,11 +140,11 @@ async def create_sift(
 async def list_sifts(
     limit: int = 50,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sifts, total = await svc.list_all(skip=offset, limit=limit)
+    sifts, total = await svc.list_all(skip=offset, limit=limit, org_id=principal.org_id)
     return paginated([_sift_to_dict(s) for s in sifts], total, limit, offset)
 
 

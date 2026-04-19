@@ -33,6 +33,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 @dataclass
 class Principal:
     key_id: str  # "anonymous", "bootstrap", DB key _id, or user _id
+    org_id: str = "default"
 
 
 def _hash_api_key(raw_key: str) -> str:

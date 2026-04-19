@@ -51,17 +51,19 @@ class DashboardService:
 
     # ---- CRUD ----
 
-    async def list_all(self, skip: int = 0, limit: int = 50) -> tuple[list[dict], int]:
-        total = await self.col.count_documents({})
-        cursor = self.col.find({}).sort("created_at", -1).skip(skip).limit(limit)
+    async def list_all(self, skip: int = 0, limit: int = 50, org_id: str = "default") -> tuple[list[dict], int]:
+        q = {"org_id": org_id}
+        total = await self.col.count_documents(q)
+        cursor = self.col.find(q).sort("created_at", -1).skip(skip).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [_serialize(d) for d in docs], total
 
-    async def create(self, name: str, description: str = "", spec: str = "") -> dict:
+    async def create(self, name: str, description: str = "", spec: str = "", org_id: str = "default") -> dict:
         doc = {
             "name": name,
             "description": description,
             "spec": spec,
+            "org_id": org_id,
             "tiles": [],
             "snapshots": {},
             "created_at": _now(),

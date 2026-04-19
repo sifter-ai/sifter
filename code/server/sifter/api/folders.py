@@ -96,7 +96,7 @@ async def list_folders(
     offset: int = 0,
     parent_id: Optional[str] = None,
     all: bool = True,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """List folders. By default returns all folders (flat).
@@ -104,23 +104,23 @@ async def list_folders(
     Pass ?all=false&parent_id={id} for direct children."""
     svc = DocumentService(db)
     if all:
-        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id="ALL")
+        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id="ALL", org_id=principal.org_id)
     elif parent_id == "root":
-        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=None)
+        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=None, org_id=principal.org_id)
     else:
-        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=parent_id)
+        folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=parent_id, org_id=principal.org_id)
     return paginated([_folder_dict(f) for f in folders], total, limit, offset)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_folder(
     body: CreateFolderRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
     await svc.ensure_indexes()
-    folder = await svc.create_folder(body.name, body.description, parent_id=body.parent_id)
+    folder = await svc.create_folder(body.name, body.description, parent_id=body.parent_id, org_id=principal.org_id)
 
     if body.parent_id:
         for sid in await svc.collect_effective_sift_ids(body.parent_id):
@@ -388,6 +388,12 @@ async def upload_document(
     folder = await svc.get_folder(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
+
+    from ..services.file_processor import FileProcessor
+    if not FileProcessor().is_supported(file.filename or ""):
+        from pathlib import Path
+        ext = Path(file.filename or "").suffix or "(none)"
+        raise HTTPException(status_code=415, detail=f"Unsupported file type: {ext}")
 
     max_bytes = config.max_file_size_mb * 1024 * 1024
     content = await file.read()

@@ -9,6 +9,7 @@ class APIKey(BaseModel):
     name: str
     key_hash: str
     key_prefix: str
+    org_id: str = "default"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_used_at: Optional[datetime] = None
     is_active: bool = True

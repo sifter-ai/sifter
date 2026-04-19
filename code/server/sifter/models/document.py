@@ -24,6 +24,7 @@ class Folder(BaseModel):
     document_count: int = 0
     parent_id: Optional[str] = None
     path: Optional[str] = None
+    org_id: str = "default"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

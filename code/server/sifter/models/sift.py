@@ -30,6 +30,7 @@ with warnings.catch_warnings():
         total_documents: int = 0
         default_folder_id: Optional[str] = None
         multi_record: bool = False
+        org_id: str = "default"
         created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
         updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

@@ -95,7 +95,7 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
         # exists every subsequent document can run in parallel.
         from bson import ObjectId as _ObjId
         stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
-        sift_doc = await db["sifts"].find_one({"_id": _ObjId(sift_id)}, {"schema": 1})
+        sift_doc = await db["sifts"].find_one({"_id": _ObjId(sift_id)}, {"schema": 1, "org_id": 1})
         if sift_doc and not sift_doc.get("schema"):
             other_running = await db[COLLECTION].count_documents({
                 "sift_id": sift_id,
@@ -113,6 +113,7 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
 
         doc_svc = DocumentService(db)
         ext_svc = SiftService(db)
+        sift_org_id = sift_doc.get("org_id", "default") if sift_doc else "default"
 
         logger.info("processing_document", document_id=document_id, sift_id=sift_id, attempt=attempts)
 
@@ -149,14 +150,15 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
 
             logger.info("document_processed", document_id=document_id, sift_id=sift_id)
 
-            from .limits import get_usage_limiter, _default_org_id
-            await get_usage_limiter().record_processed(org_id=_default_org_id, doc_count=1)
+            from .limits import get_usage_limiter
+            await get_usage_limiter().record_processed(org_id=sift_org_id, doc_count=1)
 
             await _dispatch_webhook(
                 db=db,
                 event="sift.document.processed",
                 payload={"document_id": document_id, "sift_id": sift_id, "record_id": first_record_id, "record_count": len(results)},
                 sift_id=sift_id,
+                org_id=sift_org_id,
             )
 
         except Exception as e:
@@ -175,6 +177,7 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                     event="sift.document.discarded",
                     payload={"document_id": document_id, "sift_id": sift_id, "reason": e.reason},
                     sift_id=sift_id,
+                    org_id=sift_org_id,
                 )
                 continue
 
@@ -206,17 +209,18 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                     event="sift.error",
                     payload={"document_id": document_id, "sift_id": sift_id, "error": error_msg},
                     sift_id=sift_id,
+                    org_id=sift_org_id,
                 )
             except Exception as update_err:
                 logger.error("status_update_failed", error=str(update_err))
 
 
-async def _dispatch_webhook(db, event: str, payload: dict, sift_id: Optional[str] = None) -> None:
+async def _dispatch_webhook(db, event: str, payload: dict, sift_id: Optional[str] = None, org_id: str = "default") -> None:
     """Fire-and-forget webhook dispatch."""
     try:
         from .webhook_service import WebhookService
         svc = WebhookService(db)
-        await svc.dispatch(event=event, payload=payload, sift_id=sift_id)
+        await svc.dispatch(event=event, payload=payload, sift_id=sift_id, org_id=org_id)
     except Exception as e:
         logger.warning("webhook_dispatch_error", error=str(e))
 

@@ -53,21 +53,23 @@ class WebhookService:
         events: list[str],
         url: str,
         sift_id: Optional[str] = None,
+        org_id: str = "default",
     ) -> Webhook:
-        wh = Webhook(events=events, url=url, sift_id=sift_id)
+        wh = Webhook(events=events, url=url, sift_id=sift_id, org_id=org_id)
         doc = wh.to_mongo()
         result = await self.db["webhooks"].insert_one(doc)
         wh.id = str(result.inserted_id)
         return wh
 
-    async def list_all(self, skip: int = 0, limit: int = 50) -> tuple[list[Webhook], int]:
-        total = await self.db["webhooks"].count_documents({})
-        cursor = self.db["webhooks"].find({}).skip(skip).limit(limit)
+    async def list_all(self, skip: int = 0, limit: int = 50, org_id: str = "default") -> tuple[list[Webhook], int]:
+        q = {"org_id": org_id}
+        total = await self.db["webhooks"].count_documents(q)
+        cursor = self.db["webhooks"].find(q).skip(skip).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [Webhook.from_mongo(d) for d in docs], total
 
-    async def delete(self, hook_id: str) -> bool:
-        result = await self.db["webhooks"].delete_one({"_id": ObjectId(hook_id)})
+    async def delete(self, hook_id: str, org_id: str = "default") -> bool:
+        result = await self.db["webhooks"].delete_one({"_id": ObjectId(hook_id), "org_id": org_id})
         return result.deleted_count > 0
 
     async def dispatch(
@@ -75,6 +77,7 @@ class WebhookService:
         event: str,
         payload: dict,
         sift_id: Optional[str] = None,
+        org_id: str = "default",
     ) -> None:
         """
         Fan out event to all matching webhooks. Fires-and-forgets HTTP POST.
@@ -83,7 +86,7 @@ class WebhookService:
         import asyncio
         import httpx
 
-        cursor = self.db["webhooks"].find({})
+        cursor = self.db["webhooks"].find({"org_id": org_id})
         hooks = await cursor.to_list(length=None)
 
         matching = []

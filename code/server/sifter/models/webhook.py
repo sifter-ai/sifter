@@ -10,6 +10,7 @@ class Webhook(BaseModel):
     events: list[str]          # patterns, e.g. ["sift.*", "folder.document.uploaded"]
     url: str
     sift_id: Optional[str] = None  # optional filter: only fire for this sift
+    org_id: str = "default"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}

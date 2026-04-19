@@ -63,19 +63,19 @@ async def list_dashboards(
     limit: int = 50,
     offset: int = 0,
     skip: Optional[int] = None,  # deprecated alias for offset
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     effective_offset = skip if skip is not None else offset
     svc = _svc(db)
-    items, total = await svc.list_all(skip=effective_offset, limit=limit)
+    items, total = await svc.list_all(skip=effective_offset, limit=limit, org_id=principal.org_id)
     return paginated(items, total, limit, effective_offset)
 
 
 @router.post("")
 async def create_dashboard(
     body: CreateDashboardRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = _svc(db)
@@ -83,6 +83,7 @@ async def create_dashboard(
         name=body.name,
         description=body.description,
         spec=body.spec,
+        org_id=principal.org_id,
     )
     if body.spec and body.spec.strip():
         try:
