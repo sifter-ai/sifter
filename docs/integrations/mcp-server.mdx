@@ -22,15 +22,57 @@ The remote endpoint is a **Starter+** Sifter Cloud feature. Free-plan API keys r
 
 ## Remote — Sifter Cloud
 
-No installation. Point any MCP-aware client at the hosted endpoint and authenticate with your Sifter API key.
+No installation. Point any MCP-aware client at the hosted endpoint.
 
 **Endpoint:** `https://sifter.run/mcp`
-**Auth:** `Authorization: Bearer <your-api-key>`
 **Transport:** Streamable HTTP (MCP standard)
+**Auth:** OAuth 2.0 (recommended) or API key
 
-Generate a key in the Sifter web app under **Settings → API Keys**. The same key unlocks REST, SDK, and MCP.
+### OAuth (recommended)
 
-### Claude Desktop
+The Sifter MCP remote supports [OAuth 2.0](https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization) as defined in the MCP spec. Clients that support OAuth can authenticate without an API key — the client handles the browser redirect and token exchange automatically.
+
+**Claude Desktop / Claude Code**
+
+Just add the URL — Claude handles the OAuth flow:
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://sifter.run/mcp"
+    }
+  }
+}
+```
+
+On first use Claude will open a browser window, you log in to Sifter, grant access, and the token is stored automatically. No API key to copy.
+
+**Claude Code (CLI)**
+
+```bash
+claude mcp add sifter --url https://sifter.run/mcp
+```
+
+**Cursor**
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://sifter.run/mcp"
+    }
+  }
+}
+```
+
+### API key
+
+If your MCP client doesn't support OAuth, use an API key. Generate one in **Settings → API Keys** — the same key unlocks REST, SDK, and MCP.
+
+**Claude Desktop**
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
@@ -48,16 +90,14 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-### Claude Code (CLI)
+**Claude Code (CLI)**
 
 ```bash
 claude mcp add sifter --url https://sifter.run/mcp \
   --header "Authorization: Bearer sk-your-api-key"
 ```
 
-### Cursor
-
-Add to `.cursor/mcp.json` in your project:
+**Cursor**
 
 ```json
 {
@@ -73,9 +113,9 @@ Add to `.cursor/mcp.json` in your project:
 }
 ```
 
-### ChatGPT / Gemini / other MCP clients
+**ChatGPT / Gemini / other MCP clients**
 
-Any client that speaks MCP over Streamable HTTP can connect. Point it at `https://sifter.run/mcp` and add the `Authorization: Bearer` header — configuration format varies by client, check your client's MCP documentation.
+Any client that speaks MCP over Streamable HTTP can connect. Point it at `https://sifter.run/mcp` — use OAuth if your client supports it, or add the `Authorization: Bearer` header with an API key.
 
 ---
 
@@ -172,10 +212,6 @@ All tools operate within the authenticated user's org.
 | `sift://{id}/records` | All records for a sift as a JSON resource |
 
 ---
-
-## Rate limiting
-
-The remote endpoint shares your plan's REST rate limit (Starter: 60 rpm, Pro: 300 rpm, Business: 1200 rpm, Scale: 3000 rpm). Each tool call counts as one request.
 
 ## Example prompts
 
