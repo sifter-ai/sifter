@@ -1,6 +1,6 @@
 ---
 title: Cloud Overview
-description: What Sifter Cloud adds on top of the OSS engine — managed hosting, remote MCP, connectors, billing, SSO.
+description: What Sifter Cloud adds on top of the OSS engine — managed hosting, remote MCP, connectors, billing, SSO, audit log, shares.
 ---
 
 # Sifter Cloud
@@ -15,7 +15,7 @@ Everything in the OSS engine — chat, spec-driven [dashboards](/concepts/dashbo
 
 <CardGroup cols={2}>
   <Card title="Remote MCP" icon="bolt" href="/integrations/mcp-server">
-    Managed `https://sifter.run/mcp` endpoint. Any MCP-aware client (Claude, ChatGPT, Gemini, Cursor, Claude Code) connects via OAuth or API key — no local install. **Starter+**.
+    Managed `https://sifter.run/mcp` endpoint. Any MCP-aware client (Claude, ChatGPT, Gemini, Cursor, Claude Code) connects with a single API key — no local install. **Starter+**.
   </Card>
   <Card title="Connectors" icon="plug" href="/concepts/connectors">
     Google Drive folder sync and per-org mail-to-upload addresses. Documents land in a Sifter folder the moment they arrive at the source.
@@ -26,8 +26,14 @@ Everything in the OSS engine — chat, spec-driven [dashboards](/concepts/dashbo
   <Card title="Mail-to-upload" icon="envelope" href="/cloud/mail-to-upload">
     Each folder gets `folder-xxx@in.sifter.run`. Forward an email, attachments become documents.
   </Card>
+  <Card title="Shares" icon="share-nodes" href="/cloud/shares">
+    Turn a chat answer, aggregation, or dashboard view into a shareable link — org-only, public, or password-protected. Optional expiry. PDF + email delivery.
+  </Card>
+  <Card title="Audit log" icon="clipboard-list" href="/cloud/audit-log">
+    Every security-relevant action (billing, API key, sift, user, connector). Filterable by actor / action / time. **Pro+**.
+  </Card>
   <Card title="SSO" icon="key" href="/cloud/sso">
-    Google single sign-on. One click from the login page. **Pro+**.
+    Google and GitHub single sign-on. One click from the login page. **Pro+**.
   </Card>
   <Card title="Managed hosting" icon="server">
     MongoDB, LLM credits, storage, TLS, backups — handled. Bring zero infrastructure.
@@ -46,8 +52,10 @@ Everything in the OSS engine — chat, spec-driven [dashboards](/concepts/dashbo
 | MCP **remote** (`https://sifter.run/mcp`) | — | Starter+ |
 | Google Drive connector | — | Starter+ |
 | Mail-to-upload | — | Starter+ |
+| Shares (link, email, PDF) | — | Starter+ |
 | Stripe billing portal | — | ✓ |
-| Google SSO | — | Pro+ |
+| Google + GitHub SSO | — | Pro+ |
+| Audit log | — | Pro+ |
 
 See [Pricing](/overview/pricing) for full plan breakdown.
 

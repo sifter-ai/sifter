@@ -7,7 +7,7 @@ description: Sifter Cloud plans and self-hosting options.
 
 Sifter is **open source and free forever** under MIT — self-host on your own infrastructure, bring your own LLM key, pay for nothing.
 
-Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Google Drive + mail-to-upload ingress, billing, SSO.
+Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Google Drive + mail-to-upload ingress, billing, SSO, audit log, share links.
 
 <Info>
 **1 document = 1 file up to 10 pages.** PDFs longer than 10 pages are rejected at upload — split and retry.
@@ -36,7 +36,7 @@ Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Goog
     - REST API + Python SDK
     - **MCP remote** (`https://sifter.run/mcp`)
     - 1 Google Drive connector + mail-to-upload
-    - CSV export
+    - CSV export, shares
 
     [Start trial →](https://sifter.ai/register)
   </Card>
@@ -46,7 +46,7 @@ Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Goog
     - 3,000 documents / month
     - Unlimited sifts
     - Unlimited Drive connectors + mail-to-upload
-    - SSO (Google)
+    - SSO (Google + GitHub)
 
     [Start trial →](https://sifter.ai/register)
   </Card>
@@ -56,6 +56,7 @@ Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Goog
     - 15,000 documents / month
     - Everything in Pro
     - PDF report export
+    - Share links, email delivery, PDF shares
 
     [Start trial →](https://sifter.ai/register)
   </Card>
@@ -73,7 +74,7 @@ Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Goog
 
     - Unlimited volume
     - BYOK LLM, on-prem, custom SLA
-    - RBAC, dedicated support
+    - Audit log, RBAC, dedicated support
 
     [Talk to sales →](https://sifter.ai/enterprise)
   </Card>
@@ -102,7 +103,7 @@ The 10-page cap is enforced by default (`SIFTER_MAX_PDF_PAGES=10`) and can be ra
 
 ## Enterprise
 
-Need on-premises deployment, RBAC, BYOK LLM, larger documents, or a custom SLA?
+Need on-premises deployment, RBAC, audit logging, BYOK LLM, larger documents, or a custom SLA?
 
 <Card title="Contact us" icon="envelope" href="https://sifter.ai/enterprise">
   Talk to us about enterprise deployments — dedicated cloud, on-prem, custom volume, no page limit.

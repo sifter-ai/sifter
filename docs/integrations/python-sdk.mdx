@@ -26,7 +26,7 @@ s = Sifter(
 
 ## Error handling
 
-The SDK exposes a unified surface across OSS and Cloud. Cloud-only methods (connectors, billing) raise specific errors when the backend doesn't support them or when your plan doesn't include them.
+The SDK exposes a unified surface across OSS and Cloud. Cloud-only methods (connectors, shares, billing, audit log) raise specific errors when the backend doesn't support them or when your plan doesn't include them.
 
 ```python
 from sifter import Sifter, NotAvailableError, PlanLimitError
