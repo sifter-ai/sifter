@@ -29,9 +29,11 @@
         "concepts/sifts",
         "concepts/folders",
         "concepts/records",
+        "concepts/dashboards",
         "concepts/aggregations",
         "concepts/queries-and-chat",
-        "concepts/webhooks"
+        "concepts/webhooks",
+        "concepts/connectors"
       ]
     },
     {
@@ -39,9 +41,9 @@
       "pages": [
         "integrations/python-sdk",
         "integrations/rest-api",
-        "integrations/cli",
         "integrations/mcp-server",
-        "integrations/webhooks-reference"
+        "integrations/webhooks-reference",
+        "integrations/google-drive"
       ]
     },
     {
@@ -60,7 +62,7 @@
         "resources/cookbook/contracts-clauses",
         "resources/cookbook/receipts-bulk",
         "resources/cookbook/pdf-batch-csv",
-        "resources/tutorials/gmail-to-sifter",
+        "resources/tutorials/drive-to-sifter",
         "resources/tutorials/webhook-pipeline",
         "resources/changelog"
       ]

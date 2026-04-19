@@ -1,13 +1,15 @@
 ---
 title: Introduction
-description: Sifter turns unstructured documents into structured, queryable data — without writing parsing code.
+description: Chat with your documents. Query them like a database. Build on top via API.
 ---
 
 # What is Sifter?
 
 <img src="/images/hero.png" alt="Documents becoming structured data" className="rounded-xl w-full mb-6" />
 
-Sifter is an open-source AI-powered document extraction engine. It takes documents and turns them into a structured, queryable database — defined in natural language, no templates required.
+**Chat with your documents. Query them like a database. Build on top via API.**
+
+Sifter is an open-source AI-powered document extraction engine. It turns PDFs, contracts, invoices, and receipts into a structured, queryable store — defined in natural language, no templates required. Once extracted, your records are chattable, aggregatable, and hookable into any downstream pipeline.
 
 ## Why not RAG?
 
@@ -52,25 +54,25 @@ RAG is the default answer for "AI + documents." It works well on diverse corpora
 | [Aggregation](/concepts/aggregations) | A saved MongoDB pipeline generated from natural language. Reusable and refreshable. |
 | [Webhook](/concepts/webhooks) | HTTP callback fired on extraction events. Wildcard patterns, retry on failure. |
 
-## Interfaces
-
-Sifter ships with three ways to interact with your data:
+## Three pillars
 
 <CardGroup cols={3}>
-  <Card title="Web UI" icon="browser">
-    Built-in React UI for managing sifts, folders, documents, and results. No separate deployment needed.
+  <Card title="Chat" icon="message">
+    Ask questions in plain language — "how much did I invoice to Acme last quarter?" — and get an answer grounded in your records with citations back to the source document.
   </Card>
-  <Card title="REST API + SDK" icon="code">
-    Full REST API and Python SDK for programmatic access. Authenticate with an API key or JWT.
+  <Card title="Query" icon="table">
+    Extracted records are real structured data. Filter, sort, aggregate, or build [dashboards](/concepts/dashboards) on top. Export to CSV, PDF, or pipe to your warehouse.
   </Card>
-  <Card title="MCP server" icon="cpu-chip">
-    Connect Claude Desktop or Cursor to your extracted records via the Model Context Protocol.
+  <Card title="Build" icon="code">
+    REST API, Python SDK, [webhooks](/concepts/webhooks), and an [MCP server](/integrations/mcp-server) for Claude, ChatGPT, Gemini, Cursor — any MCP-aware client.
   </Card>
 </CardGroup>
 
-## Open source
+## Open source vs. Cloud
 
-Sifter is Apache 2.0. Self-host with a single `docker compose up`. Bring your own LLM API key. The managed cloud offering (`sifter-cloud`) adds multi-tenant billing on top of the same engine.
+Sifter is Apache 2.0. The **OSS engine** ships the complete product — chat, dashboards, webhooks, SDK, MCP stdio — and self-hosts with a single `docker compose up`. Bring your own LLM key, pay for nothing.
+
+**Sifter Cloud** is the managed version at [sifter.run](https://sifter.run): hosted infra, remote MCP endpoint, Google Drive + mail-to-upload ingress, Stripe billing, SSO, audit log, share links. See [Pricing](/overview/pricing).
 
 <Card title="Quickstart" icon="rocket" href="/overview/quickstart">
   Get up and running in 5 minutes

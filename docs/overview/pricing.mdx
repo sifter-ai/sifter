@@ -1,84 +1,102 @@
 ---
 title: Pricing
-description: Sifter cloud plans and self-hosting options.
+description: Sifter Cloud plans and self-hosting options.
 ---
 
 # Pricing
 
-## Cloud plans
+Sifter is **open source and free forever** under Apache 2.0 — self-host on your own infrastructure, bring your own LLM key, pay for nothing.
 
-Each plan includes a monthly document allowance. **1 document = 1 file up to 10 pages.** PDFs longer than 10 pages are rejected at upload — split the document and retry.
+Sifter **Cloud** is the hosted version: managed infra, remote MCP endpoint, Google Drive + mail-to-upload ingress, billing, SSO, audit log, share links.
+
+<Info>
+**1 document = 1 file up to 10 pages.** PDFs longer than 10 pages are rejected at upload — split and retry. Free plans cap at 5 MB per file; paid plans start at 25 MB and scale up.
+</Info>
+
+## Cloud plans
 
 <CardGroup cols={2}>
   <Card title="Free" icon="circle">
     **$0 / month**
 
-    - 10 documents/month
+    - 10 documents / month
     - 1 sift
-    - Web UI only (no API, no export)
-    - Up to 10 pages / doc
+    - Web UI, chat, dashboards, webhooks
+    - Up to 10 pages / doc, 5 MB
+    - 7-day retention
 
-    [Get started →](https://sifter.ai/register)
+    No API. No MCP remote. No connectors.
+
+    [Sign up →](https://sifter.ai/register)
   </Card>
   <Card title="Starter" icon="bolt">
     **$19 / month**
 
-    - 500 documents/month
+    - 500 documents / month
     - 10 sifts
-    - REST API + Python SDK + MCP
-    - CSV export
-    - Gmail + Drive connectors (1 each)
-    - Up to 10 pages / doc
+    - REST API + Python SDK
+    - **MCP remote** (`https://sifter.run/mcp`)
+    - 1 Google Drive connector + mail-to-upload
+    - CSV export, 5 shares
 
-    [Get started →](https://sifter.ai/register)
+    [Start trial →](https://sifter.ai/register)
   </Card>
   <Card title="Pro" icon="star">
     **$49 / month**
 
-    - 3,000 documents/month
+    - 3,000 documents / month
     - Unlimited sifts
-    - REST API + SDK + MCP
+    - Unlimited Drive connectors + mail-to-upload
     - SSO (Google + GitHub)
-    - Unlimited connectors
-    - Up to 10 pages / doc
+    - 20 shares, 50 MB / file
+    - 300 rpm rate limit
 
-    [Get started →](https://sifter.ai/register)
+    [Start trial →](https://sifter.ai/register)
   </Card>
   <Card title="Business" icon="building">
     **$149 / month**
 
-    - 15,000 documents/month
-    - Unlimited sifts
+    - 15,000 documents / month
+    - Everything in Pro
     - PDF report export
-    - Advanced webhooks
-    - Share via link, email, PDF
-    - Up to 10 pages / doc
+    - Unlimited shares (link, email, PDF)
+    - 100 MB / file, 1,200 rpm
 
-    [Get started →](https://sifter.ai/register)
+    [Start trial →](https://sifter.ai/register)
   </Card>
   <Card title="Scale" icon="rocket">
     **$399 / month**
 
-    - 50,000 documents/month
+    - 50,000 documents / month
     - Everything in Business
     - Priority support
-    - Up to 10 pages / doc
+    - 250 MB / file, 3,000 rpm
 
-    [Get started →](https://sifter.ai/register)
+    [Start trial →](https://sifter.ai/register)
+  </Card>
+  <Card title="Enterprise" icon="shield">
+    **Contact us**
+
+    - Unlimited volume
+    - BYOK LLM, on-prem, custom SLA
+    - Audit log, RBAC, dedicated support
+    - 500 MB / file, 10,000 rpm
+
+    [Talk to sales →](https://sifter.ai/enterprise)
   </Card>
 </CardGroup>
 
+## What's in every tier
+
+Chat over your documents, spec-driven [dashboards](/concepts/dashboards), [webhooks](/concepts/webhooks) with HMAC signing + retry, natural-language queries, aggregations, and folder organization — all OSS, all included on Free. Paying unlocks volume, API/MCP access, connectors, and managed operations.
+
 <Info>
-All paid plans include natural language queries, aggregations, and chat over extracted data. No per-page fees, no overage — exceeding your monthly quota prompts an upgrade. Documents are capped at 10 pages to keep pricing predictable.
+**MCP remote** is the flagship Cloud upgrade. Free keys receive `402 Payment Required` on any tool call — upgrade to Starter to unlock the managed `https://sifter.run/mcp` endpoint that any MCP-aware client (Claude, ChatGPT, Gemini, Cursor) can hit with an `Authorization: Bearer` header.
 </Info>
-
-Need larger documents, higher volume, or no page cap? [Contact us](https://sifter.ai/enterprise) for a custom plan.
-
----
 
 ## Self-hosting
 
-The OSS engine is **free forever** under Apache 2.0. Run it on your own infrastructure — no document limits, no usage fees. You pay only for your own LLM API key.
+The OSS engine is free forever. Run everything — chat, dashboards, webhooks, SDK, MCP stdio — on your own infra with your own LLM key.
 
 ```bash
 git clone https://github.com/bfortunato/sifter
@@ -87,15 +105,11 @@ cp .env.example .env  # set SIFTER_LLM_API_KEY
 docker compose up -d
 ```
 
-The 10-page cap applies by default (`SIFTER_MAX_PDF_PAGES=10`) and can be raised in self-hosted deployments.
-
-See [Self-hosting](/self-hosting/docker-compose) for the full setup guide.
-
----
+The 10-page cap is enforced by default (`SIFTER_MAX_PDF_PAGES=10`) and can be raised in self-hosted deployments. See [Self-hosting](/self-hosting/docker-compose) for the full setup.
 
 ## Enterprise
 
-Need SSO, on-premises deployment, RBAC, audit logging, BYOK LLM, larger documents, or a custom SLA?
+Need on-premises deployment, RBAC, audit logging, BYOK LLM, larger documents, or a custom SLA?
 
 <Card title="Contact us" icon="envelope" href="https://sifter.ai/enterprise">
   Talk to us about enterprise deployments — dedicated cloud, on-prem, custom volume, no page limit.

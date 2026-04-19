@@ -1,0 +1,82 @@
+---
+title: Connectors
+description: Managed ingress into Sifter — Google Drive folders and mail-to-upload addresses that auto-populate your folders.
+---
+
+# Connectors
+
+A **connector** is a managed ingress: an external source that automatically drops documents into a Sifter [folder](/concepts/folders), where every linked [sift](/concepts/sifts) then runs on them. No cron, no watcher script, no `curl` loop.
+
+<Info>
+Connectors are a **Sifter Cloud** feature. Self-hosted installs use the [REST API](/integrations/rest-api) or [Python SDK](/integrations/python-sdk) upload path instead.
+</Info>
+
+## Why connectors
+
+The `POST /api/documents` endpoint is fine for one-off uploads, but most real workflows have an *existing* place where documents land — a shared Drive folder, an accounting inbox, a vendor portal that emails PDFs. Connectors wire Sifter directly into those flows so extraction happens as soon as the document arrives.
+
+## Available connectors
+
+<CardGroup cols={2}>
+  <Card title="Google Drive" icon="folder-open">
+    Watch a Drive folder (shared drive, My Drive, or regular folder). Sifter polls every ~15 minutes and picks up new or modified PDFs and images. Read-only scope — Sifter never writes to your Drive.
+
+    [Setup →](/integrations/google-drive)
+  </Card>
+  <Card title="Mail-to-upload" icon="envelope">
+    Every Sifter folder gets a unique forwarding address (`folder-abc@in.sifter.run`). Forward any email with an attachment — invoices, receipts, contracts — and the attachments become documents in that folder.
+
+    Available on **Starter+**.
+  </Card>
+</CardGroup>
+
+## Lifecycle
+
+<Steps>
+  <Step title="Connect">
+    In the Sifter web app, open **Connectors** in the sidebar. Pick a provider and authorize — Drive uses OAuth, mail-to-upload generates an address instantly.
+  </Step>
+  <Step title="Configure destination">
+    Each connection needs a **destination folder** on the Sifter side. Every document the connector pulls in is dropped into that folder, and every sift linked to the folder runs on it.
+  </Step>
+  <Step title="Sync">
+    Drive syncs on a background schedule (~every 15 minutes) and can be triggered on demand. Mail-to-upload fires as soon as an email hits the forwarding address.
+  </Step>
+  <Step title="Revoke">
+    Click **Revoke** on the connection card. OAuth tokens are deleted immediately and future syncs stop. Documents already ingested stay in your folder.
+  </Step>
+</Steps>
+
+## Tier gating
+
+| Plan | Drive connectors | Mail-to-upload |
+|------|------------------|----------------|
+| Free | — | — |
+| Starter ($19) | 1 | ✓ |
+| Pro ($49) | Unlimited | ✓ |
+| Business ($149) | Unlimited | ✓ |
+| Scale ($399) | Unlimited | ✓ |
+
+See [Pricing](/overview/pricing) for full plan details.
+
+## What gets ingested
+
+- **PDFs and images** only. Google Docs, Sheets, and Slides are skipped — export them first.
+- Files over your plan's max attachment size or longer than 10 pages are counted as `skipped` and reported in the sync result.
+- Each successfully ingested document counts against your monthly document quota.
+
+## Connectors vs. direct upload
+
+| You want… | Use |
+|-----------|-----|
+| A Drive folder to auto-flow into Sifter | **Drive connector** |
+| Vendors or teammates to email documents in | **Mail-to-upload** |
+| Programmatic control from an existing pipeline | [REST API](/integrations/rest-api) / [SDK](/integrations/python-sdk) |
+| One-off manual upload | Web UI drag-and-drop |
+
+## See also
+
+- [Google Drive → Sifter tutorial](/resources/tutorials/drive-to-sifter) — end-to-end walkthrough
+- [Google Drive integration](/integrations/google-drive) — API reference for connector endpoints
+- [Folders](/concepts/folders) — the destination for everything a connector ingests
+- [Webhooks](/concepts/webhooks) — fan-out extracted records to downstream systems

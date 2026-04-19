@@ -1,0 +1,103 @@
+---
+title: Google Drive → Sifter
+description: Auto-sync documents from a Drive folder into a Sifter folder — no uploads, no cron.
+---
+
+# Google Drive → Sifter
+
+Drop a contract, an invoice, a receipt into a Google Drive folder. Seconds later, it shows up in Sifter — extracted, indexed, queryable.
+
+<Info>
+Drive connectors are a **Sifter Cloud** feature. Starter ($19/mo) includes 1 connection; Pro+ is unlimited. Self-hosted Sifter uses the API/SDK upload path instead.
+</Info>
+
+## What this tutorial covers
+
+- Authorize Google Drive access for your Sifter workspace.
+- Pick which Drive folder to watch.
+- Pick which Sifter folder receives the documents.
+- Trigger an on-demand sync and verify the run.
+
+## Prerequisites
+
+- A Sifter Cloud account on **Starter** or above. Sign up at [sifter.ai/register](https://sifter.ai/register).
+- A Google account with access to the Drive folder you want to watch.
+- At least one Sifter [folder](/concepts/folders) with one or more [sifts](/concepts/sifts) linked to it. (The linked sifts run automatically on every incoming document.)
+
+## 1. Authorize Drive
+
+<Steps>
+  <Step title="Open Connectors">
+    In the Sifter web app, click **Connectors** in the sidebar (under the **Build** section).
+  </Step>
+  <Step title="Connect Google Drive">
+    Click **Connect** next to Google Drive. You'll be sent to Google's OAuth consent screen.
+
+    Sifter requests two scopes:
+    - `drive.readonly` — to list and download files from the folder you pick.
+    - `drive.metadata.readonly` — to detect new and updated files.
+
+    No write access. Sifter never modifies your Drive.
+  </Step>
+  <Step title="Pick the Drive folder">
+    After consent, Sifter redirects back and asks which Drive folder to watch. Pick one — it can be a shared drive folder, a regular folder, or "My Drive".
+
+    Only PDFs and image files are synced. Google Docs / Sheets / Slides are skipped (export them as PDF first).
+  </Step>
+  <Step title="Pick the Sifter destination folder">
+    In the connection card, choose the Sifter folder that should receive the synced documents. Every sift linked to that folder will run on each new document automatically.
+  </Step>
+</Steps>
+
+## 2. Trigger a sync
+
+The first sync runs automatically after you pick the destination folder. To re-sync on demand:
+
+- **From the UI** — click **Sync** on the connection card. The badge flips to *Syncing…* and reverts to *Active* when done.
+- **From the API** — `POST /api/cloud/connectors/gdrive/{connection_id}/sync`. Returns `{ "synced": N, "skipped": M }`.
+
+Subsequent syncs run on a background schedule (~every 15 minutes) and pick up anything new or modified.
+
+## 3. Watch it flow through
+
+Every document that Sifter picks up:
+
+1. Downloads into your Sifter folder (respects your plan's attachment size cap).
+2. Triggers extraction on every linked sift.
+3. Fires a `folder.document.uploaded` webhook if you have one registered ([see webhooks](/concepts/webhooks)).
+4. Counts against your monthly document quota.
+
+Open the Sifter folder to see incoming documents, or subscribe to your sift's records feed via the [SDK](/integrations/python-sdk):
+
+```python
+from sifter_sdk import Sifter
+
+s = Sifter(api_key="sk-...")
+records = s.list_records("invoices")
+for r in records:
+    print(r.extracted_data["client"], r.extracted_data["total"])
+```
+
+## 4. Revoke access
+
+To disconnect:
+
+- Click **Revoke** on the connection card. Sifter deletes the stored OAuth tokens immediately.
+- Optionally revoke Sifter from your Google account at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+Revoking stops future syncs. Documents already in your Sifter folder are kept — delete them manually if needed.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Connection shows **Error** with "insufficient_scope" | Revoke and reconnect — Google's consent screen was dismissed without granting all scopes. |
+| New files aren't picked up | Confirm they're PDFs or images. Google Docs / Sheets / Slides must be exported first. |
+| Sync reports `skipped` | File exceeded your plan's max attachment size, or the document has more than 10 pages. |
+| Upgrade prompt appears | Your plan doesn't include Drive (Free), or you hit the connector count limit (Starter: 1). |
+
+## See also
+
+- [Connectors concept](/concepts/connectors) — how connectors fit into Sifter
+- [Google Drive integration](/integrations/google-drive) — API reference for the connector endpoints
+- [Webhook pipeline tutorial](/resources/tutorials/webhook-pipeline) — fan out extracted records to downstream systems

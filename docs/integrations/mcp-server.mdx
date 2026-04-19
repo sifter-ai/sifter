@@ -1,22 +1,34 @@
 ---
 title: MCP Server
-description: Connect Claude Desktop, Cursor, or any MCP client to your Sifter data — hosted or self-hosted.
+description: Connect Claude, ChatGPT, Gemini, Cursor — any MCP-aware client — to your Sifter data. Hosted remote endpoint or local stdio.
 ---
 
 # MCP Server
 
-`sifter-mcp` exposes Sifter's extracted records to AI agents via the [Model Context Protocol](https://modelcontextprotocol.io). Two connection modes:
+Sifter exposes the [Model Context Protocol](https://modelcontextprotocol.io) so LLM clients can query your sifts, run aggregations, and fetch citations directly — no custom integration code.
 
-| Mode | How | When to use |
-|------|-----|-------------|
-| **HTTP (hosted)** | Connect directly to `https://api.sifter.ai/mcp` | Sifter Cloud — zero install |
-| **stdio (uvx)** | Run `uvx sifter-mcp` locally | Self-hosted Sifter, or prefer local process |
+Two connection modes:
+
+| Mode | Transport | Endpoint | When to use |
+|------|-----------|----------|-------------|
+| **Remote (Cloud)** | Streamable HTTP | `https://sifter.run/mcp` | Sifter Cloud, Starter+ — zero install |
+| **Local (self-host)** | stdio (`uvx sifter-mcp`) | your Sifter base URL | Self-hosted, or local dev |
+
+<Info>
+The remote endpoint is a **Starter+** Sifter Cloud feature. Free-plan API keys receive `402 Payment Required` on any tool call — upgrade at [/settings/billing](https://sifter.run/settings/billing).
+</Info>
 
 ---
 
-## HTTP — Sifter Cloud
+## Remote — Sifter Cloud
 
-No installation required. Claude Desktop connects directly to the hosted MCP endpoint using your API key as a Bearer token.
+No installation. Point any MCP-aware client at the hosted endpoint and authenticate with your Sifter API key.
+
+**Endpoint:** `https://sifter.run/mcp`
+**Auth:** `Authorization: Bearer <your-api-key>`
+**Transport:** Streamable HTTP (MCP standard)
+
+Generate a key in the Sifter web app under **Settings → API Keys**. The same key unlocks REST, SDK, and MCP.
 
 ### Claude Desktop
 
@@ -27,7 +39,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://api.sifter.ai/mcp",
+      "url": "https://sifter.run/mcp",
       "headers": {
         "Authorization": "Bearer sk-your-api-key"
       }
@@ -36,7 +48,12 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-Get your API key from **Settings → API Keys** in the Sifter web app.
+### Claude Code (CLI)
+
+```bash
+claude mcp add sifter --url https://sifter.run/mcp \
+  --header "Authorization: Bearer sk-your-api-key"
+```
 
 ### Cursor
 
@@ -47,7 +64,7 @@ Add to `.cursor/mcp.json` in your project:
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://api.sifter.ai/mcp",
+      "url": "https://sifter.run/mcp",
       "headers": {
         "Authorization": "Bearer sk-your-api-key"
       }
@@ -56,45 +73,53 @@ Add to `.cursor/mcp.json` in your project:
 }
 ```
 
+### ChatGPT / Gemini / other MCP clients
+
+Any client that speaks MCP over Streamable HTTP can connect. Point it at `https://sifter.run/mcp` and add the `Authorization: Bearer` header — configuration format varies by client, check your client's MCP documentation.
+
 ---
 
-## stdio — Self-hosted or local
+## Local — self-hosted or dev
 
-Use `uvx` (zero install) and point to your own Sifter instance.
+For self-hosted Sifter, run the MCP server as a local stdio process and point it at your own Sifter instance.
 
 ### Install
 
 ```bash
-pip install sifter-mcp
-# or use without installing:
+# Zero-install via uvx:
 uvx sifter-mcp
+
+# Or install globally:
+pip install sifter-mcp
 ```
 
-### Claude Desktop (self-hosted Sifter)
+### Claude Desktop (local)
 
 ```json
 {
   "mcpServers": {
     "sifter": {
       "command": "uvx",
-      "args": ["sifter-mcp", "--base-url", "http://localhost:8000"],
+      "args": ["sifter-mcp"],
       "env": {
-        "SIFTER_API_KEY": "sk-dev"
+        "SIFTER_BASE_URL": "http://localhost:8000",
+        "SIFTER_API_KEY": "sk-your-api-key"
       }
     }
   }
 }
 ```
 
-### Claude Desktop (Sifter Cloud via uvx)
+### Cursor (local)
 
 ```json
 {
   "mcpServers": {
     "sifter": {
       "command": "uvx",
-      "args": ["sifter-mcp", "--base-url", "https://api.sifter.ai"],
+      "args": ["sifter-mcp"],
       "env": {
+        "SIFTER_BASE_URL": "http://localhost:8000",
         "SIFTER_API_KEY": "sk-your-api-key"
       }
     }
@@ -108,36 +133,37 @@ uvx sifter-mcp
 uvx sifter-mcp --help
 
 # Options:
-#   --base-url    Sifter server URL (default: SIFTER_BASE_URL env var or http://localhost:8000)
+#   --base-url    Sifter server URL (default: SIFTER_BASE_URL or http://localhost:8000)
 #   --transport   stdio | sse | streamable-http (default: stdio)
 #   --host        Host for HTTP transport (default: 0.0.0.0)
 #   --port        Port for HTTP transport (default: 8001)
 ```
 
----
+### Self-hosted HTTP endpoint
 
-## Self-hosted: HTTP endpoint
-
-If you run your own Sifter instance with `sifter-mcp` installed, the HTTP MCP endpoint is available automatically at `/mcp`:
+If you run your own Sifter instance with `sifter-mcp` installed, the Streamable HTTP endpoint is mounted at `/mcp` on the Sifter server. Authenticate with `Authorization: Bearer <your-api-key>`.
 
 ```
 http://your-sifter-instance.com/mcp
 ```
 
-Authenticate with `Authorization: Bearer <your-api-key>`.
-
 ---
 
 ## Available tools
+
+All tools operate within the authenticated user's org.
 
 | Tool | Description |
 |------|-------------|
 | `list_sifts` | List all sifts with name, instructions, and document/record counts |
 | `get_sift` | Get sift metadata and inferred schema |
-| `list_records` | Get extracted records (paginated, max 100 per call) |
-| `query_sift` | Run a natural language query over a sift's records |
+| `list_records` | Paginated records for a sift (max 100 per call) |
+| `query_sift` | Natural-language query → records + citations |
+| `aggregate_sift` | Run aggregation pipelines (sum, count, group by…) |
 | `list_folders` | List all folders |
-| `get_folder` | Get folder metadata, linked sifts, and document list |
+| `get_folder` | Folder metadata, linked sifts, document list |
+| `get_document` | Document metadata + page list |
+| `upload_document` | Upload a document to a folder (Starter+) |
 
 ## Resources
 
@@ -147,11 +173,18 @@ Authenticate with `Authorization: Bearer <your-api-key>`.
 
 ---
 
+## Rate limiting
+
+The remote endpoint shares your plan's REST rate limit (Starter: 60 rpm, Pro: 300 rpm, Business: 1200 rpm, Scale: 3000 rpm). Each tool call counts as one request.
+
 ## Example prompts
 
-Once connected, you can ask Claude:
+Once connected, you can ask your LLM:
 
-- *"List my sifts"*
-- *"Show me the last 10 records from my Invoices sift"*
-- *"What is the total revenue by client this month?"*
+- *"List my sifts."*
+- *"Show me the last 10 records from my Invoices sift."*
+- *"What's the total revenue by client this month?"*
 - *"Which folders have more than 50 documents?"*
+- *"Find contracts signed by Acme that expire before March."*
+
+The LLM picks the right tool (`list_sifts`, `query_sift`, `aggregate_sift`, etc.) and returns an answer grounded in your extracted records.

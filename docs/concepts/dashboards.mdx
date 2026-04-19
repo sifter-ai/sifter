@@ -1,0 +1,115 @@
+---
+title: Dashboards
+description: Spec-driven dashboards that turn your extracted records into KPIs, charts, and tables — described in natural language.
+---
+
+# Dashboards
+
+A **dashboard** is a collection of tiles — KPIs, tables, bar charts, line charts — that pull from one or more [sifts](/concepts/sifts). You describe what you want in plain language; Sifter generates the tiles and keeps them live against your extracted records.
+
+<Info>
+Dashboards are part of the OSS engine. Every plan — including Free — has full dashboard functionality. Self-hosted installs get them out of the box.
+</Info>
+
+## Why dashboards
+
+A sift gives you a table. A table tells you *what was extracted*. A dashboard tells you *what it means*:
+
+- The 5 highest invoices this month.
+- Revenue by client, month over month.
+- Contracts expiring in the next 30 days.
+- Error rate by document type.
+
+All derived from the same records, refreshed automatically as new documents flow in.
+
+## Two flavors
+
+<CardGroup cols={2}>
+  <Card title="Per-sift dashboards" icon="chart-simple">
+    Each sift auto-generates a default dashboard tailored to its schema. Open any sift and you get KPIs, distributions, and trends for free — no configuration.
+  </Card>
+  <Card title="Standalone multi-sift" icon="grid">
+    Cross-sift dashboards. Combine invoices, contracts, and receipts into one board. Full drag-and-drop editor, custom tile ordering.
+  </Card>
+</CardGroup>
+
+## Spec-driven
+
+Every dashboard is backed by a **natural-language spec**. Write what you want; Sifter generates the underlying aggregation pipelines.
+
+```
+Show total revenue this month, revenue by client (top 10),
+and a line chart of daily document count for the last 30 days.
+```
+
+Sifter compiles that spec into:
+
+- A KPI tile (sum of `total`, filtered by current month).
+- A bar chart (group by `client`, sum `total`, sort desc, limit 10).
+- A line chart (group by day, count documents).
+
+Edit the spec at any time and regenerate — the dashboard rebuilds from scratch.
+
+## Tile kinds
+
+| Kind | Use for |
+|------|---------|
+| `kpi` | A single number — sum, count, average, max |
+| `table` | A flat list of records (filtered, sorted) |
+| `bar` | Categorical distribution (group by X, aggregate Y) |
+| `line` | Time series |
+| `pie` | Share of a whole (categorical proportion) |
+
+Each tile has a MongoDB-style pipeline under the hood. You can hand-edit the pipeline, swap chart axes, or add filters without leaving the dashboard.
+
+## Creating a dashboard
+
+<Steps>
+  <Step title="From a sift">
+    Open a sift and click **Dashboard** in the header. The default dashboard is auto-generated from the sift's schema. Edit the spec to shape it.
+  </Step>
+  <Step title="Standalone">
+    Go to **Dashboards** in the sidebar and click **New dashboard**. Pick which sifts to include, write a spec, generate.
+  </Step>
+  <Step title="Add tiles">
+    Use **Generate tiles** with a short prompt ("add a breakdown by VAT number"), or click **Add tile** to pick kind + sift + fields manually.
+  </Step>
+  <Step title="Rearrange">
+    Drag tiles to reorder. The layout persists per-dashboard.
+  </Step>
+</Steps>
+
+## API
+
+Dashboards are first-class REST resources:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/dashboards` | List dashboards |
+| `POST` | `/api/dashboards` | Create (with optional spec → auto-generate) |
+| `GET` | `/api/dashboards/{id}` | Fetch dashboard + tiles |
+| `PATCH` | `/api/dashboards/{id}` | Rename, edit spec, edit description |
+| `POST` | `/api/dashboards/{id}/regenerate` | Regenerate tiles from a new spec |
+| `POST` | `/api/dashboards/{id}/tiles` | Add a single tile |
+| `POST` | `/api/dashboards/{id}/tiles/generate` | Generate tiles from a prompt |
+| `PATCH` | `/api/dashboards/{id}/tiles/{tile_id}` | Edit tile title, pipeline, axes |
+| `POST` | `/api/dashboards/{id}/tiles/reorder` | Reorder tiles by ID list |
+| `DELETE` | `/api/dashboards/{id}/tiles/{tile_id}` | Remove a tile |
+
+See [REST API](/integrations/rest-api) for full request/response schemas.
+
+## Dashboards vs. aggregations vs. chat
+
+All three operate on the same extracted records. Pick the one that fits the shape of the answer:
+
+| You want… | Use |
+|-----------|-----|
+| A live, persistent board of numbers | **Dashboard** |
+| A named, parameterizable query ("revenue by client") | [Aggregation](/concepts/aggregations) |
+| A one-off question, answered in prose with citations | [Chat](/concepts/queries-and-chat) |
+
+## See also
+
+- [Sifts](/concepts/sifts) — the extraction pipelines dashboards query
+- [Aggregations](/concepts/aggregations) — the MongoDB pipelines dashboards compile into
+- [Queries and chat](/concepts/queries-and-chat) — natural-language answers over records

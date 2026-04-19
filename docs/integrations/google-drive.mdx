@@ -1,0 +1,95 @@
+---
+title: Google Drive
+description: OAuth, folder sync, and API reference for the Drive connector.
+---
+
+# Google Drive
+
+The Drive connector watches a Google Drive folder and auto-ingests new or modified files into a Sifter [folder](/concepts/folders). From there, every [sift](/concepts/sifts) linked to that folder runs on each document.
+
+<Info>
+Drive is a **Sifter Cloud** feature. Starter ($19/mo) includes 1 connection; Pro+ is unlimited. For self-hosted Sifter, use the [REST API](/integrations/rest-api) or [SDK](/integrations/python-sdk) upload path.
+</Info>
+
+## Scopes
+
+When you authorize Drive, Sifter requests:
+
+| Scope | Why |
+|-------|-----|
+| `drive.readonly` | List and download files from the watched folder |
+| `drive.metadata.readonly` | Detect newly added or modified files on each sync |
+
+No write access. Sifter never modifies your Drive.
+
+## Setup
+
+See the [Google Drive → Sifter tutorial](/resources/tutorials/drive-to-sifter) for the end-to-end walkthrough (OAuth, folder pick, destination mapping, first sync).
+
+## Sync behavior
+
+- Background syncs run approximately every **15 minutes**.
+- A sync can be triggered on demand from the UI or the API.
+- Only **PDFs and images** are ingested. Google Docs / Sheets / Slides are skipped.
+- Files above your plan's max attachment size or longer than 10 pages are counted as `skipped`.
+- Each ingested document counts against your monthly document quota and fires `folder.document.uploaded` if you have a matching [webhook](/concepts/webhooks).
+
+## API
+
+All endpoints are authenticated with your Sifter API key (`Authorization: Bearer sk-...`) and scoped to the caller's org. They live under `/api/cloud/connectors/gdrive`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/cloud/connectors/gdrive` | List connections for the org |
+| `GET` | `/api/cloud/connectors/gdrive/oauth-url` | Get the Google OAuth consent URL |
+| `POST` | `/api/cloud/connectors/gdrive/oauth-callback` | Exchange code + state (called after redirect) |
+| `GET` | `/api/cloud/connectors/gdrive/{id}/browse` | List folders visible to the authorized account. Accepts `?parent_id=<drive-folder-id>` for nested browse |
+| `POST` | `/api/cloud/connectors/gdrive/{id}/configure` | Set the watched Drive folder and destination Sifter folder |
+| `POST` | `/api/cloud/connectors/gdrive/{id}/sync` | Trigger an on-demand sync. Returns `{ "synced": N, "skipped": M }` |
+| `DELETE` | `/api/cloud/connectors/gdrive/{id}` | Revoke the connection and delete stored OAuth tokens |
+
+### Configure payload
+
+```json
+POST /api/cloud/connectors/gdrive/{id}/configure
+{
+  "drive_folder_id": "1A2b3C4d5E6f",
+  "sifter_folder_id": "folder-abc"
+}
+```
+
+### Trigger sync
+
+```bash
+curl -X POST https://sifter.run/api/cloud/connectors/gdrive/conn-xyz/sync \
+  -H "Authorization: Bearer sk-..."
+```
+
+```json
+{ "synced": 12, "skipped": 3 }
+```
+
+## Quotas and limits
+
+| Plan | Drive connections | Max file size | Monthly documents |
+|------|-------------------|---------------|-------------------|
+| Free | — | — | 10 |
+| Starter | 1 | 25 MB | 500 |
+| Pro | Unlimited | 50 MB | 3,000 |
+| Business | Unlimited | 100 MB | 15,000 |
+| Scale | Unlimited | 250 MB | 50,000 |
+
+Exceeding the connection count on Starter returns `402 Payment Required` with a `PlanLimitError` in the SDK.
+
+## Revoking
+
+- **From Sifter** — `DELETE /api/cloud/connectors/gdrive/{id}` or click **Revoke** on the connection card. OAuth tokens are deleted immediately and future syncs stop.
+- **From Google** — revoke Sifter at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+Revoking does not delete documents already ingested into your Sifter folder.
+
+## See also
+
+- [Connectors](/concepts/connectors) — the broader ingress concept
+- [Google Drive → Sifter tutorial](/resources/tutorials/drive-to-sifter) — step-by-step setup
+- [Pricing](/overview/pricing) — tier gating for connectors

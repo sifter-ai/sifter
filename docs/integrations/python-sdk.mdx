@@ -19,10 +19,40 @@ pip install sifter-ai
 from sifter import Sifter
 
 s = Sifter(
-    api_url="https://api.sifter.ai",  # or http://localhost:8000 for self-hosted
-    api_key="sk-...",                  # or set SIFTER_API_KEY env var
+    api_url="https://sifter.run",      # or http://localhost:8000 for self-hosted
+    api_key="sk-...",                   # or set SIFTER_API_KEY env var
 )
 ```
+
+## Error handling
+
+The SDK exposes a unified surface across OSS and Cloud. Cloud-only methods (connectors, shares, billing, audit log) raise specific errors when the backend doesn't support them or when your plan doesn't include them.
+
+```python
+from sifter import Sifter, NotAvailableError, PlanLimitError
+
+s = Sifter(api_url="...", api_key="sk-...")
+
+try:
+    conn = s.connectors.gdrive.list()
+except NotAvailableError:
+    # Backend is OSS/self-hosted — cloud-only feature not available here.
+    print("Connectors require Sifter Cloud.")
+except PlanLimitError as e:
+    # Cloud backend, but the current plan doesn't allow this operation.
+    print(f"Upgrade required: {e.required_plan}")
+```
+
+| Exception | When it fires |
+|-----------|---------------|
+| `NotAvailableError` | Called a Cloud-only method against an OSS backend (endpoint returns 404/501). |
+| `PlanLimitError` | Cloud backend returned `402 Payment Required` — current plan doesn't include the feature or the call exceeds the plan quota. Has `required_plan` and `limit` attributes. |
+| `APIError` | Generic 4xx/5xx with message from the server. |
+| `AuthError` | 401/403 — check your API key. |
+
+<Info>
+Autocomplete surfaces every method on both OSS and Cloud. The runtime decides if the call succeeds — so you can write one codebase that targets either backend.
+</Info>
 
 ## Sifts
 
