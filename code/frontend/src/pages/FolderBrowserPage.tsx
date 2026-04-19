@@ -9,6 +9,7 @@ import {
   FolderOpen,
   Link as LinkIcon,
   Loader2,
+  Mail,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -27,6 +28,7 @@ import {
   unlinkExtractor,
   updateFolder,
 } from "@/api/folders";
+import { fetchGDriveConnections, fetchAllInboundPolicies } from "@/api/cloud";
 import { fetchSifts } from "@/api/extractions";
 import type { DocumentWithStatuses } from "@/api/folders";
 import type { DocumentSiftStatus, Folder } from "@/api/types";
@@ -160,9 +162,11 @@ interface FolderTreeItemProps {
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   depth: number;
+  gdriveIds: Set<string>;
+  inboundIds: Set<string>;
 }
 
-function FolderTreeItem({ node, activeFolderId, expanded, onToggle, onSelect, depth }: FolderTreeItemProps) {
+function FolderTreeItem({ node, activeFolderId, expanded, onToggle, onSelect, depth, gdriveIds, inboundIds }: FolderTreeItemProps) {
   const { folder, children } = node;
   const hasChildren = children.length > 0;
   const isExpanded = expanded.has(folder.id);
@@ -197,6 +201,22 @@ function FolderTreeItem({ node, activeFolderId, expanded, onToggle, onSelect, de
           : <FolderIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
         }
         <span className="truncate flex-1">{folder.name}</span>
+        {/* Connector badges */}
+        {gdriveIds.has(folder.id) && (
+          <span title="Google Drive connected" className="shrink-0 opacity-60">
+            <svg viewBox="0 0 87.3 78" className="h-2.5 w-2.5" aria-hidden="true">
+              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
+              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335" />
+              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
+              <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
+            </svg>
+          </span>
+        )}
+        {inboundIds.has(folder.id) && (
+          <span title="Mail-to-upload enabled"><Mail className="h-2.5 w-2.5 shrink-0 text-violet-400 opacity-70" /></span>
+        )}
         {folder.document_count > 0 && (
           <span className="font-mono text-[10px] text-muted-foreground/50 tabular-nums shrink-0">
             {folder.document_count}
@@ -215,6 +235,8 @@ function FolderTreeItem({ node, activeFolderId, expanded, onToggle, onSelect, de
               onToggle={onToggle}
               onSelect={onSelect}
               depth={depth + 1}
+              gdriveIds={gdriveIds}
+              inboundIds={inboundIds}
             />
           ))}
         </div>
@@ -252,6 +274,25 @@ export default function FolderBrowserPage() {
     queryFn: () => fetchFolders(200, 0),
   });
   const folders = foldersPage?.items ?? [];
+
+  // Connector badge data — fail gracefully if cloud features not available
+  const { data: gdriveConns = [] } = useQuery({
+    queryKey: ["gdrive-connections"],
+    queryFn: () => fetchGDriveConnections().catch(() => []),
+    select: (d) => (Array.isArray(d) ? d : []),
+  });
+  const { data: inboundPolicies } = useQuery({
+    queryKey: ["inbound-policies-all"],
+    queryFn: () => fetchAllInboundPolicies().catch(() => ({ policies: [] })),
+  });
+  const gdriveIds = useMemo(
+    () => new Set(gdriveConns.filter((c) => c.folder_id).map((c) => c.folder_id!)),
+    [gdriveConns]
+  );
+  const inboundIds = useMemo(
+    () => new Set((inboundPolicies?.policies ?? []).map((p) => p.folder_id)),
+    [inboundPolicies]
+  );
 
   const { data: folder, isLoading: folderLoading } = useQuery({
     queryKey: ["folder", folderId],
@@ -556,6 +597,8 @@ export default function FolderBrowserPage() {
                     onToggle={handleToggle}
                     onSelect={(id) => navigate(`/folders/${id}`)}
                     depth={0}
+                    gdriveIds={gdriveIds}
+                    inboundIds={inboundIds}
                   />
                 ))
               )}
@@ -639,6 +682,28 @@ export default function FolderBrowserPage() {
                       {f.description && (
                         <span className="text-xs text-muted-foreground/60 hidden lg:block truncate max-w-xs">{f.description}</span>
                       )}
+                      {/* Connector badges */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {gdriveIds.has(f.id) && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200/70 bg-blue-50/60 dark:border-blue-900/40 dark:bg-blue-950/30 px-1.5 py-0.5 text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+                            <svg viewBox="0 0 87.3 78" className="h-2.5 w-2.5" aria-hidden="true">
+                              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
+                              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
+                              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335" />
+                              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d" />
+                              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc" />
+                              <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00" />
+                            </svg>
+                            Drive
+                          </span>
+                        )}
+                        {inboundIds.has(f.id) && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-200/70 bg-violet-50/60 dark:border-violet-900/40 dark:bg-violet-950/30 px-1.5 py-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-medium">
+                            <Mail className="h-2.5 w-2.5" />
+                            Mail
+                          </span>
+                        )}
+                      </div>
                       <span className="font-mono text-[11px] text-muted-foreground/60 tabular-nums">
                         {f.document_count} doc{f.document_count !== 1 ? "s" : ""}
                       </span>

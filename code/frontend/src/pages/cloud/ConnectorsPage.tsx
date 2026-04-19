@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
+  ChevronRight,
   ExternalLink,
+  Folder as FolderIcon,
   FolderOpen,
   Mail,
   Plug,
@@ -10,6 +12,7 @@ import {
   Trash2,
   XCircle,
   AlertCircle,
+  ArrowLeft,
   Loader2,
   Sparkles,
   Zap,
@@ -17,6 +20,7 @@ import {
 import {
   fetchGDriveConnections,
   getGDriveOAuthUrl,
+  browseGDrive,
   configureGDrive,
   syncGDrive,
   revokeGDrive,
@@ -34,32 +38,150 @@ import {
 import { PlanLimitError } from "@/lib/apiFetch";
 import { InboundEmailPanel } from "@/components/cloud/InboundEmailPanel";
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
+// ─── Drive folder picker dialog ───────────────────────────────────────────────
 
-const STATUS: Record<string, { label: string; icon: React.ElementType; cls: string }> = {
-  active: {
-    label: "Active",
-    icon: CheckCircle2,
-    cls: "text-emerald-600 dark:text-emerald-400",
-  },
-  error: {
-    label: "Error",
-    icon: XCircle,
-    cls: "text-destructive",
-  },
-  paused: {
-    label: "Paused",
-    icon: AlertCircle,
-    cls: "text-amber-500",
-  },
+function DriveFolderPickerDialog({
+  connectionId,
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  connectionId: string;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSelect: (folder: { id: string; name: string }) => void;
+}) {
+  const [path, setPath] = useState<{ id: string; name: string }[]>([]);
+  const parentId = path[path.length - 1]?.id;
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["gdrive-browse", connectionId, parentId ?? "root"],
+    queryFn: () => browseGDrive(connectionId, parentId),
+    enabled: open,
+    select: (d) => (Array.isArray(d) ? d : []),
+  });
+
+  const folders = items.filter((i) => i.is_folder);
+  const current = path[path.length - 1];
+
+  const navigate = (item: { id: string; name: string }) =>
+    setPath((p) => [...p, item]);
+
+  const goUp = () => setPath((p) => p.slice(0, -1));
+
+  const handleOpen = (v: boolean) => {
+    if (!v) setPath([]);
+    onOpenChange(v);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold">Select Google Drive folder</DialogTitle>
+        </DialogHeader>
+
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1 text-xs text-muted-foreground min-h-[24px] flex-wrap">
+          <button
+            className="hover:text-foreground transition-colors"
+            onClick={() => setPath([])}
+          >
+            My Drive
+          </button>
+          {path.map((p, i) => (
+            <span key={p.id} className="flex items-center gap-1">
+              <ChevronRight className="h-3 w-3 opacity-50" />
+              <button
+                className="hover:text-foreground transition-colors"
+                onClick={() => setPath((prev) => prev.slice(0, i + 1))}
+              >
+                {p.name}
+              </button>
+            </span>
+          ))}
+        </div>
+
+        {/* Folder list */}
+        <div className="rounded-lg border overflow-hidden min-h-[200px]">
+          {path.length > 0 && (
+            <button
+              className="flex items-center gap-2.5 w-full px-3 py-2.5 text-xs text-muted-foreground hover:bg-muted/50 border-b transition-colors"
+              onClick={goUp}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+          )}
+
+          {isLoading ? (
+            <div className="p-3 space-y-2">
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8" />)}
+            </div>
+          ) : folders.length === 0 ? (
+            <div className="py-10 text-center text-xs text-muted-foreground">
+              No subfolders here
+            </div>
+          ) : (
+            <div className="divide-y max-h-[280px] overflow-y-auto">
+              {folders.map((f) => (
+                <button
+                  key={f.id}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group"
+                  onDoubleClick={() => navigate(f)}
+                >
+                  <FolderIcon className="h-4 w-4 text-amber-500/70 shrink-0" />
+                  <span className="text-sm flex-1 truncate">{f.name}</span>
+                  <button
+                    className="text-muted-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all p-1 rounded"
+                    onClick={(e) => { e.stopPropagation(); navigate(f); }}
+                    title="Open folder"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-[11px] text-muted-foreground">
+            Double-click to navigate · click row to select
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={!current}
+              onClick={() => {
+                if (current) { onSelect(current); handleOpen(false); }
+              }}
+            >
+              Select{current ? ` "${current.name}"` : ""}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── GDrive connection card ───────────────────────────────────────────────────
+
+const STATUS_CFG = {
+  active: { label: "Active", icon: CheckCircle2, cls: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
+  error:  { label: "Error",  icon: XCircle,      cls: "text-destructive",                       bar: "bg-destructive" },
+  paused: { label: "Paused", icon: AlertCircle,   cls: "text-amber-500",                         bar: "bg-amber-400" },
 };
 
-// ─── Connection card ──────────────────────────────────────────────────────────
-
-function ConnectionCard({
+function GDriveConnectionCard({
   conn,
   folders,
-  onConfigure,
+  onSaved,
   onSync,
   onRevoke,
   syncPending,
@@ -67,213 +189,253 @@ function ConnectionCard({
 }: {
   conn: ConnectorConnection;
   folders: { id: string; name: string }[];
-  onConfigure: (cfg: Record<string, unknown>) => void;
+  onSaved: () => void;
   onSync: () => void;
   onRevoke: () => void;
   syncPending: boolean;
   revokePending: boolean;
 }) {
-  const status = STATUS[conn.status] ?? STATUS.active;
-  const StatusIcon = status.icon;
+  const cfg = STATUS_CFG[conn.status] ?? STATUS_CFG.active;
+  const StatusIcon = cfg.icon;
+
+  const [driveFolder, setDriveFolder] = useState<{ id: string; name: string } | null>(
+    conn.drive_folder_id ? { id: conn.drive_folder_id, name: conn.drive_folder_name ?? conn.drive_folder_id } : null
+  );
+  const [sifterId, setSifterId] = useState(conn.folder_id ?? "");
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const isDirty =
+    (driveFolder?.id ?? "") !== (conn.drive_folder_id ?? "") ||
+    sifterId !== (conn.folder_id ?? "");
+
+  const handleSave = async () => {
+    if (!driveFolder || !sifterId) return;
+    setSaving(true);
+    try {
+      await configureGDrive(conn.id, {
+        drive_folder_id: driveFolder.id,
+        drive_folder_name: driveFolder.name,
+        sifter_folder_id: sifterId,
+        recursive: false,
+      });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="flex items-start gap-4 p-4 rounded-xl border bg-card transition-colors hover:border-foreground/15">
-      <div className="min-w-0 flex-1 space-y-3">
-        {/* Email + status */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium truncate">{conn.account_email}</span>
-          <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${status.cls}`}>
-            <StatusIcon className="h-3 w-3" />
-            {status.label}
-          </span>
-        </div>
+    <>
+      <div className="rounded-xl border bg-card overflow-hidden flex">
+        {/* Active state bar */}
+        <div className={`w-1 shrink-0 ${cfg.bar}`} />
 
-        {/* Error */}
-        {conn.last_error && (
-          <p className="text-xs text-destructive leading-snug">{conn.last_error}</p>
-        )}
+        <div className="flex-1 p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium truncate">
+                  {conn.account_email || "Google Drive"}
+                </span>
+                <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${cfg.cls}`}>
+                  <StatusIcon className="h-3 w-3" />
+                  {cfg.label}
+                </span>
+              </div>
+              {conn.last_error && (
+                <p className="text-xs text-destructive leading-snug">{conn.last_error}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="outline" size="sm" className="h-7 gap-1.5 text-xs"
+                onClick={onSync} disabled={syncPending}
+              >
+                {syncPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Sync
+              </Button>
+              <Button
+                variant="ghost" size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={onRevoke} disabled={revokePending}
+                title="Revoke connection"
+              >
+                {revokePending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+              </Button>
+            </div>
+          </div>
 
-        {/* Drive folder */}
-        {conn.drive_folder_name && (
-          <p className="text-xs text-muted-foreground">
-            Drive folder:{" "}
-            <span className="text-foreground/70 font-medium">{conn.drive_folder_name}</span>
-          </p>
-        )}
+          {/* Folder mapping */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+            {/* Drive folder */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                <DriveLogo mini /> Google Drive folder
+              </label>
+              <button
+                className="w-full flex items-center gap-2 rounded-lg border border-input bg-background px-2.5 py-2 text-xs hover:border-primary/40 hover:bg-primary/[0.02] transition-colors text-left group"
+                onClick={() => setBrowseOpen(true)}
+              >
+                <FolderIcon className="h-3.5 w-3.5 text-amber-500/70 shrink-0" />
+                <span className={`flex-1 truncate ${!driveFolder ? "text-muted-foreground" : ""}`}>
+                  {driveFolder?.name ?? "— select folder —"}
+                </span>
+                <span className="text-[10px] text-primary/60 group-hover:text-primary transition-colors shrink-0">
+                  Browse
+                </span>
+              </button>
+            </div>
 
-        {/* Sifter folder selector */}
-        <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-            <FolderOpen className="h-3 w-3" />
-            Sifter folder
-          </label>
-          <select
-            className="w-full max-w-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            defaultValue={conn.folder_id ?? ""}
-            onChange={(e) => onConfigure({ folder_id: e.target.value || null })}
-          >
-            <option value="">— select folder —</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            {/* Arrow */}
+            <div className="pb-2">
+              <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
+            </div>
 
-      {/* Actions */}
-      <div className="flex flex-col gap-1.5 shrink-0">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
-          onClick={onSync}
-          disabled={syncPending}
-        >
-          {syncPending ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3 w-3" />
+            {/* Sifter folder */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                <FolderOpen className="h-3 w-3" /> Sifter folder
+              </label>
+              <select
+                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                value={sifterId}
+                onChange={(e) => setSifterId(e.target.value)}
+              >
+                <option value="">— select folder —</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Missing folder warning */}
+          {(!driveFolder || !sifterId) && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              {!driveFolder && !sifterId
+                ? "Select a Google Drive folder and a Sifter folder to start syncing."
+                : !driveFolder
+                ? "Select a Google Drive folder to watch."
+                : "Select a Sifter folder where documents will land."}
+            </p>
           )}
-          Sync
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={onRevoke}
-          disabled={revokePending}
-        >
-          <Trash2 className="h-3 w-3" />
-          Revoke
-        </Button>
+
+          {/* Save row */}
+          {(isDirty || (driveFolder && sifterId)) && (
+            <div className="flex justify-end pt-1">
+              <Button
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                disabled={!driveFolder || !sifterId || saving}
+                onClick={handleSave}
+              >
+                {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+                Save mapping
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      <DriveFolderPickerDialog
+        connectionId={conn.id}
+        open={browseOpen}
+        onOpenChange={setBrowseOpen}
+        onSelect={setDriveFolder}
+      />
+    </>
   );
 }
 
-// ─── Connector section ────────────────────────────────────────────────────────
+// ─── GDrive section ───────────────────────────────────────────────────────────
 
-function ConnectorSection({
-  queryKey,
-  fetchConnections,
-  getOAuthUrl,
-  configure,
-  sync,
-  revoke,
-  logo,
-  name,
-  description,
-  folders,
-}: {
-  queryKey: string;
-  fetchConnections: () => Promise<ConnectorConnection[]>;
-  getOAuthUrl: () => Promise<{ url: string }>;
-  configure: (id: string, cfg: Record<string, unknown>) => Promise<void>;
-  sync: (id: string) => Promise<void>;
-  revoke: (id: string) => Promise<void>;
-  logo: React.ReactNode;
-  name: string;
-  description: string;
-  folders: { id: string; name: string }[];
-}) {
+function GDriveSection({ folders }: { folders: { id: string; name: string }[] }) {
   const qc = useQueryClient();
   const [planError, setPlanError] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const { data: connections = [], isLoading } = useQuery({
-    queryKey: [queryKey],
-    queryFn: fetchConnections,
-    select: (data) => (Array.isArray(data) ? data : []),
+    queryKey: ["gdrive-connections"],
+    queryFn: fetchGDriveConnections,
+    select: (d) => (Array.isArray(d) ? d : []),
   });
 
   const connectMutation = useMutation({
     mutationFn: async () => {
-      const { url } = await getOAuthUrl();
+      const { url } = await getGDriveOAuthUrl();
       window.location.href = url;
     },
     onError: (err) => {
-      if (err instanceof PlanLimitError) {
+      if (err instanceof PlanLimitError)
         setPlanError("Your plan doesn't include this connector. Upgrade to connect.");
-      }
     },
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: [queryKey] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["gdrive-connections"] });
 
   return (
     <div className="space-y-4">
-      {/* Header row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
-            {logo}
+            <DriveLogo />
           </div>
           <div>
-            <p className="text-sm font-semibold">{name}</p>
-            <p className="text-[11px] text-muted-foreground">{description}</p>
+            <p className="text-sm font-semibold">Google Drive</p>
+            <p className="text-[11px] text-muted-foreground">
+              Watch a Drive folder and sync new documents to Sifter automatically
+            </p>
           </div>
         </div>
         <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 text-xs shrink-0"
+          size="sm" variant="outline" className="gap-1.5 text-xs shrink-0"
           onClick={() => connectMutation.mutate()}
           disabled={connectMutation.isPending}
         >
-          {connectMutation.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <ExternalLink className="h-3.5 w-3.5" />
-          )}
+          {connectMutation.isPending
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <ExternalLink className="h-3.5 w-3.5" />}
           Connect
         </Button>
       </div>
 
-      {/* Plan error */}
       {planError && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
           <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
           <div className="space-y-1 text-xs">
             <p className="text-amber-800 dark:text-amber-300 font-medium">{planError}</p>
-            <a href="/settings/billing" className="text-amber-600 hover:underline">
-              View plans →
-            </a>
+            <a href="/settings/billing" className="text-amber-600 hover:underline">View plans →</a>
           </div>
         </div>
       )}
 
-      {/* Loading */}
-      {isLoading && <Skeleton className="h-20 rounded-xl" />}
+      {isLoading && <Skeleton className="h-28 rounded-xl" />}
 
-      {/* Connections */}
       {!isLoading && connections.length === 0 && !planError && (
         <div className="rounded-xl border border-dashed px-4 py-6 text-center">
           <p className="text-xs text-muted-foreground">
-            No {name} accounts connected yet.
+            No Google Drive accounts connected yet.
           </p>
         </div>
       )}
 
       {connections.map((conn) => (
-        <ConnectionCard
+        <GDriveConnectionCard
           key={conn.id}
           conn={conn}
           folders={folders}
-          onConfigure={(cfg) => configure(conn.id, cfg).then(invalidate)}
+          onSaved={invalidate}
           onSync={() => {
             setSyncingId(conn.id);
-            sync(conn.id)
-              .then(invalidate)
-              .finally(() => setSyncingId(null));
+            syncGDrive(conn.id).then(invalidate).finally(() => setSyncingId(null));
           }}
           onRevoke={() => {
             setRevokingId(conn.id);
-            revoke(conn.id)
-              .then(invalidate)
-              .finally(() => setRevokingId(null));
+            revokeGDrive(conn.id).then(invalidate).finally(() => setRevokingId(null));
           }}
           syncPending={syncingId === conn.id}
           revokePending={revokingId === conn.id}
@@ -291,7 +453,6 @@ function MailToUploadSection({ folders }: { folders: { id: string; name: string 
   return (
     <div className="rounded-xl border overflow-hidden">
       <div className="p-5 space-y-4">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -299,16 +460,14 @@ function MailToUploadSection({ folders }: { folders: { id: string; name: string 
           <div>
             <p className="text-sm font-semibold">Mail to Upload</p>
             <p className="text-[11px] text-muted-foreground">
-              Forward emails with PDF attachments to a Sifter folder automatically
+              Get a unique email address — forward attachments directly into a Sifter folder
             </p>
           </div>
         </div>
 
-        {/* Folder selector */}
         <div className="space-y-1">
           <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-            <FolderOpen className="h-3 w-3" />
-            Target folder
+            <FolderOpen className="h-3 w-3" /> Target folder
           </label>
           <select
             className="w-full max-w-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
@@ -317,22 +476,20 @@ function MailToUploadSection({ folders }: { folders: { id: string; name: string 
           >
             <option value="">— select a folder to configure —</option>
             {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
+              <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
         </div>
 
-        {/* Panel */}
         {folderId ? (
           <div className="rounded-xl border bg-muted/20 p-4">
             <InboundEmailPanel folderId={folderId} />
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed px-4 py-6 text-center">
+          <div className="rounded-xl border border-dashed px-4 py-8 text-center">
+            <Mail className="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
             <p className="text-xs text-muted-foreground">
-              Select a folder above to view or configure its inbound email address.
+              Select a folder above to view or set up its inbound email address.
             </p>
           </div>
         )}
@@ -341,11 +498,12 @@ function MailToUploadSection({ folders }: { folders: { id: string; name: string 
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Logos ────────────────────────────────────────────────────────────────────
 
-function DriveLogo() {
+function DriveLogo({ mini }: { mini?: boolean }) {
+  const cls = mini ? "h-3 w-3" : "h-5 w-5";
   return (
-    <svg viewBox="0 0 87.3 78" className="h-5 w-5" aria-hidden="true">
+    <svg viewBox="0 0 87.3 78" className={cls} aria-hidden="true">
       <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da" />
       <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47" />
       <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335" />
@@ -356,6 +514,8 @@ function DriveLogo() {
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ConnectorsPage() {
   const { data: foldersData } = useQuery({
     queryKey: ["folders"],
@@ -365,7 +525,6 @@ export default function ConnectorsPage() {
 
   return (
     <div className="relative min-h-full">
-      {/* Atmospheric backdrop */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[240px] -z-10"
         style={{
@@ -374,46 +533,33 @@ export default function ConnectorsPage() {
         }}
         aria-hidden
       />
-      <div className="px-6 py-10 max-w-6xl mx-auto space-y-8">
-        {/* Editorial header */}
-        <header className="flex items-end justify-between gap-6 flex-wrap pb-6 border-b border-border/70">
-          <div className="flex-1 min-w-0 space-y-2.5">
-            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
-              <Plug className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
-              <span>Build</span>
-              <span className="h-px w-6 bg-border" aria-hidden />
-              <span>Ingest</span>
-            </div>
-            <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em] text-foreground">
-              Connectors
-            </h1>
-            <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
-              Auto-sync documents from Google Drive straight into your Sifter folders.{" "}
-              <span className="text-foreground/80">No uploads. No babysitting.</span>
-            </p>
+      <div className="px-6 py-10 max-w-3xl mx-auto space-y-8">
+        {/* Header */}
+        <header className="pb-6 border-b border-border/70 space-y-2.5">
+          <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
+            <Plug className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
+            <span>Build</span>
+            <span className="h-px w-6 bg-border" aria-hidden />
+            <span>Ingest</span>
           </div>
+          <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em]">
+            Connectors
+          </h1>
+          <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
+            Sync documents automatically — from Google Drive or via email — straight into your Sifter folders.
+          </p>
         </header>
 
-        {/* Cloud feature hero */}
-        <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-sky-500/[0.06] p-6 space-y-4 relative overflow-hidden">
+        {/* Cloud hero */}
+        <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-sky-500/[0.06] p-5 space-y-3 relative overflow-hidden">
           <div
-            className="pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full blur-3xl opacity-40"
+            className="pointer-events-none absolute -top-20 -right-20 h-40 w-40 rounded-full blur-3xl opacity-40"
             style={{ background: "radial-gradient(closest-side, hsl(200 85% 55% / 0.3), transparent)" }}
             aria-hidden
           />
           <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-primary/90">
             <Sparkles className="h-3 w-3" strokeWidth={2.25} />
             <span>Sifter Cloud</span>
-          </div>
-          <div className="space-y-1.5">
-            <h2 className="text-xl font-semibold tracking-tight">
-              Connect once. Sync forever.
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
-              Link a Google Drive folder and Sifter pulls in new documents automatically —
-              no manual uploads, no scripts. Every synced file lands in the Sifter folder of your choice and is
-              processed through your sifts.
-            </p>
           </div>
           <div className="flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
             <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.25} />
@@ -431,25 +577,14 @@ export default function ConnectorsPage() {
           </div>
         </section>
 
-        {/* ── OAuth Connectors ─────────────────────────────────────────────────── */}
+        {/* Google Drive */}
         <div className="rounded-xl border overflow-hidden">
           <div className="p-5">
-            <ConnectorSection
-              queryKey="gdrive-connections"
-              fetchConnections={fetchGDriveConnections}
-              getOAuthUrl={getGDriveOAuthUrl}
-              configure={configureGDrive}
-              sync={syncGDrive}
-              revoke={revokeGDrive}
-              logo={<DriveLogo />}
-              name="Google Drive"
-              description="Watch a Drive folder and sync new documents to Sifter automatically"
-              folders={folders}
-            />
+            <GDriveSection folders={folders} />
           </div>
         </div>
 
-        {/* ── Mail-to-Upload ────────────────────────────────────────────────────── */}
+        {/* Mail to Upload */}
         <MailToUploadSection folders={folders} />
 
         <p className="text-[11px] text-muted-foreground px-0.5">

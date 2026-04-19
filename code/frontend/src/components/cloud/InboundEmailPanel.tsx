@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Check, Loader2, Zap } from "lucide-react";
+import { Copy, Check, Loader2, Zap, Mail, ToggleLeft, ToggleRight } from "lucide-react";
 import {
   fetchInboundPolicy,
   enableInbound,
@@ -11,21 +11,20 @@ import {
 } from "@/api/cloud";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TagInput } from "@/components/cloud/TagInput";
 import { PlanLimitError } from "@/lib/apiFetch";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
   return (
-    <button onClick={copy} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy">
-      {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+    <button
+      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs bg-background/80 border hover:bg-background hover:border-primary/30 transition-all text-muted-foreground hover:text-foreground"
+      title="Copy"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? "Copied" : "Copy"}
     </button>
   );
 }
@@ -62,20 +61,14 @@ export function InboundEmailPanel({ folderId }: { folderId: string }) {
   const events = eventsData?.events ?? [];
 
   const enableMutation = useMutation({
-    mutationFn: () =>
-      enableInbound(folderId, {
-        allowed_senders: allowedSenders,
-        allow_pdf_only: allowPdfOnly,
-        max_attachment_size_mb: maxSizeMb,
-      }),
-    onSuccess: () => {
-      setPlanError(null);
-      qc.invalidateQueries({ queryKey: ["inbound-policy", folderId] });
-    },
+    mutationFn: () => enableInbound(folderId, {
+      allowed_senders: allowedSenders,
+      allow_pdf_only: allowPdfOnly,
+      max_attachment_size_mb: maxSizeMb,
+    }),
+    onSuccess: () => { setPlanError(null); qc.invalidateQueries({ queryKey: ["inbound-policy", folderId] }); },
     onError: (err) => {
-      if (err instanceof PlanLimitError) {
-        setPlanError("Mail-to-upload is a Pro feature. Upgrade to enable it.");
-      }
+      if (err instanceof PlanLimitError) setPlanError("Mail-to-upload is a Pro feature. Upgrade to enable it.");
     },
   });
 
@@ -85,16 +78,15 @@ export function InboundEmailPanel({ folderId }: { folderId: string }) {
   });
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      updateInboundPolicy(folderId, {
-        allowed_senders: allowedSenders,
-        allow_pdf_only: allowPdfOnly,
-        max_attachment_size_mb: maxSizeMb,
-      }),
+    mutationFn: () => updateInboundPolicy(folderId, {
+      allowed_senders: allowedSenders,
+      allow_pdf_only: allowPdfOnly,
+      max_attachment_size_mb: maxSizeMb,
+    }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inbound-policy", folderId] }),
   });
 
-  if (isLoading) return <Skeleton className="h-32 w-full" />;
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
 
   const toggling = enableMutation.isPending || disableMutation.isPending;
 
@@ -111,88 +103,106 @@ export function InboundEmailPanel({ folderId }: { folderId: string }) {
         </div>
       )}
 
-      {/* Toggle header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-0.5">
+      {/* Address block — focal point */}
+      {enabled && address ? (
+        <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-900/30 dark:bg-emerald-950/20 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+            <Mail className="h-3.5 w-3.5" />
+            Inbound address — forward emails with attachments here
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <code className="text-sm font-mono text-foreground/90 break-all flex-1">{address}</code>
+            <CopyButton text={address} />
+          </div>
+        </div>
+      ) : !enabled ? (
+        <div className="rounded-lg border border-dashed px-4 py-5 text-center space-y-1">
+          <Mail className="h-6 w-6 mx-auto text-muted-foreground/25 mb-2" />
+          <p className="text-xs text-muted-foreground">Enable to get your unique inbound email address.</p>
+        </div>
+      ) : null}
+
+      {/* Enable / Disable toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
           <p className="text-sm font-medium">{enabled ? "Enabled" : "Disabled"}</p>
           <p className="text-xs text-muted-foreground">
-            {enabled
-              ? "This folder accepts email attachments."
-              : "Enable to receive documents via email."}
+            {enabled ? "This folder accepts incoming email attachments." : "No emails will be processed."}
           </p>
         </div>
-        <Button
-          size="sm"
-          variant={enabled ? "outline" : "default"}
-          className="h-7 gap-1.5 text-xs shrink-0"
+        <button
+          className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+            enabled
+              ? "text-emerald-600 hover:text-emerald-700"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
           disabled={toggling}
           onClick={() => (enabled ? disableMutation.mutate() : enableMutation.mutate())}
         >
-          {toggling && <Loader2 className="h-3 w-3 animate-spin" />}
+          {toggling
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : enabled
+            ? <ToggleRight className="h-6 w-6" />
+            : <ToggleLeft className="h-6 w-6" />}
           {enabled ? "Disable" : "Enable"}
-        </Button>
+        </button>
       </div>
 
-      {/* Inbound address */}
-      {enabled && address && (
-        <div className="rounded-lg bg-muted/60 border px-3 py-2 flex items-center gap-2">
-          <span className="text-xs font-mono truncate flex-1 text-foreground/80">{address}</span>
-          <CopyButton text={address} />
-        </div>
-      )}
-
       {/* Settings */}
-      <div className="space-y-4">
+      <div className="space-y-4 border-t pt-4">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Settings</p>
+
         <div className="space-y-1.5">
-          <Label className="text-xs">Allowed senders</Label>
+          <label className="text-xs font-medium text-muted-foreground">Allowed senders</label>
           <TagInput
             value={allowedSenders}
             onChange={setAllowedSenders}
-            placeholder="*@company.com — leave empty for org members only"
+            placeholder="*@company.com — leave empty to allow anyone"
           />
+          <p className="text-[11px] text-muted-foreground/70">
+            Wildcard patterns like <code className="font-mono">*@acme.com</code> are supported. Leave empty to allow all.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id={`pdf-only-${folderId}`}
-            checked={allowPdfOnly}
-            onChange={(e) => setAllowPdfOnly(e.target.checked)}
-            className="h-4 w-4 accent-primary"
-          />
-          <Label htmlFor={`pdf-only-${folderId}`} className="cursor-pointer text-xs font-normal">
+        <div className="flex items-center gap-6 flex-wrap">
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allowPdfOnly}
+              onChange={(e) => setAllowPdfOnly(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
             Accept PDF attachments only
-          </Label>
+          </label>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Max size</label>
+            <Input
+              type="number" min={1} max={50}
+              value={maxSizeMb}
+              onChange={(e) => setMaxSizeMb(Number(e.target.value))}
+              className="w-20 h-7 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">MB</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Label className="text-xs whitespace-nowrap">Max size (MB)</Label>
-          <Input
-            type="number"
-            value={maxSizeMb}
-            onChange={(e) => setMaxSizeMb(Number(e.target.value))}
-            min={1}
-            max={50}
-            className="w-20 h-7 text-xs"
-          />
+        <div className="flex justify-end">
+          <Button
+            size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+            Save settings
+          </Button>
         </div>
-
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-        >
-          {saveMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-          Save settings
-        </Button>
       </div>
 
       {/* Recent events */}
       {events.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent activity</p>
+        <div className="space-y-2 border-t pt-4">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Recent activity</p>
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-muted/50">
@@ -204,15 +214,15 @@ export function InboundEmailPanel({ folderId }: { folderId: string }) {
               </thead>
               <tbody>
                 {events.slice(0, 10).map((ev, i) => (
-                  <tr key={i} className="border-t">
+                  <tr key={i} className="border-t hover:bg-muted/20 transition-colors">
                     <td className="px-3 py-1.5 font-mono truncate max-w-[160px]">{ev.from_email}</td>
                     <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">
                       {new Date(ev.received_at).toLocaleString()}
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className={ev.accepted ? "text-emerald-600" : "text-destructive"}>
-                        {ev.accepted ? "✓ accepted" : "✗ rejected"}
-                      </span>
+                      {ev.accepted
+                        ? <span className="text-emerald-600 font-medium">✓ accepted</span>
+                        : <span className="text-destructive font-medium">✗ rejected</span>}
                     </td>
                     <td className="px-3 py-1.5 text-muted-foreground">{ev.rejection_reason ?? "—"}</td>
                   </tr>

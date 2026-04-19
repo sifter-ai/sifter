@@ -180,6 +180,9 @@ export const updateInboundPolicy = (
 export const fetchInboundEvents = (folderId: string): Promise<{ events: InboundEvent[] }> =>
   apiFetchJson(`/api/cloud/folders/${folderId}/inbound/events`);
 
+export const fetchAllInboundPolicies = (): Promise<{ policies: Array<{ folder_id: string; enabled: boolean }> }> =>
+  apiFetchJson("/api/cloud/inbound/policies");
+
 // ---- Shares ----
 
 export interface Share {
