@@ -54,15 +54,16 @@ async def test_extract_success(tmp_path):
     with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
         mock_llm.return_value = mock_response
         result = await extract(
-            file_path=str(test_file),
+            source=test_file.read_bytes(),
+            filename="invoice.txt",
             instructions="Extract: client, amount, date",
         )
 
     assert result.document_type == "invoice"
     assert result.matches_filter is True
     assert result.confidence == 0.95
-    assert result.extracted_data["client"] == "Acme Corp"
-    assert result.extracted_data["amount"] == 1500.00
+    assert result.extracted_data[0]["client"] == "Acme Corp"
+    assert result.extracted_data[0]["amount"] == 1500.00
 
 
 @pytest.mark.asyncio
@@ -78,6 +79,7 @@ async def test_extract_invalid_json(tmp_path):
         mock_llm.return_value = mock_response
         with pytest.raises(ValueError, match="invalid JSON"):
             await extract(
-                file_path=str(test_file),
+                source=test_file.read_bytes(),
+                filename="doc.txt",
                 instructions="Extract: client",
             )

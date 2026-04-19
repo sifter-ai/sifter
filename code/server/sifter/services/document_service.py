@@ -324,6 +324,8 @@ class DocumentService:
             return False
         await self._delete_document_files(doc)
         await self.db["document_sift_statuses"].delete_many({"document_id": document_id})
+        from .sift_results import SiftResultsService
+        await SiftResultsService(self.db).delete_by_document_id(document_id)
         result = await self.db["documents"].delete_one({"_id": ObjectId(document_id)})
         if result.deleted_count > 0:
             await self.db["folders"].update_one(

@@ -108,6 +108,11 @@ class SiftResultsService:
         logger.info("results_deleted", sift_id=sift_id, count=result.deleted_count)
         return result.deleted_count
 
+    async def delete_by_document_id(self, document_id: str) -> int:
+        result = await self.col.delete_many({"document_id": document_id})
+        logger.info("results_deleted_by_doc", document_id=document_id, count=result.deleted_count)
+        return result.deleted_count
+
     async def count(self, sift_id: str) -> int:
         return await self.col.count_documents({"sift_id": sift_id})
 

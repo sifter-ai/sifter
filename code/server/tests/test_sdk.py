@@ -214,7 +214,7 @@ def test_one_liner_sift(tmp_path):
 @respx.mock
 def test_create_folder():
     payload = {"id": "f1", "name": "Contracts", "document_count": 0}
-    respx.post(f"{BASE}/api/folders").mock(return_value=httpx.Response(201, json=payload))
+    respx.get(f"{BASE}/api/folders/by-path").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     folder = s.create_folder("Contracts")
@@ -226,7 +226,7 @@ def test_create_folder():
 @respx.mock
 def test_get_folder():
     payload = {"id": "f1", "name": "Contracts", "document_count": 0}
-    respx.get(f"{BASE}/api/folders/f1").mock(return_value=httpx.Response(200, json=payload))
+    respx.get(f"{BASE}/api/folders/by-path").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     folder = s.get_folder("f1")
