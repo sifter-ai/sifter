@@ -1,6 +1,19 @@
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Send, Sparkles, MessageSquare, FileText, BarChart3, Search, ChevronRight, Database, CheckCircle2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Send,
+  Sparkles,
+  MessageSquare,
+  FileText,
+  BarChart3,
+  Search,
+  ChevronRight,
+  CheckCircle2,
+  Wrench,
+  CornerDownLeft,
+} from "lucide-react";
 import {
   fetchChatSessions,
   createChatSession,
@@ -17,12 +30,50 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
+// ---------- Starter prompts (editorial tiles on the welcome state) ----------
+
 const STARTER_PROMPTS: { icon: typeof FileText; text: string }[] = [
   { icon: Search, text: "What are the main topics across my documents?" },
   { icon: BarChart3, text: "Show me a breakdown of records by category" },
   { icon: FileText, text: "Summarize the most recent sift I created" },
   { icon: Sparkles, text: "Suggest a dashboard I could build from my data" },
 ];
+
+// ---------- Session grouping helpers ----------
+
+type SessionBucket = "today" | "yesterday" | "week" | "older";
+const BUCKET_LABEL: Record<SessionBucket, string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  week: "This week",
+  older: "Older",
+};
+const BUCKET_ORDER: SessionBucket[] = ["today", "yesterday", "week", "older"];
+
+function bucketFor(iso: string | null | undefined): SessionBucket {
+  if (!iso) return "older";
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((today.getTime() - d.getTime()) / 86_400_000);
+  if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return "week";
+  return "older";
+}
+
+function groupSessions(sessions: ChatSession[]): Record<SessionBucket, ChatSession[]> {
+  const groups: Record<SessionBucket, ChatSession[]> = {
+    today: [], yesterday: [], week: [], older: [],
+  };
+  for (const s of sessions) {
+    const when = (s as unknown as { updated_at?: string }).updated_at ?? s.created_at ?? null;
+    groups[bucketFor(when)].push(s);
+  }
+  return groups;
+}
+
+// ---------- UI atoms ----------
 
 function SuggestionChips({
   siftIds,
@@ -54,8 +105,11 @@ function SuggestionChips({
 
 function AssistantAvatar() {
   return (
-    <div className="shrink-0 h-7 w-7 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm">
-      <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
+    <div
+      className="shrink-0 h-8 w-8 rounded-xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-500/70 flex items-center justify-center shadow-[0_4px_14px_-4px_hsl(40_92%_50%/0.5)] ring-1 ring-amber-400/30"
+      aria-hidden
+    >
+      <span className="font-mono text-[13px] font-bold text-white tracking-tight leading-none">S</span>
     </div>
   );
 }
@@ -63,17 +117,24 @@ function AssistantAvatar() {
 function AgentSteps({ steps }: { steps: NonNullable<ChatMessageCloud["steps"]> }) {
   if (!steps.length) return null;
   return (
-    <div className="flex flex-col gap-1.5 mb-3 pb-3 border-b border-border/50">
+    <ol className="flex flex-col gap-1.5 mb-3">
       {steps.map((step, i) => (
-        <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Database className="h-3 w-3 shrink-0 text-primary/60" />
-          <span className="font-medium">{step.label}</span>
-          <span className="text-muted-foreground/50">·</span>
-          <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-          <span>{step.result_count} risultati</span>
-        </div>
+        <li
+          key={i}
+          className="group flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs"
+        >
+          <span className="font-mono text-[10px] font-semibold text-muted-foreground/60 tabular-nums w-5">
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          <Wrench className="h-3 w-3 text-amber-500/80 shrink-0" strokeWidth={2.25} />
+          <span className="font-medium text-foreground/90 truncate">{step.label}</span>
+          <span className="ml-auto flex items-center gap-1 text-muted-foreground shrink-0">
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+            <span className="font-mono tabular-nums">{step.result_count}</span>
+          </span>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
@@ -93,12 +154,16 @@ function MessageBubble({ msg }: { msg: ChatMessageCloud }) {
       <div className="flex-1 min-w-0 space-y-3 pt-0.5">
         {msg.steps && msg.steps.length > 0 && <AgentSteps steps={msg.steps} />}
         {msg.content && (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          <p className="text-[14px] leading-[1.65] whitespace-pre-wrap text-foreground/95">
+            {msg.content}
+          </p>
         )}
         {msg.blocks?.map((block, i) => (
-          <div key={i} className="rounded-lg border bg-card p-3">
+          <div key={i} className="rounded-xl border border-border/60 bg-card/50 p-3.5">
             {block.title && (
-              <p className="text-xs font-medium text-muted-foreground mb-2">{block.title}</p>
+              <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-muted-foreground/70 mb-2.5">
+                {block.title}
+              </p>
             )}
             <BlockRenderer block={block} />
           </div>
@@ -112,10 +177,10 @@ function TypingDots() {
   return (
     <div className="flex gap-3">
       <AssistantAvatar />
-      <div className="flex items-center gap-1 pt-2.5">
-        <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-        <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-        <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+      <div className="flex items-center gap-1 pt-3">
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
       </div>
     </div>
   );
@@ -157,6 +222,28 @@ function AutoTextarea({
   );
 }
 
+function KeyboardHint() {
+  return (
+    <p className="mt-1.5 flex items-center justify-center gap-2 font-mono text-[10px] tracking-[0.08em] text-muted-foreground/60">
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Enter
+      </kbd>
+      <span>to send</span>
+      <span className="text-muted-foreground/30">·</span>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Shift
+      </kbd>
+      <span>+</span>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Enter
+      </kbd>
+      <span>for newline</span>
+    </p>
+  );
+}
+
+// ---------- Page ----------
+
 export default function CloudChatPage({ siftId }: { siftId?: string }) {
   const qc = useQueryClient();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -181,6 +268,8 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
   const sessions = sessionsData?.items ?? [];
   const sifts = siftsData ?? [];
   const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
+
+  const groupedSessions = useMemo(() => groupSessions(sessions), [sessions]);
 
   const loadSession = async (id: string) => {
     setActiveSessionId(id);
@@ -272,11 +361,11 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
 
         {/* Right slot: breadcrumb title + agent badge + actions */}
         <div className="flex-1 flex items-center gap-3 px-5 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span className="text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
               Chat
             </span>
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+            <span className="h-px w-5 bg-border shrink-0" aria-hidden />
             <span className="text-sm font-semibold tracking-tight text-foreground truncate">
               {activeSession?.title || (activeSessionId ? "New chat" : "New conversation")}
             </span>
@@ -310,153 +399,217 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
         {/* Session list sidebar */}
         <aside className="w-60 shrink-0 border-r flex flex-col bg-muted/20">
           <nav className="flex-1 overflow-y-auto p-2">
-            {sessions.length > 0 && (
-              <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
-                Recent
-              </p>
+            {sessionsLoading && (
+              <div className="space-y-1.5 px-1 pt-2">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+              </div>
             )}
-            <div className="space-y-0.5">
-              {sessionsLoading && <Skeleton className="h-8 w-full" />}
-              {!sessionsLoading && sessions.length === 0 && (
-                <div className="px-3 py-8 text-center space-y-2">
-                  <MessageSquare className="h-5 w-5 mx-auto text-muted-foreground/40" />
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed">
-                    Your chats will<br />appear here
-                  </p>
-                </div>
-              )}
-              {sessions.map((s: ChatSession) => {
-                const isActive = activeSessionId === s.id;
-                return (
-                  <div
-                    key={s.id}
-                    className={`group relative flex items-center gap-2 rounded-md pl-3 pr-1.5 py-1.5 cursor-pointer text-sm transition-colors ${
-                      isActive
-                        ? "bg-primary/10 text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                    onClick={() => loadSession(s.id)}
-                  >
-                    {isActive && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
-                    )}
-                    <span className={`truncate flex-1 ${isActive ? "font-medium" : ""}`}>
-                      {s.title || "New chat"}
-                    </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteSessionId(s.id); }}
-                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 rounded"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+
+            {!sessionsLoading && sessions.length === 0 && (
+              <div className="px-3 py-12 text-center space-y-2.5">
+                <MessageSquare className="h-5 w-5 mx-auto text-muted-foreground/40" strokeWidth={1.5} />
+                <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-foreground/60">
+                  No chats yet
+                </p>
+                <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+                  Start a new conversation to<br />see it land here.
+                </p>
+              </div>
+            )}
+
+            {!sessionsLoading && sessions.length > 0 && (
+              <div className="space-y-3 pt-1">
+                {BUCKET_ORDER.map((bucket) => {
+                  const items = groupedSessions[bucket];
+                  if (!items.length) return null;
+                  return (
+                    <div key={bucket}>
+                      <p className="px-2 pb-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+                        {BUCKET_LABEL[bucket]}
+                      </p>
+                      <div className="space-y-0.5">
+                        {items.map((s: ChatSession) => {
+                          const isActive = activeSessionId === s.id;
+                          return (
+                            <div
+                              key={s.id}
+                              className={`group relative flex items-center gap-2 rounded-md pl-3 pr-1.5 py-1.5 cursor-pointer text-sm transition-colors ${
+                                isActive
+                                  ? "bg-primary/10 text-foreground"
+                                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                              }`}
+                              onClick={() => loadSession(s.id)}
+                            >
+                              {isActive && (
+                                <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
+                              )}
+                              <span className={`truncate flex-1 ${isActive ? "font-medium" : ""}`}>
+                                {s.title || "New chat"}
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeleteSessionId(s.id); }}
+                                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 rounded"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </nav>
         </aside>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0">
-        {!activeSessionId ? (
-          /* Welcome / empty state */
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-6 pt-16 pb-10 flex flex-col items-center text-center">
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg mb-5">
-                <Sparkles className="h-7 w-7 text-primary-foreground" />
-              </div>
-              <h1 className="text-2xl font-semibold tracking-tight">
-                How can I help you today?
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {siftCount > 0
-                  ? `Ask anything about your ${siftCount} sift${siftCount !== 1 ? "s" : ""}. I can search, aggregate, and chart your data.`
-                  : "Upload documents first, then ask the agent to search, summarize, or visualize them."}
-              </p>
+        <div className="flex-1 flex flex-col min-h-0 relative">
+          {!activeSessionId ? (
+            /* ---------- Welcome / empty state ---------- */
+            <div className="flex-1 overflow-y-auto relative">
+              {/* Atmospheric backdrop — warm amber accent that matches the agent identity */}
+              <div
+                className="pointer-events-none absolute inset-x-0 top-0 h-[360px]"
+                style={{
+                  background:
+                    "radial-gradient(900px 320px at 30% -10%, hsl(40 92% 58% / 0.10), transparent 60%), radial-gradient(700px 260px at 80% -15%, hsl(263 72% 52% / 0.07), transparent 55%)",
+                }}
+                aria-hidden
+              />
 
-              {/* Welcome input */}
-              <div className="mt-8 w-full">
-                <div className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
-                  <AutoTextarea
-                    value={welcomeInput}
-                    onChange={setWelcomeInput}
-                    onEnter={() => handleWelcomeSend()}
-                    placeholder={siftCount > 0 ? "Ask anything about your documents…" : "Ask anything…"}
-                    autoFocus
-                  />
-                  <Button
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => handleWelcomeSend()}
-                    disabled={!welcomeInput.trim() || createMutation.isPending || sendMutation.isPending}
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
+              <div className="relative max-w-2xl mx-auto px-6 pt-20 pb-10 flex flex-col items-center text-center">
+                {/* Editorial breadcrumb */}
+                <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70 mb-6">
+                  <Sparkles className="h-3 w-3 text-amber-500/80" strokeWidth={2.25} />
+                  <span>Structured RAG</span>
+                  <span className="h-px w-6 bg-border" aria-hidden />
+                  <span>Conversational</span>
                 </div>
-                <p className="mt-1.5 text-[10px] text-muted-foreground/70">
-                  Press Enter to send · Shift+Enter for newline
-                </p>
-              </div>
 
-              {/* Starter prompts */}
-              {siftCount > 0 && (
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-                  {STARTER_PROMPTS.map(({ icon: Icon, text }) => (
-                    <button
-                      key={text}
-                      onClick={() => handleWelcomeSend(text)}
-                      disabled={createMutation.isPending || sendMutation.isPending}
-                      className="group flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left text-sm hover:border-primary/40 hover:bg-primary/5 transition-colors disabled:opacity-50"
-                    >
-                      <Icon className="h-4 w-4 text-primary shrink-0" />
-                      <span className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        {text}
+                {/* Typographic headline */}
+                <h1 className="text-[40px] leading-[1.02] font-bold tracking-[-0.03em] text-foreground">
+                  What do you want to{" "}
+                  <span className="relative inline-block">
+                    <span className="relative z-10">know</span>
+                    <span
+                      className="absolute inset-x-[-4px] bottom-[0.08em] h-[0.28em] bg-amber-300/50 -z-0"
+                      aria-hidden
+                    />
+                  </span>
+                  ?
+                </h1>
+
+                <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground/90 max-w-lg">
+                  {siftCount > 0 ? (
+                    <>
+                      Ask anything about your{" "}
+                      <span className="font-semibold text-foreground/80">
+                        {siftCount} sift{siftCount !== 1 ? "s" : ""}
                       </span>
-                    </button>
-                  ))}
+                      . The agent searches, aggregates, and charts —{" "}
+                      <span className="text-foreground/80">citations included.</span>
+                    </>
+                  ) : (
+                    <>
+                      Upload documents first, then ask the agent to search, summarize,
+                      or visualise them. <span className="text-foreground/80">Plain English in, structured answers out.</span>
+                    </>
+                  )}
+                </p>
+
+                {/* Welcome input */}
+                <div className="mt-10 w-full">
+                  <div className="flex items-end gap-2 rounded-2xl border border-border/80 bg-card p-2 shadow-[0_8px_30px_-12px_hsl(var(--foreground)/0.12)] focus-within:border-amber-400/40 focus-within:shadow-[0_12px_40px_-12px_hsl(40_92%_50%/0.25)] transition-all">
+                    <AutoTextarea
+                      value={welcomeInput}
+                      onChange={setWelcomeInput}
+                      onEnter={() => handleWelcomeSend()}
+                      placeholder={siftCount > 0 ? "Ask anything about your documents…" : "Ask anything…"}
+                      autoFocus
+                    />
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 shrink-0 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-600 text-white shadow-sm"
+                      onClick={() => handleWelcomeSend()}
+                      disabled={!welcomeInput.trim() || createMutation.isPending || sendMutation.isPending}
+                    >
+                      <CornerDownLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </Button>
+                  </div>
+                  <KeyboardHint />
                 </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-3xl mx-auto px-5 py-6 space-y-6">
-                {messages.length === 0 && (
-                  <SuggestionChips
-                    siftIds={selectedSiftIds}
-                    onSelect={(s) => setInput(s)}
-                  />
+
+                {/* Starter prompts — editorial tiles with numeric index */}
+                {siftCount > 0 && (
+                  <div className="mt-10 w-full">
+                    <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/60 mb-3">
+                      <span>Try one of these</span>
+                      <span className="h-px flex-1 bg-border/70" aria-hidden />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {STARTER_PROMPTS.map(({ icon: Icon, text }, i) => (
+                        <button
+                          key={text}
+                          onClick={() => handleWelcomeSend(text)}
+                          disabled={createMutation.isPending || sendMutation.isPending}
+                          className="group relative flex items-start gap-3 rounded-xl border border-border/60 bg-card/70 px-3.5 py-3 text-left text-sm hover:border-amber-400/40 hover:bg-amber-50/40 dark:hover:bg-amber-400/5 transition-all disabled:opacity-50 hover:-translate-y-[1px] hover:shadow-[0_6px_20px_-8px_hsl(40_92%_50%/0.3)]"
+                        >
+                          <span className="font-mono text-[10px] font-semibold tabular-nums text-amber-600/80 dark:text-amber-400/80 tracking-wider pt-0.5">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <Icon className="h-4 w-4 text-muted-foreground/60 group-hover:text-amber-600 dark:group-hover:text-amber-400 shrink-0 mt-0.5 transition-colors" strokeWidth={1.75} />
+                          <span className="text-muted-foreground/90 group-hover:text-foreground transition-colors leading-snug flex-1">
+                            {text}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                {messages.map((msg) => (
-                  <MessageBubble key={msg.id} msg={msg} />
-                ))}
-                {isTyping && <TypingDots />}
-                <div ref={bottomRef} />
               </div>
             </div>
-            <div className="border-t bg-background/80 backdrop-blur px-5 py-3 shrink-0">
-              <div className="max-w-3xl mx-auto">
-                <div className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 transition-shadow">
-                  <AutoTextarea
-                    value={input}
-                    onChange={setInput}
-                    onEnter={handleSend}
-                    placeholder="Ask a follow-up…"
-                  />
-                  <Button
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={handleSend}
-                    disabled={!input.trim() || sendMutation.isPending}
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
+          ) : (
+            /* ---------- Active session view ---------- */
+            <>
+              <div className="flex-1 overflow-y-auto">
+                <div className="max-w-3xl mx-auto px-5 py-8 space-y-7">
+                  {messages.length === 0 && (
+                    <SuggestionChips
+                      siftIds={selectedSiftIds}
+                      onSelect={(s) => setInput(s)}
+                    />
+                  )}
+                  {messages.map((msg) => (
+                    <MessageBubble key={msg.id} msg={msg} />
+                  ))}
+                  {isTyping && <TypingDots />}
+                  <div ref={bottomRef} />
                 </div>
               </div>
-            </div>
-          </>
-        )}
+              <div className="border-t bg-gradient-to-t from-background via-background to-background/80 backdrop-blur px-5 py-3 shrink-0">
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex items-end gap-2 rounded-2xl border border-border/80 bg-card p-2 shadow-sm focus-within:border-amber-400/40 focus-within:shadow-[0_6px_22px_-10px_hsl(40_92%_50%/0.2)] transition-all">
+                    <AutoTextarea
+                      value={input}
+                      onChange={setInput}
+                      onEnter={handleSend}
+                      placeholder="Ask a follow-up…"
+                    />
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 shrink-0 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-600 text-white"
+                      onClick={handleSend}
+                      disabled={!input.trim() || sendMutation.isPending}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

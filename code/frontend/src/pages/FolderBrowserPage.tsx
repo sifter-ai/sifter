@@ -421,24 +421,24 @@ export default function FolderBrowserPage() {
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
-              <span className="text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
                 Folders
               </span>
+              <span className="h-px w-5 bg-border shrink-0" aria-hidden />
               {breadcrumbPath.length > 0 ? (
                 <>
                   {breadcrumbPath.slice(0, -1).map((bc) => (
                     <span key={bc.id} className="flex items-center gap-1.5 shrink-0 min-w-0">
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
                       <button
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
                         onClick={() => navigate(`/folders/${bc.id}`)}
                       >
                         {bc.name}
                       </button>
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
                     </span>
                   ))}
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
                   <span className="text-sm font-semibold tracking-tight text-foreground truncate">
                     {breadcrumbPath[breadcrumbPath.length - 1].name}
                   </span>
@@ -455,12 +455,9 @@ export default function FolderBrowserPage() {
                   </button>
                 </>
               ) : (
-                <>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                  <span className="text-sm font-semibold tracking-tight text-foreground truncate">
-                    All Documents
-                  </span>
-                </>
+                <span className="text-sm font-semibold tracking-tight text-foreground truncate">
+                  All Documents
+                </span>
               )}
             </div>
           )}
