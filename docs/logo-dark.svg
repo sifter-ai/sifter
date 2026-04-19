@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 36" fill="none">
+  <defs>
+    <linearGradient id="g" x1="30" y1="0" x2="30" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B87AF5"/>
+      <stop offset="100%" stop-color="#4C1D9A"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(4,4) scale(0.3889)">
+    <rect x="21" y="0" width="18" height="22" rx="2" fill="url(#g)" opacity="0.9"/>
+    <path d="M33 0 L39 0 L39 6 L33 6 Z" fill="#7C3AED" opacity="0.5"/>
+    <path d="M33 0 L39 6 L33 6 Z" fill="white" opacity="0.3"/>
+    <path d="M2 20 L58 20 L38 56 L22 56 Z" fill="url(#g)"/>
+    <rect x="22" y="54" width="16" height="5" rx="1" fill="#4C1D9A"/>
+    <rect x="20" y="62" width="9" height="9" rx="1.5" fill="#5B21B6"/>
+    <rect x="31" y="62" width="9" height="9" rx="1.5" fill="#7C3AED" opacity="0.85"/>
+  </g>
+  <text x="36" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="600" fill="#FFFFFF" letter-spacing="-0.4">Sifter</text>
+</svg>
