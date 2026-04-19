@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Send, Wrench } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, CheckCircle2, CornerDownLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/hooks/useChat";
 import type { ChatMessage, ToolCallTrace } from "@/api/types";
@@ -9,35 +8,62 @@ import type { ChatMessage, ToolCallTrace } from "@/api/types";
 interface ChatInterfaceProps {
   siftId?: string;
   height?: string;
+  /** Hides the keyboard hint below the input — useful inside compact tabs */
+  compact?: boolean;
+}
+
+// ---------- atoms ----------
+
+function AssistantAvatar() {
+  return (
+    <div
+      className="shrink-0 h-8 w-8 rounded-xl bg-gradient-to-br from-amber-500 via-amber-400 to-amber-500/70 flex items-center justify-center shadow-[0_4px_14px_-4px_hsl(40_92%_50%/0.45)] ring-1 ring-amber-400/30"
+      aria-hidden
+    >
+      <span className="font-mono text-[13px] font-bold text-white tracking-tight leading-none">S</span>
+    </div>
+  );
 }
 
 function DataTable({ data }: { data: Record<string, unknown>[] }) {
   if (!data.length) return null;
   const cols = Object.keys(data[0]);
   return (
-    <div className="overflow-x-auto rounded border mt-2 text-xs">
+    <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/40 text-xs">
       <table className="w-full">
         <thead>
-          <tr className="border-b bg-muted/50">
+          <tr className="border-b border-border/60 bg-muted/40">
             {cols.map((c) => (
-              <th key={c} className="px-3 py-1.5 text-left font-medium text-muted-foreground">{c}</th>
+              <th
+                key={c}
+                className="px-3 py-2 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80"
+              >
+                {c}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {data.slice(0, 20).map((row, i) => (
-            <tr key={i} className="border-b last:border-0">
+            <tr key={i} className="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
               {cols.map((c) => (
-                <td key={c} className="px-3 py-1.5">
-                  {row[c] === null || row[c] === undefined ? "—" : String(row[c])}
+                <td key={c} className="px-3 py-1.5 text-foreground/90">
+                  {row[c] === null || row[c] === undefined ? (
+                    <span className="text-muted-foreground/40">—</span>
+                  ) : (
+                    String(row[c])
+                  )}
                 </td>
               ))}
             </tr>
           ))}
           {data.length > 20 && (
             <tr>
-              <td colSpan={cols.length} className="px-3 py-1.5 text-muted-foreground">
-                … {data.length - 20} more rows
+              <td
+                colSpan={cols.length}
+                className="px-3 py-2 text-[11px] font-mono text-muted-foreground/60 bg-muted/20"
+              >
+                +{data.length - 20} more rows
               </td>
             </tr>
           )}
@@ -50,16 +76,16 @@ function DataTable({ data }: { data: Record<string, unknown>[] }) {
 function PipelineToggle({ pipeline }: { pipeline: Record<string, unknown>[] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-2">
+    <div>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-xs opacity-70 hover:opacity-100 transition-opacity"
+        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 hover:text-foreground transition-colors"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         View pipeline
       </button>
       {open && (
-        <pre className="mt-1 text-xs bg-black/10 dark:bg-white/10 p-2 rounded overflow-x-auto font-mono">
+        <pre className="mt-2 text-[11px] bg-muted/40 text-foreground/80 p-3 rounded-lg overflow-x-auto font-mono border border-border/50">
           {JSON.stringify(pipeline, null, 2)}
         </pre>
       )}
@@ -67,72 +93,166 @@ function PipelineToggle({ pipeline }: { pipeline: Record<string, unknown>[] }) {
   );
 }
 
-function TraceRow({ trace, index }: { trace: ToolCallTrace; index: number }) {
-  const TOOL_LABELS: Record<string, string> = {
-    list_sifts: "Listed sifts",
-    get_sift: "Got sift info",
-    list_records: "Listed records",
-    query_sift: "Queried sift",
-    aggregate_sift: "Ran aggregation",
-    find_records: "Filtered records",
-  };
-  const label = TOOL_LABELS[trace.tool] ?? trace.tool;
+const TOOL_LABELS: Record<string, string> = {
+  list_sifts: "Listed sifts",
+  get_sift: "Got sift info",
+  list_records: "Listed records",
+  query_sift: "Queried sift",
+  aggregate_sift: "Ran aggregation",
+  find_records: "Filtered records",
+};
 
+function TraceList({ traces }: { traces: ToolCallTrace[] }) {
+  if (!traces.length) return null;
   return (
-    <div
-      className="flex items-center gap-2 text-xs text-muted-foreground/70 border-l-2 border-amber-400/40 pl-2"
-      style={{ animationDelay: `${index * 60}ms` }}
-    >
-      <Wrench className="h-3 w-3 text-amber-500/70 shrink-0" />
-      <span className="font-mono">{label}</span>
-      {Boolean(trace.args["sift_id"]) && (
-        <span className="opacity-60">· {String(trace.args["sift_id"]).slice(-6)}</span>
-      )}
-      <span className="ml-auto opacity-50">{trace.result_preview}</span>
-      <span className="opacity-40">({trace.duration_ms}ms)</span>
-    </div>
+    <ol className="flex flex-col gap-1.5 mb-2">
+      {traces.map((trace, i) => {
+        const label = TOOL_LABELS[trace.tool] ?? trace.tool;
+        const siftSuffix = trace.args["sift_id"] ? String(trace.args["sift_id"]).slice(-6) : null;
+        return (
+          <li
+            key={i}
+            className="group flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs"
+            style={{ animationDelay: `${i * 60}ms` }}
+          >
+            <span className="font-mono text-[10px] font-semibold text-muted-foreground/60 tabular-nums w-5 shrink-0">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <Wrench className="h-3 w-3 text-amber-500/80 shrink-0" strokeWidth={2.25} />
+            <span className="font-medium text-foreground/90 truncate">{label}</span>
+            {siftSuffix && (
+              <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">· {siftSuffix}</span>
+            )}
+            <span className="ml-auto flex items-center gap-1.5 text-muted-foreground shrink-0">
+              <span className="font-mono text-[10px] text-muted-foreground/50 tabular-nums">{trace.duration_ms}ms</span>
+              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground shadow-sm">
+          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
-      <div className={`max-w-[80%] space-y-1.5 ${isUser ? "items-end flex flex-col" : ""}`}>
-        {/* Tool traces — only for assistant messages */}
-        {!isUser && message.trace && message.trace.length > 0 && (
-          <div className="space-y-1 mb-1">
-            {message.trace.map((t, i) => (
-              <TraceRow key={i} trace={t} index={i} />
-            ))}
+    <div className="flex gap-3">
+      <AssistantAvatar />
+      <div className="flex-1 min-w-0 space-y-3 pt-0.5">
+        {message.trace && message.trace.length > 0 && <TraceList traces={message.trace} />}
+        {message.content && (
+          <div className="rounded-xl border border-border/60 bg-card/60 px-4 py-3">
+            <p className="text-[14px] leading-[1.65] whitespace-pre-wrap text-foreground/95">
+              {message.content}
+            </p>
           </div>
         )}
-        <div
-          className={`rounded-lg px-4 py-2 ${
-            isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-          }`}
-        >
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-          {!isUser && message.data && message.data.length > 0 && (
-            <DataTable data={message.data as Record<string, unknown>[]} />
-          )}
-          {!isUser && message.pipeline && message.pipeline.length > 0 && (
-            <PipelineToggle pipeline={message.pipeline as Record<string, unknown>[]} />
-          )}
-        </div>
+        {message.data && message.data.length > 0 && (
+          <DataTable data={message.data as Record<string, unknown>[]} />
+        )}
+        {message.pipeline && message.pipeline.length > 0 && (
+          <PipelineToggle pipeline={message.pipeline as Record<string, unknown>[]} />
+        )}
       </div>
     </div>
   );
 }
 
-export function ChatInterface({ siftId, height = "500px" }: ChatInterfaceProps) {
+function TypingDots() {
+  return (
+    <div className="flex gap-3">
+      <AssistantAvatar />
+      <div className="flex items-center gap-1 pt-3">
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+        <span className="w-1.5 h-1.5 bg-amber-500/70 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+      </div>
+    </div>
+  );
+}
+
+function AutoTextarea({
+  value,
+  onChange,
+  onEnter,
+  placeholder,
+  disabled,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onEnter: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  autoFocus?: boolean;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          onEnter();
+        }
+      }}
+      placeholder={placeholder}
+      rows={1}
+      disabled={disabled}
+      autoFocus={autoFocus}
+      className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none max-h-[200px] disabled:opacity-60"
+    />
+  );
+}
+
+function KeyboardHint() {
+  return (
+    <p className="mt-2 flex items-center justify-center gap-2 font-mono text-[10px] tracking-[0.08em] text-muted-foreground/55">
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Enter
+      </kbd>
+      <span>to send</span>
+      <span className="text-muted-foreground/30">·</span>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Shift
+      </kbd>
+      <span>+</span>
+      <kbd className="px-1.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[9px] font-semibold">
+        Enter
+      </kbd>
+      <span>for newline</span>
+    </p>
+  );
+}
+
+// ---------- component ----------
+
+export function ChatInterface({ siftId, height = "500px", compact = false }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useChat(siftId);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -142,40 +262,46 @@ export function ChatInterface({ siftId, height = "500px" }: ChatInterfaceProps) 
 
   return (
     <div className="flex flex-col" style={{ height }}>
-      <ScrollArea className="flex-1 p-4">
-        {messages.length === 0 && (
-          <div className="text-center text-muted-foreground py-12 text-sm space-y-1">
-            <p className="font-medium">Ask anything about your documents</p>
-            <p className="text-xs opacity-70">The agent will search across all your sifts automatically</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} message={msg} />
-        ))}
-        {isLoading && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-muted rounded-lg px-4 py-2">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
+      <ScrollArea className="flex-1">
+        <div className="max-w-3xl mx-auto px-5 py-6 space-y-6">
+          {messages.length === 0 && (
+            <div className="py-12 text-center space-y-2">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
+                Ready when you are
+              </p>
+              <p className="text-sm text-muted-foreground/80">
+                Ask anything about your documents. The agent searches across every sift automatically.
+              </p>
             </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
+          )}
+          {messages.map((msg, i) => (
+            <MessageBubble key={i} message={msg} />
+          ))}
+          {isLoading && <TypingDots />}
+          <div ref={bottomRef} />
+        </div>
       </ScrollArea>
-      <div className="border-t p-4 flex gap-2">
-        <Input
-          placeholder="Ask about your data…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-          disabled={isLoading}
-        />
-        <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon">
-          <Send className="h-4 w-4" />
-        </Button>
+      <div className="border-t px-5 py-3 shrink-0 bg-gradient-to-t from-background via-background to-background/80 backdrop-blur">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-end gap-2 rounded-2xl border border-border/80 bg-card p-2 shadow-sm focus-within:border-amber-400/40 focus-within:shadow-[0_6px_22px_-10px_hsl(40_92%_50%/0.22)] transition-all">
+            <AutoTextarea
+              value={input}
+              onChange={setInput}
+              onEnter={handleSend}
+              placeholder="Ask about your data…"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={isLoading || !input.trim()}
+              size="icon"
+              className="h-8 w-8 shrink-0 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-600 text-white"
+            >
+              <CornerDownLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </Button>
+          </div>
+          {!compact && <KeyboardHint />}
+        </div>
       </div>
     </div>
   );

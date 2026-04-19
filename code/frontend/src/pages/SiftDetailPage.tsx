@@ -947,7 +947,7 @@ export function SiftDetailPage() {
         <TabsContent value="chat" className="mt-4">
           <Card>
             <CardContent className="p-0">
-              <ChatInterface siftId={id!} />
+              <ChatInterface siftId={id!} compact />
             </CardContent>
           </Card>
         </TabsContent>
