@@ -1,0 +1,117 @@
+---
+title: Billing & Usage
+description: Plans, quotas, Stripe portal, and the PlanLimitError flow.
+---
+
+# Billing & Usage
+
+Sifter Cloud billing is Stripe-backed. All usage is metered per org: documents processed, sifts created, connector count, storage. Plans are self-service — upgrade, downgrade, or cancel anytime from the Stripe customer portal.
+
+<Info>
+See [Pricing](/overview/pricing) for the full plan matrix. This page covers the mechanics of how billing works — how to upgrade, what triggers a `402`, and how to read your usage.
+</Info>
+
+## Plans at a glance
+
+| Plan | Monthly docs | Sifts | Connectors | MCP remote | SSO | Audit |
+|------|--------------|-------|------------|------------|-----|-------|
+| Free | 10 | 1 | — | — | — | — |
+| Starter ($19) | 500 | 10 | 1 Drive + mail | ✓ | — | — |
+| Pro ($49) | 3,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Business ($149) | 15,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Scale ($399) | 50,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Enterprise | Custom | ∞ | ∞ | ✓ | ✓ | ✓ |
+
+## Upgrading
+
+<Steps>
+  <Step title="Open Billing">
+    In the Sifter web app, go to **Settings → Billing** — or the badge on any upgrade prompt.
+  </Step>
+  <Step title="Pick a plan">
+    Click **Upgrade** on the tier you want. Sifter hits `POST /api/cloud/billing/checkout` with your chosen `plan_code`, then redirects you to Stripe Checkout.
+  </Step>
+  <Step title="Complete checkout">
+    After Stripe confirms payment, Sifter receives the `checkout.session.completed` webhook and flips your org to the new plan. You're redirected back to **Settings → Billing**.
+  </Step>
+  <Step title="Manage the subscription">
+    **Manage billing** opens the Stripe customer portal — change card, update VAT details, cancel, see invoices. Changes propagate back via Stripe webhooks.
+  </Step>
+</Steps>
+
+## Usage dashboard
+
+`/settings/usage` shows progress bars for each metered dimension:
+
+| Metric | Color thresholds |
+|--------|------------------|
+| Documents processed | green < 80% • amber < 100% • red ≥ 100% |
+| Storage | same |
+| Sifts | hidden if plan is unlimited |
+
+Alert emails fire at **50%**, **80%**, and **100%** of each quota.
+
+## Hitting a plan limit
+
+Any call that would push you past quota — or invokes a feature your plan doesn't include — returns `402 Payment Required`. The SDK surfaces this as a typed error:
+
+```python
+from sifter import Sifter, PlanLimitError
+
+s = Sifter(api_url="https://sifter.run", api_key="sk-...")
+
+try:
+    s.connectors.gdrive.list()
+except PlanLimitError as e:
+    print(f"Upgrade to {e.required_plan} to unlock this — limit={e.limit}")
+```
+
+```ts
+import { SifterClient, SifterError } from "@sifter-ai/sdk";
+
+try {
+  await sifter.sifts.list();
+} catch (err) {
+  if (err instanceof SifterError && err.status === 402) {
+    // err.body.required_plan, err.body.limit
+  }
+}
+```
+
+## API
+
+| Action | Method | Path |
+|--------|--------|------|
+| Current subscription | `GET` | `/api/billing/subscription` |
+| Usage summary | `GET` | `/api/usage` |
+| Stripe portal session | `POST` | `/api/billing/portal` |
+| Start checkout | `POST` | `/api/cloud/billing/checkout` |
+
+All four require a valid API key (`Authorization: Bearer sk-...`).
+
+### Checkout payload
+
+```json
+POST /api/cloud/billing/checkout
+{
+  "plan_code": "pro",
+  "success_url": "https://yourapp.com/billing/success",
+  "cancel_url":  "https://yourapp.com/billing/cancel"
+}
+```
+
+Response: `{ "checkout_url": "https://checkout.stripe.com/..." }` — redirect the user there.
+
+## Trial
+
+Pro includes a **14-day trial** (`plan_code=pro_trial`). No card required. A banner shows days remaining; on expiry the org drops to Free unless a payment method is added.
+
+## Cancellation
+
+Canceling from the Stripe portal schedules the downgrade for the end of the current billing period. Usage quotas flip to Free at period end — your data stays, but new overage calls return `402`.
+
+## See also
+
+- [Pricing](/overview/pricing) — plan matrix
+- [Python SDK error handling](/integrations/python-sdk#error-handling) — catching `PlanLimitError`
+- [Cloud overview](/cloud/overview) — what Cloud adds on top of OSS

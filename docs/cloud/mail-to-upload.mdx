@@ -1,0 +1,92 @@
+---
+title: Mail-to-upload
+description: Forward an email to a folder-scoped address and its attachments become documents.
+---
+
+# Mail-to-upload
+
+Every Sifter folder can expose a unique forwarding address (`folder-abc@in.sifter.run`). Forward any email — from a vendor portal, an accounting inbox, or a personal client — and the attachments become documents in that folder, extracted by every linked sift.
+
+<Info>
+Mail-to-upload is a **Sifter Cloud** feature. Available on **Starter+**. Free plans see the panel disabled with an upgrade prompt.
+</Info>
+
+## How it works
+
+<Steps>
+  <Step title="Enable on a folder">
+    Open a folder, click **Settings → Inbound**. Toggle on. Sifter mints an address of the form `folder-{short-id}@in.sifter.run`.
+  </Step>
+  <Step title="Configure the policy">
+    - **Allowed senders** — tag list with wildcard support (`*@acme.com`). Empty list = only org members can send.
+    - **Allow PDF only** — default on. Blocks `.docx`, `.xlsx`, anything non-PDF/image.
+    - **Max attachment size** — MB cap per attachment. Enforced plan limit is the hard ceiling.
+  </Step>
+  <Step title="Forward email">
+    Forward anything with an attachment to the address. Sifter verifies DKIM/SPF, checks the sender against your allowed list, splits the attachments, and drops each one into the folder.
+  </Step>
+  <Step title="Watch it flow">
+    Every attachment triggers extraction on the linked sifts and fires `folder.document.uploaded` if you have a matching [webhook](/concepts/webhooks).
+  </Step>
+</Steps>
+
+## Recent events
+
+The **Inbound** panel shows the last 10 events:
+
+| Column | Meaning |
+|--------|---------|
+| From | Sender address |
+| Received | When the email hit the inbox |
+| Accepted | ✓ (ingested) or ✗ (rejected) |
+| Reason | If rejected: `sender_not_allowed`, `attachment_too_large`, `non_pdf`, `no_attachments` |
+
+## Policy vs. plan limits
+
+Your policy's `max_attachment_size_mb` cannot exceed your plan's global max attachment size. If you set 100 MB on a Starter plan (25 MB ceiling), the effective cap is 25 MB and oversize attachments are rejected with `attachment_too_large`.
+
+## Security
+
+- **DKIM / SPF** — emails failing either are rejected.
+- **Allowed senders** — enforced after DKIM passes. Supports exact match or domain wildcard (`*@acme.com`).
+- **No reply** — the inbound address doesn't send mail; replies bounce.
+- **No raw-email storage** — Sifter keeps only the attachments and the inbound event metadata. The email body is discarded.
+
+## API
+
+| Action | Method | Path |
+|--------|--------|------|
+| Get policy | `GET` | `/api/cloud/folders/{id}/inbound` |
+| Enable | `POST` | `/api/cloud/folders/{id}/inbound/enable` |
+| Disable | `POST` | `/api/cloud/folders/{id}/inbound/disable` |
+| Update policy | `PATCH` | `/api/cloud/folders/{id}/inbound` |
+| Recent events | `GET` | `/api/cloud/folders/{id}/inbound/events` |
+
+### Policy shape
+
+```json
+PATCH /api/cloud/folders/{id}/inbound
+{
+  "allowed_senders": ["billing@acme.com", "*@acme.com"],
+  "allow_pdf_only": true,
+  "max_attachment_size_mb": 25
+}
+```
+
+Response includes the current `address`:
+
+```json
+{
+  "enabled": true,
+  "address": "folder-abc123@in.sifter.run",
+  "allowed_senders": ["*@acme.com"],
+  "allow_pdf_only": true,
+  "max_attachment_size_mb": 25
+}
+```
+
+## See also
+
+- [Connectors](/concepts/connectors) — the broader ingress concept
+- [Google Drive](/integrations/google-drive) — the sibling connector
+- [Webhooks](/concepts/webhooks) — fire on every ingested document

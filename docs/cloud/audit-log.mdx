@@ -1,0 +1,114 @@
+---
+title: Audit Log
+description: Immutable record of security-relevant actions across your org — filterable, exportable, retention-managed.
+---
+
+# Audit Log
+
+Every security-relevant action in your Sifter org is written to an append-only log: who did what, when, against which target, from which IP. The log is surfaced at `/settings/audit` and via the API.
+
+<Info>
+Audit log is a **Pro+** Sifter Cloud feature. Free and Starter plans see the page with a locked state and an upgrade prompt.
+</Info>
+
+## What gets logged
+
+| Category | Examples |
+|----------|----------|
+| `billing.*` | Plan upgrade, downgrade, cancel, payment failed |
+| `sift.*` | Sift created, deleted, instructions edited |
+| `user.*` | Member invited, role changed, removed, SSO login |
+| `connector.*` | Drive connected, revoked, policy updated |
+| `api_key.*` | API key issued, rotated, revoked |
+
+Each event captures:
+
+| Field | Description |
+|-------|-------------|
+| `id` | Event ID |
+| `created_at` | ISO 8601 timestamp |
+| `actor_id` | The user (or `system`) that performed the action |
+| `action` | Namespaced action (`sift.created`, `billing.plan_changed`, …) |
+| `target_id` | The object acted on, if any |
+| `ip` | Source IP |
+| `metadata` | Action-specific JSON (e.g. `{"from": "free", "to": "pro"}`) |
+
+## UI
+
+**Filter bar:**
+
+- **Action** — dropdown: all / `billing.*` / `sift.*` / `user.*` / `connector.*` / `api_key.*`
+- **Since** — datetime picker
+- **Search** — client-side filter on `actor_id` and `target_id`
+
+**Table columns:** timestamp (relative with absolute on hover), actor, action chip (monospace, category colors), target, IP.
+
+**Load more** — appends the next page by setting `since` to the oldest visible event's `created_at`.
+
+## Retention
+
+| Plan | Retention |
+|------|-----------|
+| Pro | 90 days |
+| Business | 1 year |
+| Scale | 2 years |
+| Enterprise | Custom |
+
+Events older than the retention window are purged nightly.
+
+## API
+
+```
+GET /api/cloud/audit?action={category}&since={iso}&limit=100
+Authorization: Bearer sk-...
+```
+
+### Response
+
+```json
+{
+  "items": [
+    {
+      "id": "evt-abc",
+      "created_at": "2026-04-19T10:15:23Z",
+      "actor_id": "user-xyz",
+      "action": "sift.created",
+      "target_id": "sift-123",
+      "ip": "203.0.113.42",
+      "metadata": { "name": "Invoices" }
+    }
+  ],
+  "next_cursor": "2026-04-19T09:00:00Z"
+}
+```
+
+Filtering:
+
+- `action=billing.*` — wildcard category match
+- `action=sift.created` — exact match
+- `since=2026-04-01T00:00:00Z` — events at or after this timestamp (server returns newest first)
+
+## Export
+
+Audit events can be exported as CSV for compliance reviews:
+
+```
+GET /api/cloud/audit/export?since={iso}&until={iso}
+```
+
+Returns `Content-Type: text/csv` with the full event envelope. Available on Business+.
+
+## Common queries
+
+| Goal | Action filter |
+|------|---------------|
+| Track plan changes and payment events | `billing.*` |
+| Who created or deleted a sift | `sift.*` |
+| SSO / member management audit | `user.*` |
+| Who connected or revoked a connector | `connector.*` |
+| API key rotations | `api_key.*` |
+
+## See also
+
+- [Cloud overview](/cloud/overview)
+- [SSO](/cloud/sso) — emits `user.sso_login` events

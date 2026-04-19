@@ -1,0 +1,92 @@
+---
+title: Single Sign-On
+description: Google and GitHub SSO for Sifter Cloud workspaces.
+---
+
+# Single Sign-On
+
+Sifter Cloud supports SSO via Google and GitHub. Both are one-click flows from the login page — no SAML configuration, no IdP setup.
+
+<Info>
+SSO is a **Pro+** Sifter Cloud feature. Free and Starter plans can still sign up with email/password; paid plans unlock the SSO buttons on the login page.
+</Info>
+
+## Providers
+
+| Provider | Scope | What it gives Sifter |
+|----------|-------|----------------------|
+| Google | `email`, `profile` | Email and display name. No Drive access — that's a separate OAuth consent inside [Connectors](/concepts/connectors). |
+| GitHub | `user:email` | Primary verified email. No repo access. |
+
+## Flow
+
+<Steps>
+  <Step title="Click the provider button">
+    On the login page, click **Continue with Google** or **Continue with GitHub**.
+  </Step>
+  <Step title="Consent">
+    The provider's OAuth consent screen appears. Approve.
+  </Step>
+  <Step title="Callback">
+    The provider redirects back to `/auth/google/callback` or `/auth/github/callback` with a `code`.
+  </Step>
+  <Step title="Session">
+    Sifter exchanges the code for a token, matches (or creates) a user by verified email, and returns a JWT stored in `localStorage`. The user lands on the workspace home.
+  </Step>
+</Steps>
+
+## Account matching
+
+- **Existing user, same email** → logged in as that user. The SSO identity is linked so future logins skip the email/password form.
+- **No existing user** → a new user is created and added to the **default org** flow: they see the onboarding wizard.
+- **Conflicting email** (SSO email claimed by another account) → login fails with `email_conflict` and a pointer to contact support.
+
+## Disabling SSO for a specific user
+
+From the audit log at `/settings/audit`, the action `user.sso_unlinked` is emitted when an owner unlinks an SSO identity for a member (API: `DELETE /api/auth/sso/{identity_id}`). After unlink, the member must set a password to sign in.
+
+## API
+
+| Action | Method | Path | Body |
+|--------|--------|------|------|
+| Exchange Google code | `POST` | `/api/auth/google` | `{ "code": "..." }` |
+| Exchange GitHub code | `POST` | `/api/auth/github` | `{ "code": "..." }` |
+| List linked SSO identities | `GET` | `/api/auth/sso` | — |
+| Unlink SSO identity | `DELETE` | `/api/auth/sso/{id}` | — |
+
+### Success response
+
+```json
+{
+  "access_token": "eyJhbGciOi...",
+  "user": {
+    "id": "user-abc",
+    "email": "alice@acme.com",
+    "display_name": "Alice"
+  }
+}
+```
+
+## Frontend environment
+
+Self-hosted Cloud instances need:
+
+```bash
+VITE_GOOGLE_CLIENT_ID=...
+VITE_GOOGLE_REDIRECT_URI=https://sifter.run/auth/google/callback
+VITE_GITHUB_CLIENT_ID=...
+VITE_GITHUB_REDIRECT_URI=https://sifter.run/auth/github/callback
+```
+
+## Audit
+
+Every SSO login emits `user.sso_login` in the [audit log](/cloud/audit-log) with `metadata = { provider, ip }`. Failed logins emit `user.sso_login_failed` with `metadata.reason`.
+
+## Enterprise SSO
+
+SAML / OIDC for IdPs (Okta, Azure AD, Auth0) is available on **Enterprise** — [contact sales](https://sifter.ai/enterprise).
+
+## See also
+
+- [Cloud overview](/cloud/overview)
+- [Audit log](/cloud/audit-log) — where SSO login events land

@@ -1,0 +1,211 @@
+---
+title: TypeScript SDK
+description: "@sifter-ai/sdk — typed TypeScript client for Node, Deno, Bun, and the browser."
+---
+
+# TypeScript SDK
+
+`@sifter-ai/sdk` is a lightweight, dependency-free client that wraps the Sifter REST API. Built on native `fetch` — runs on Node 18+, Deno, Bun, Cloudflare Workers, and modern browsers.
+
+## Install
+
+```bash
+npm install @sifter-ai/sdk
+# or
+pnpm add @sifter-ai/sdk
+# or
+bun add @sifter-ai/sdk
+```
+
+## Client
+
+```ts
+import { SifterClient } from "@sifter-ai/sdk";
+
+const sifter = new SifterClient({
+  apiUrl: "https://sifter.run",          // or http://localhost:8000 for self-hosted
+  apiKey: process.env.SIFTER_API_KEY,    // falls back to SIFTER_API_KEY env var
+});
+```
+
+Constructor options (`SifterOptions`):
+
+| Option | Type | Default |
+|--------|------|---------|
+| `apiUrl` | `string` | `http://localhost:8000` |
+| `apiKey` | `string` | `process.env.SIFTER_API_KEY` |
+| `fetch` | `typeof fetch` | `globalThis.fetch` — pass a custom fetch for retries, logging, or non-standard runtimes |
+
+The client sends the API key as `X-API-Key`. Leave `apiKey` empty when talking to a local dev server that has auth disabled.
+
+## Sifts
+
+```ts
+// Create
+const sift = await sifter.createSift(
+  "Invoices",
+  "client, date, total amount, VAT number",
+);
+
+// Read
+const sift = await sifter.getSift("sift-id");
+const sifts = await sifter.listSifts(50, 0);
+
+// Update / delete
+await sift.update({ name: "Invoices 2024" });
+await sift.delete();
+```
+
+## Records and queries
+
+`SiftHandle` is the working object — all record access, querying, and aggregation flows through it.
+
+```ts
+// Paginated records
+const records = await sift.records({ limit: 100, offset: 0 });
+
+// Typed records — pass your extracted-data shape
+interface Invoice {
+  client: string;
+  date: string;
+  total: number;
+}
+const typed = await sift.records<Invoice>({ limit: 100 });
+
+// Cursor-based find with filter, sort, projection
+const page = await sift.find<Invoice>({
+  filter: { "extracted_data.client": "Acme" },
+  sort: { "extracted_data.date": -1 },
+  limit: 50,
+});
+console.log(page.records, page.next_cursor);
+
+// Counts
+const n = await sift.recordsCount({ "extracted_data.total": { $gt: 1000 } });
+
+// Natural-language query
+const { pipeline, results } = await sift.query("Total by client this month");
+
+// MongoDB aggregation (advanced)
+const totals = await sift.aggregate([
+  { $group: { _id: "$extracted_data.client", total: { $sum: "$extracted_data.total" } } },
+  { $sort: { total: -1 } },
+]);
+
+// CSV export
+const csv = await sift.exportCsv();
+```
+
+## Folders
+
+```ts
+const folder = await sifter.createFolder("/Q1 Contracts");
+await folder.addSift(sift);
+const docs = await folder.documents();
+const sifts = await folder.sifts();
+await folder.update({ name: "Q1 2024 Contracts" });
+await folder.delete();
+```
+
+## Documents
+
+```ts
+// Page metadata + per-page rendered images
+const pageCount = await sifter.documentPageCount("doc-xyz");
+const pages = await sifter.documentPages("doc-xyz");
+const imgBytes = await sifter.documentPageImage("doc-xyz", 1, 200); // ArrayBuffer
+```
+
+## Extraction
+
+Trigger extraction for a specific document against a sift, then poll status.
+
+```ts
+const { task_id, status } = await sift.extract("doc-xyz");
+
+// Poll
+let state = "pending";
+while (state === "pending" || state === "running") {
+  await new Promise((r) => setTimeout(r, 2000));
+  state = await sift.extractionStatus("doc-xyz");
+}
+```
+
+## Schema
+
+```ts
+const schema = await sift.schema();
+schema.fields.forEach((f) => {
+  console.log(f.name, f.type, f.description);
+});
+```
+
+## Error handling
+
+All HTTP errors throw a `SifterError` with the server's response body attached.
+
+```ts
+import { SifterError } from "@sifter-ai/sdk";
+
+try {
+  await sift.query("Total by client");
+} catch (err) {
+  if (err instanceof SifterError) {
+    console.error(err.status, err.message, err.body);
+    if (err.status === 402) {
+      // Plan limit — upgrade at https://sifter.run/settings/billing
+    }
+  }
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 401 / 403 | Missing or invalid API key |
+| 402 | Cloud plan doesn't include the feature or quota exceeded |
+| 404 | Resource not found (or Cloud-only endpoint hit against OSS) |
+| 4xx / 5xx | Generic — inspect `err.body.detail` |
+
+## Types
+
+The SDK re-exports the types you'll touch most often:
+
+```ts
+import type {
+  Citation,
+  FilterDict,
+  FolderData,
+  PageInfo,
+  SiftData,
+  SiftPage,
+  SiftRecord,
+  SchemaField,
+  SchemaResponse,
+  SortSpec,
+} from "@sifter-ai/sdk";
+```
+
+## Custom fetch
+
+Plug in retry, tracing, or edge-runtime fetches:
+
+```ts
+const sifter = new SifterClient({
+  apiUrl: "https://sifter.run",
+  apiKey: "sk-...",
+  fetch: async (input, init) => {
+    const res = await globalThis.fetch(input, init);
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1000));
+      return globalThis.fetch(input, init);
+    }
+    return res;
+  },
+});
+```
+
+## See also
+
+- [REST API](/integrations/rest-api) — underlying endpoints
+- [Python SDK](/integrations/python-sdk) — sibling SDK with the same surface
+- [Webhooks](/concepts/webhooks) — react to extraction events server-side

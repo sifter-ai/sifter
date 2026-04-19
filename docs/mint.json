@@ -40,10 +40,22 @@
       "group": "Integrations",
       "pages": [
         "integrations/python-sdk",
+        "integrations/typescript-sdk",
         "integrations/rest-api",
         "integrations/mcp-server",
         "integrations/webhooks-reference",
         "integrations/google-drive"
+      ]
+    },
+    {
+      "group": "Cloud",
+      "pages": [
+        "cloud/overview",
+        "cloud/billing",
+        "cloud/mail-to-upload",
+        "cloud/shares",
+        "cloud/audit-log",
+        "cloud/sso"
       ]
     },
     {

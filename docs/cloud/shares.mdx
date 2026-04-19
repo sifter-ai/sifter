@@ -1,0 +1,125 @@
+---
+title: Shares
+description: Turn any chat answer, aggregation, or dashboard view into a shareable link — org-only, public, or password-protected.
+---
+
+# Shares
+
+A **share** is a read-only snapshot of a chat answer, an aggregation result, or a dashboard view that you can hand to someone outside the app. Shares have an access mode (link / org-only / password), optional expiry, a view counter, and can be delivered as a public link, an email, or a PDF.
+
+<Info>
+Shares are a **Sifter Cloud** feature. Starter includes 5 active shares; Pro 20; Business and above unlimited. Free plans see the Share button disabled with an upgrade prompt.
+</Info>
+
+## What can be shared
+
+| Kind | Where the Share button lives |
+|------|------------------------------|
+| `aggregation` | Aggregation result card toolbar |
+| `chat_message` | Chat action bar on any assistant message |
+| `dashboard_view` | Dashboard header |
+
+## Access modes
+
+| Mode | Who can view |
+|------|--------------|
+| `private_link` | Anyone with the URL |
+| `org_only` | Only signed-in members of your org |
+| `password` | Anyone with the URL **and** the password you set |
+
+All modes support an optional `expires_at`.
+
+## Creating a share
+
+<Steps>
+  <Step title="Click Share">
+    On an aggregation, chat message, or dashboard view, click **Share**.
+  </Step>
+  <Step title="Configure">
+    Pick access mode, optionally set a password + expiry. The title pre-fills from the source.
+  </Step>
+  <Step title="Create">
+    Sifter creates the share and returns the public URL (`https://sifter.run/s/{slug}`). Copy it, email it, or download a PDF snapshot.
+  </Step>
+</Steps>
+
+## Email delivery
+
+From the share dialog, click **Send by email**. Sifter composes a message with the title, a short preview, and a view link. Recipients do not need a Sifter account unless the share is `org_only`.
+
+## PDF export
+
+**Download PDF** renders the share (chat answer with citations, aggregation table, or dashboard grid) as a paginated PDF. Available on Business+.
+
+## Public viewer
+
+Anyone with the link lands on `https://sifter.run/s/{slug}`:
+
+- If the share is `password`-gated: they enter the password → a view-scoped JWT is stored in `sessionStorage`.
+- If valid: they see the rendered content (same React components as in-app).
+- If revoked or expired: they see "This link has expired or been revoked."
+
+## Managing shares
+
+`/settings/shares` lists every share in your org:
+
+| Column | Notes |
+|--------|-------|
+| Title | Pre-filled from source; editable |
+| Kind | aggregation / chat_message / dashboard_view |
+| Access | private_link / org_only / password |
+| Views | Running count |
+| Expires | `—` if no expiry |
+| Actions | Copy link, revoke, delete |
+
+Revoking invalidates the link immediately — the next viewer sees the expired/revoked message.
+
+## API
+
+| Action | Method | Path |
+|--------|--------|------|
+| Create | `POST` | `/api/cloud/shares` |
+| List | `GET` | `/api/cloud/shares` |
+| Get | `GET` | `/api/cloud/shares/{id}` |
+| Update title/expiry | `PATCH` | `/api/cloud/shares/{id}` |
+| Revoke | `POST` | `/api/cloud/shares/{id}/revoke` |
+| Delete | `DELETE` | `/api/cloud/shares/{id}` |
+| Send by email | `POST` | `/api/cloud/shares/{id}/email` |
+| Render as PDF | `GET` | `/api/cloud/shares/{id}/pdf` |
+
+### Public endpoints (no auth)
+
+| Action | Method | Path |
+|--------|--------|------|
+| Unlock password-protected share | `POST` | `/public/shares/{slug}/unlock` |
+| Fetch share content | `GET` | `/public/shares/{slug}` |
+
+### Create payload
+
+```json
+POST /api/cloud/shares
+{
+  "kind": "aggregation",
+  "source_id": "agg-xyz",
+  "title": "Revenue by client — Q1",
+  "access": "password",
+  "password": "spring-2024",
+  "expires_at": "2024-06-30T23:59:59Z"
+}
+```
+
+## Plan limits
+
+| Plan | Max active shares | PDF export | Email send |
+|------|-------------------|------------|------------|
+| Free | 0 | — | — |
+| Starter | 5 | — | ✓ |
+| Pro | 20 | — | ✓ |
+| Business+ | Unlimited | ✓ | ✓ |
+
+Hitting the cap returns `402 Payment Required` on create.
+
+## See also
+
+- [Cloud overview](/cloud/overview)
+- [Billing & usage](/cloud/billing)
