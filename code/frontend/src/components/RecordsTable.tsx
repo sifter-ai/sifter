@@ -184,6 +184,7 @@ function compareValues(a: unknown, b: unknown): number {
 }
 
 export function RecordsTable({ records, isLoading }: RecordsTableProps) {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "", dir: null });
   const [selected, setSelected] = useState<SiftRecord | null>(null);
@@ -282,7 +283,7 @@ export function RecordsTable({ records, isLoading }: RecordsTableProps) {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border/70 shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)]">
+      <div className="overflow-x-auto rounded-lg border border-border/70 shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)] bg-white dark:bg-card">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-muted/60">
@@ -310,9 +311,16 @@ export function RecordsTable({ records, isLoading }: RecordsTableProps) {
                   onClick={() => setSelected(record)}
                 >
                   <td className="px-3 py-2 max-w-[160px]">
-                    <span className="font-mono text-[11px] text-foreground/75 truncate block" title={record.filename || record.document_id}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/documents/${record.document_id}`);
+                      }}
+                      title={`Open document — ${record.filename || record.document_id}`}
+                      className="font-mono text-[11px] text-foreground/80 hover:text-primary hover:underline truncate block w-full text-left transition-colors"
+                    >
                       {record.filename || record.document_id}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-muted-foreground font-mono text-[11px] whitespace-nowrap">
                     {record.document_type || "—"}

@@ -10,6 +10,7 @@ from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..services.document_processor import enqueue
 from ..services.document_service import DocumentService
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -155,7 +156,7 @@ async def list_document_pages(
             })
         pdf.close()
 
-    return {"items": items, "total": len(items)}
+    return paginated(items, len(items), len(items), 0)
 
 
 @router.get("/{document_id}/pages/{page_number}/image")

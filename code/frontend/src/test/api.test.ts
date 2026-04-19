@@ -47,15 +47,16 @@ beforeEach(() => {
 // ---- Sifts ----
 
 describe("fetchSifts", () => {
-  it("returns list of sifts", async () => {
+  it("returns paginated response of sifts", async () => {
     const data = [
       { id: "1", name: "Invoices", status: "active", processed_documents: 5 },
     ];
     vi.stubGlobal("fetch", mockFetch(200, paginated(data)));
     const result = await fetchSifts();
-    expect(result).toEqual(data);
+    expect(result.items).toEqual(data);
+    expect(result.total).toBe(data.length);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/sifts?limit=1000",
+      "/api/sifts?limit=50&offset=0",
       expect.objectContaining({})
     );
   });
@@ -117,7 +118,7 @@ describe("deleteSift", () => {
 });
 
 describe("fetchSiftRecords", () => {
-  it("fetches records for a sift", async () => {
+  it("fetches paginated records for a sift", async () => {
     const records = [
       {
         id: "r1",
@@ -130,9 +131,10 @@ describe("fetchSiftRecords", () => {
     ];
     vi.stubGlobal("fetch", mockFetch(200, paginated(records)));
     const result = await fetchSiftRecords("ext1");
-    expect(result).toEqual(records);
+    expect(result.items).toEqual(records);
+    expect(result.total).toBe(records.length);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/sifts/ext1/records?limit=1000",
+      "/api/sifts/ext1/records?limit=50&offset=0",
       expect.objectContaining({})
     );
   });
@@ -165,9 +167,9 @@ describe("fetchAggregations", () => {
     const data = [{ id: "a1", name: "My Agg", status: "active" }];
     vi.stubGlobal("fetch", mockFetch(200, paginated(data)));
     const result = await fetchAggregations();
-    expect(result).toEqual(data);
+    expect(result.items).toEqual(data);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/aggregations?limit=1000",
+      "/api/aggregations?limit=100&offset=0",
       expect.objectContaining({})
     );
   });
@@ -176,7 +178,7 @@ describe("fetchAggregations", () => {
     vi.stubGlobal("fetch", mockFetch(200, paginated([])));
     await fetchAggregations("ext42");
     expect(fetch).toHaveBeenCalledWith(
-      "/api/aggregations?sift_id=ext42&limit=1000",
+      "/api/aggregations?limit=100&offset=0&sift_id=ext42",
       expect.objectContaining({})
     );
   });

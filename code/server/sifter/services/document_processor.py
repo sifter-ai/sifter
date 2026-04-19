@@ -89,6 +89,28 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
         attempts = task_doc.get("attempts", 1)
         max_attempts = task_doc.get("max_attempts", 3)
 
+        # Schema gate: if this sift has no schema yet, don't start in parallel.
+        # Put the task back as pending and let whoever is already processing
+        # this sift finish first (they will write the schema). Once the schema
+        # exists every subsequent document can run in parallel.
+        from bson import ObjectId as _ObjId
+        stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+        sift_doc = await db["sifts"].find_one({"_id": _ObjId(sift_id)}, {"schema": 1})
+        if sift_doc and not sift_doc.get("schema"):
+            other_running = await db[COLLECTION].count_documents({
+                "sift_id": sift_id,
+                "status": "processing",
+                "_id": {"$ne": task_doc["_id"]},
+                "claimed_at": {"$gt": stale_cutoff},
+            })
+            if other_running > 0:
+                await db[COLLECTION].update_one(
+                    {"_id": task_doc["_id"]},
+                    {"$set": {"status": "pending", "claimed_at": None}},
+                )
+                await asyncio.sleep(2)
+                continue
+
         doc_svc = DocumentService(db)
         ext_svc = SiftService(db)
 

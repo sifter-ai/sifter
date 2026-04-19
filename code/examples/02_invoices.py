@@ -39,8 +39,8 @@ sift.upload("./examples/invoices/")
 print("Processing...")
 sift.wait()
 
-# Get all extracted records
-records = sift.records()
+# Iterate over all extracted records (handles pagination automatically)
+records = list(sift.iter_records())
 print(f"\nExtracted {len(records)} invoices:\n")
 
 total_sum = 0.0

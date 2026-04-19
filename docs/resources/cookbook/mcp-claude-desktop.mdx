@@ -1,0 +1,106 @@
+---
+title: "Cookbook: MCP + Claude Desktop"
+description: Connect Sifter to Claude Desktop via MCP and query your extracted records in natural language.
+---
+
+# MCP + Claude Desktop
+
+Give Claude Desktop structured, persistent access to your documents. Ask questions across hundreds of files — exact answers, not summaries.
+
+## How it works
+
+Sifter runs an MCP server that exposes your extracted records to Claude. Claude can list sifts, query records, run aggregations, and retrieve individual documents — all via natural language.
+
+## Self-hosted setup (stdio)
+
+If you're running Sifter locally, use the stdio MCP server:
+
+```bash
+pip install sifter-mcp
+# or: uvx sifter-mcp (no install needed)
+```
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "command": "uvx",
+      "args": ["sifter-mcp", "--base-url", "http://localhost:8000"],
+      "env": {
+        "SIFTER_API_KEY": "sk-dev"
+      }
+    }
+  }
+}
+```
+
+Config file location:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+## Cloud setup (remote HTTP)
+
+With [Sifter Cloud](https://sifter.ai), you get a remote HTTPS endpoint — no local server needed.
+
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://cloud.sifter.ai/mcp/YOUR_TOKEN"
+    }
+  }
+}
+```
+
+Get your token from Cloud → Settings → MCP.
+
+## What Claude can do
+
+Once connected, Claude has access to these tools:
+
+| Tool | What it does |
+|------|-------------|
+| `list_sifts` | List sifts (supports `limit`, `offset` for pagination) |
+| `get_sift` | Get details and schema for a sift |
+| `list_records` | Fetch records with `limit`, `offset`, and `cursor` pagination |
+| `find_records` | Filter records with structured criteria and cursor pagination |
+| `query_sift` | Run a natural language query |
+| `list_folders` | List folders (supports `limit`, `offset`) |
+| `get_folder` | Get folder details and linked sifts |
+
+## Example prompts
+
+Once Claude Desktop is connected, try:
+
+```
+"What sifts do I have?"
+```
+```
+"Show me all unpaid invoices from last quarter"
+```
+```
+"What's the total amount invoiced to Acme Corp this year?"
+```
+```
+"Which contracts expire in the next 90 days and don't auto-renew?"
+```
+```
+"Compare the top 3 resumes for the backend engineer role"
+```
+```
+"How many documents were processed in the 'Legal' folder this month?"
+```
+
+## Troubleshooting
+
+**Claude doesn't see the Sifter tools**
+Restart Claude Desktop after editing the config file.
+
+**Connection refused (self-hosted)**
+Make sure the Sifter backend is running on the configured port (`http://localhost:8000` by default).
+
+**Authentication error**
+Check that `SIFTER_API_KEY` matches the key in your `.env` (`SIFTER_API_KEY=sk-dev` for local dev).

@@ -66,114 +66,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
 import type { Folder } from "@/api/types";
-import type { Aggregation, AggregationResult, SiftDocument } from "@/api/types";
-
-function AggregationStatusIcon({ status }: { status: string }) {
-  if (status === "generating") return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
-  if (status === "ready" || status === "active") return <CheckCircle className="h-4 w-4 text-green-500" />;
-  if (status === "error") return <XCircle className="h-4 w-4 text-destructive" />;
-  return null;
-}
-
-function AggregationResultTable({ result }: { result: AggregationResult }) {
-  return (
-    <div className="mt-3">
-      <DataResultsTable rows={result.results} maxRows={50} />
-    </div>
-  );
-}
-
-function AggregationCard({
-  agg,
-  siftId,
-}: {
-  agg: Aggregation;
-  siftId: string;
-}) {
-  const [result, setResult] = useState<AggregationResult | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const runMutation = useRunAggregation(siftId);
-  const regenerateMutation = useRegenerateAggregation(siftId);
-  const deleteMutation = useDeleteAggregation(siftId);
-
-  const handleRun = () => {
-    runMutation.mutate(agg.id, {
-      onSuccess: (data) => setResult(data),
-    });
-  };
-
-  return (
-    <div className="border rounded-lg p-4 space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <AggregationStatusIcon status={agg.status} />
-          <span className="font-medium text-sm truncate">{agg.name}</span>
-          {agg.status === "error" && (
-            <Badge variant="destructive" className="text-xs">error</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1 ml-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRun}
-            disabled={runMutation.isPending || agg.status === "generating"}
-            className="text-xs h-7 px-2"
-          >
-            {runMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              "Run"
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => regenerateMutation.mutate(agg.id)}
-            disabled={regenerateMutation.isPending || agg.status === "generating"}
-            className="h-7 px-2"
-            title="Regenerate pipeline"
-          >
-            <RefreshCw className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setConfirmDelete(true)}
-            disabled={deleteMutation.isPending}
-            className="h-7 px-2 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete aggregation?"
-        description={<>
-          <strong>{agg.name}</strong> will be permanently removed.
-        </>}
-        confirmLabel="Delete aggregation"
-        destructive
-        loading={deleteMutation.isPending}
-        onConfirm={() => deleteMutation.mutate(agg.id, { onSuccess: () => setConfirmDelete(false) })}
-      />
-      {agg.description && (
-        <p className="text-xs text-muted-foreground">{agg.description}</p>
-      )}
-      {agg.aggregation_error && agg.status === "error" && (
-        <p className="text-xs text-destructive">{agg.aggregation_error}</p>
-      )}
-      {agg.last_run_at && (
-        <p className="text-xs text-muted-foreground">
-          Last run: {new Date(agg.last_run_at).toLocaleString()}
-        </p>
-      )}
-      {result && <AggregationResultTable result={result} />}
-    </div>
-  );
-}
+import type { SiftDocument } from "@/api/types";
 
 function docStatusVariant(status: string) {
   switch (status) {
@@ -208,17 +101,24 @@ function docStatusLabel(status: string) {
 
 function DocumentsPanel({ siftId, isIndexing }: { siftId: string; isIndexing: boolean }) {
   const navigate = useNavigate();
-  const { data, isLoading } = useSiftDocuments(siftId, {
-    refetchInterval: (query: any) => {
-      if (isIndexing) return 3000;
-      const hasActive = (query.state.data as any)?.items?.some(
-        (d: any) => d.status === "pending" || d.status === "processing"
-      );
-      return hasActive ? 3000 : false;
-    },
-  });
+  const qc = useQueryClient();
+  const [docsOffset, setDocsOffset] = useState(0);
+  const DOCS_PAGE_SIZE = 50;
+  const { data, isLoading } = useSiftDocuments(siftId, { limit: DOCS_PAGE_SIZE, offset: docsOffset });
+
+  const hasActive = data?.items?.some((d: any) => d.status === "pending" || d.status === "processing");
+  const shouldPoll = isIndexing || !!hasActive;
+
+  useEffect(() => {
+    if (!shouldPoll) return;
+    const timer = setInterval(() => {
+      qc.refetchQueries({ queryKey: ["sift-documents", siftId] });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [shouldPoll, siftId, qc]);
 
   const docs = data?.items ?? [];
+  const total = data?.total ?? 0;
 
   if (isLoading) {
     return <div className="space-y-2"><div className="h-8 bg-muted animate-pulse rounded" /><div className="h-8 bg-muted animate-pulse rounded" /></div>;
@@ -274,105 +174,19 @@ function DocumentsPanel({ siftId, isIndexing }: { siftId: string; isIndexing: bo
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function AggregationsPanel({ siftId }: { siftId: string }) {
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newQuery, setNewQuery] = useState("");
-
-  const { data: aggregations = [] } = useAggregations(siftId, {
-    refetchInterval: (query: any) => {
-      const hasGenerating = (query.state.data as Aggregation[] | undefined)?.some((a: Aggregation) => a.status === "generating");
-      return hasGenerating ? 2000 : false;
-    },
-  });
-
-  const createMutation = useCreateAggregation(siftId);
-
-  const handleCreate = () => {
-    if (!newName.trim() || !newQuery.trim()) return;
-    createMutation.mutate(
-      { name: newName, description: "", sift_id: siftId, aggregation_query: newQuery },
-      {
-        onSuccess: () => {
-          setShowCreate(false);
-          setNewName("");
-          setNewQuery("");
-        },
-      }
-    );
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
-          Saved aggregations
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1 h-7 text-xs"
-        >
-          <Plus className="h-3 w-3" /> New aggregation
-        </Button>
-      </div>
-
-      {aggregations.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground/80">
-            No saved aggregations yet. Create one to pin reusable queries.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {aggregations.map((agg) => (
-            <AggregationCard key={agg.id} agg={agg} siftId={siftId} />
-          ))}
+      {total > DOCS_PAGE_SIZE && (
+        <div className="flex items-center justify-between px-3 py-2 text-sm text-muted-foreground border-t">
+          <span>{docsOffset + 1}–{Math.min(docsOffset + DOCS_PAGE_SIZE, total)} of {total}</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" disabled={docsOffset === 0} onClick={() => setDocsOffset(Math.max(0, docsOffset - DOCS_PAGE_SIZE))}>Prev</Button>
+            <Button variant="ghost" size="sm" disabled={docsOffset + DOCS_PAGE_SIZE >= total} onClick={() => setDocsOffset(docsOffset + DOCS_PAGE_SIZE)}>Next</Button>
+          </div>
         </div>
       )}
-
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Aggregation</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                placeholder="e.g. Revenue by Client"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Query</Label>
-              <Textarea
-                placeholder="e.g. Total invoice amount grouped by client name"
-                value={newQuery}
-                onChange={(e) => setNewQuery(e.target.value)}
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-            <Button
-              onClick={handleCreate}
-              disabled={!newName.trim() || !newQuery.trim() || createMutation.isPending}
-              className="w-full"
-            >
-              {createMutation.isPending ? "Creating..." : "Create Aggregation"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
 
 function LinkFolderDialog({
   siftId,
@@ -389,24 +203,15 @@ function LinkFolderDialog({
   const [selected, setSelected] = useState<Folder | null>(null);
   const linkMutation = useLinkFolderToSift(siftId);
 
-  const loadFolders = async () => {
+  useEffect(() => {
+    if (!open) return;
+    setSearch("");
+    setSelected(null);
     setLoading(true);
-    try {
-      const data = await fetchFolders();
-      setFolders(data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOpenChange = (v: boolean) => {
-    onOpenChange(v);
-    if (v) {
-      setSearch("");
-      setSelected(null);
-      loadFolders();
-    }
-  };
+    fetchFolders()
+      .then((page) => setFolders(page.items))
+      .finally(() => setLoading(false));
+  }, [open]);
 
   const filtered = folders.filter((f) => {
     const q = search.toLowerCase();
@@ -424,7 +229,7 @@ function LinkFolderDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Link a Folder</DialogTitle>
@@ -713,29 +518,42 @@ export function SiftDetailPage() {
 
   const isIndexing = (status: string | undefined) => status === "indexing";
   const qc = useQueryClient();
-  const lastUploadedAt = useRef<number | null>(null);
 
-  const { data: extraction, isLoading, error } = useSift(id!, {
-    refetchInterval: (query: any) => {
-      const status = (query.state.data as any)?.status;
-      if (status === "indexing") return 2000;
-      if (lastUploadedAt.current !== null && Date.now() - lastUploadedAt.current < 30_000) return 2000;
-      return false;
-    },
-  });
+  const { data: extraction, isLoading, error } = useSift(id!);
 
-  const { data: records, isLoading: recordsLoading } = useSiftRecords(id!, {
-    refetchInterval: isIndexing(extraction?.status) ? 3000 : false,
+  const [recordsOffset, setRecordsOffset] = useState(0);
+  const RECORDS_PAGE_SIZE = 50;
+  const { data: recordsPage, isLoading: recordsLoading } = useSiftRecords(id!, {
+    limit: RECORDS_PAGE_SIZE,
+    offset: recordsOffset,
   });
+  const records = recordsPage?.items ?? [];
+
+  const uploadMutation = useUploadDocuments(id!);
+
+  // Poll during indexing — runs independently of React Query's staleTime/refetchInterval.
+  // We also poll while the upload HTTP request is in flight: large uploads can take
+  // several seconds, and we want the document list and progress to update live rather
+  // than only after the request resolves.
+  const currentlyIndexing = extraction?.status === "indexing";
+  const shouldPoll = currentlyIndexing || uploadMutation.isPending;
+  useEffect(() => {
+    if (!id || !shouldPoll) return;
+    const timer = setInterval(() => {
+      qc.refetchQueries({ queryKey: ["sift", id] });
+      qc.refetchQueries({ queryKey: ["sift-records", id] });
+      qc.refetchQueries({ queryKey: ["sift-documents", id] });
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [id, shouldPoll, qc]);
 
   const prevStatusRef = useRef<string | undefined>();
   useEffect(() => {
     if (prevStatusRef.current === "indexing" && !isIndexing(extraction?.status)) {
-      qc.invalidateQueries({ queryKey: ["sift-records", id] });
+      qc.refetchQueries({ queryKey: ["sift-records", id] });
     }
     prevStatusRef.current = extraction?.status;
   }, [extraction?.status]);
-  const uploadMutation = useUploadDocuments(id!);
   const reindexMutation = useReindexSift(id!);
   const deleteMutation = useDeleteSift();
   const exportMutation = useExportCsv();
@@ -746,9 +564,7 @@ export function SiftDetailPage() {
     if (!files || !files.length) return;
     const formData = new FormData();
     Array.from(files).forEach((f) => formData.append("files", f));
-    uploadMutation.mutate(formData, {
-      onSuccess: () => { lastUploadedAt.current = Date.now(); },
-    });
+    uploadMutation.mutate(formData);
     e.target.value = "";
   };
 
@@ -794,13 +610,13 @@ export function SiftDetailPage() {
     );
   }
 
-  const progress =
-    extraction.total_documents > 0
-      ? (extraction.processed_documents / extraction.total_documents) * 100
-      : 0;
+  const effectiveTotal = Math.max(extraction.total_documents, extraction.processed_documents);
+  const progress = effectiveTotal > 0
+    ? (extraction.processed_documents / effectiveTotal) * 100
+    : 0;
 
   const schemaFields = parseSchema(extraction.schema);
-  const recordCount = records?.length ?? 0;
+  const recordCount = recordsPage?.total ?? 0;
 
   const tabTriggerClass =
     "rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-foreground data-[state=active]:text-foreground transition-colors";
@@ -980,11 +796,11 @@ export function SiftDetailPage() {
                       <span className="font-mono tabular-nums text-muted-foreground">
                         {extraction.processed_documents}
                         <span className="text-muted-foreground/40">
-                          /{extraction.total_documents}
+                          /{Math.max(extraction.total_documents, extraction.processed_documents)}
                         </span>{" "}
                         docs
                       </span>
-                      {extraction.total_documents > 0 && (
+                      {Math.max(extraction.total_documents, extraction.processed_documents) > 0 && (
                         <span className="h-1 w-14 rounded-full bg-muted overflow-hidden inline-block">
                           <span
                             className={`block h-full ${
@@ -1162,14 +978,11 @@ export function SiftDetailPage() {
                     </span>
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="saved" className={tabTriggerClass}>
-                  Saved queries
-                </TabsTrigger>
                 <TabsTrigger value="documents" className={tabTriggerClass}>
                   Documents
-                  {extraction.total_documents > 0 && (
+                  {effectiveTotal > 0 && (
                     <span className="ml-1.5 font-mono text-[10px] tabular-nums text-muted-foreground/60">
-                      {extraction.total_documents}
+                      {effectiveTotal}
                     </span>
                   )}
                 </TabsTrigger>
@@ -1178,11 +991,33 @@ export function SiftDetailPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="records" className="mt-6">
-                <RecordsTable records={records ?? []} isLoading={recordsLoading} />
-              </TabsContent>
-              <TabsContent value="saved" className="mt-6">
-                <AggregationsPanel siftId={id!} />
+              <TabsContent value="records" className="mt-6 space-y-3">
+                <RecordsTable records={records} isLoading={recordsLoading} />
+                {recordsPage && recordsPage.total > RECORDS_PAGE_SIZE && (
+                  <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+                    <span>
+                      {recordsOffset + 1}–{Math.min(recordsOffset + RECORDS_PAGE_SIZE, recordsPage.total)} of {recordsPage.total}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={recordsOffset === 0}
+                        onClick={() => setRecordsOffset(Math.max(0, recordsOffset - RECORDS_PAGE_SIZE))}
+                      >
+                        Prev
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={recordsOffset + RECORDS_PAGE_SIZE >= recordsPage.total}
+                        onClick={() => setRecordsOffset(recordsOffset + RECORDS_PAGE_SIZE)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
               <TabsContent value="documents" className="mt-6">
                 <DocumentsPanel siftId={id!} isIndexing={isIndexing(extraction.status)} />

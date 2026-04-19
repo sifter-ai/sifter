@@ -130,4 +130,4 @@ Exposes sifts and records to Claude Desktop, Cursor, and AI agents via the Model
 
 ## License
 
-Apache 2.0. Created by [Bruno Fortunato](https://github.com/bfortunato).
+MIT. Created by [Bruno Fortunato](https://github.com/bfortunato).

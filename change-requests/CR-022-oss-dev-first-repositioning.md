@@ -25,7 +25,7 @@ This CR rewrites `product/vision.md`, `product/users.md`, and `system/roadmap.md
 
 ### New positioning
 
-- **Sifter OSS** (this repo) — "document extraction engine for developers". Apache-2.0. Complete product for the developer target: engine, REST API, Python SDK, TypeScript SDK, CLI, MCP server (read + write), minimal admin UI for verification. Self-hostable end-to-end.
+- **Sifter OSS** (this repo) — "document extraction engine for developers". MIT. Complete product for the developer target: engine, REST API, Python SDK, TypeScript SDK, CLI, MCP server (read + write), minimal admin UI for verification. Self-hostable end-to-end.
 
 - **Sifter Cloud** (`sifter-cloud` repo) — "turn your documents into a live dashboard". Proprietary. Complete product for the business-user target: dashboard of saved aggregations, citations drill-down UI, structured chat with suggestions and actions, Drive / email ingress, team + sharing, billing. Consumes the same OSS APIs it would use self-hosted.
 

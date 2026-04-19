@@ -300,7 +300,7 @@ export default function ConnectorsPage() {
     queryKey: ["folders"],
     queryFn: () => fetchFolders(),
   });
-  const folders: { id: string; name: string }[] = foldersData ?? [];
+  const folders: { id: string; name: string }[] = foldersData?.items ?? [];
 
   return (
     <div className="relative min-h-full">

@@ -72,6 +72,8 @@
       "pages": [
         "resources/cookbook/invoices-to-excel",
         "resources/cookbook/contracts-clauses",
+        "resources/cookbook/resumes-to-json",
+        "resources/cookbook/mcp-claude-desktop",
         "resources/cookbook/receipts-bulk",
         "resources/cookbook/pdf-batch-csv",
         "resources/tutorials/drive-to-sifter",

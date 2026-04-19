@@ -44,4 +44,4 @@ Configure Claude Desktop to connect to your Sifter Cloud instance:
 
 ## License
 
-Apache 2.0. By [Bruno Fortunato](https://github.com/bfortunato).
+MIT. By [Bruno Fortunato](https://github.com/bfortunato).

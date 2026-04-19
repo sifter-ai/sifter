@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Check,
   Code2,
   Copy,
   Key,
@@ -66,12 +67,21 @@ function ApiKeysCard() {
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [keyCopied, setKeyCopied] = useState(false);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 
-  const { data: keys = [], isLoading } = useQuery({
+  const copyKey = () => {
+    if (!createdKey) return;
+    navigator.clipboard.writeText(createdKey);
+    setKeyCopied(true);
+    setTimeout(() => setKeyCopied(false), 2000);
+  };
+
+  const { data: keysPage, isLoading } = useQuery({
     queryKey: ["api-keys"],
     queryFn: fetchApiKeys,
   });
+  const keys = keysPage?.items ?? [];
 
   const createMutation = useMutation({
     mutationFn: (name: string) => createApiKey(name),
@@ -175,8 +185,8 @@ function ApiKeysCard() {
               <p className="text-sm text-muted-foreground">Copy this key now — it will not be shown again.</p>
               <div className="flex gap-2 items-center">
                 <code className="flex-1 text-xs bg-muted p-2 rounded font-mono break-all">{createdKey}</code>
-                <Button variant="ghost" size="sm" onClick={() => createdKey && navigator.clipboard.writeText(createdKey)}>
-                  <Copy className="h-4 w-4" />
+                <Button variant="ghost" size="sm" onClick={copyKey}>
+                  {keyCopied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
               <Button onClick={() => setCreatedKey(null)} className="w-full">Done</Button>

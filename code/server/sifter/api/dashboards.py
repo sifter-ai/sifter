@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..services.dashboard_service import DashboardService
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/dashboards", tags=["dashboards"])
@@ -59,14 +60,16 @@ def _svc(db) -> DashboardService:
 
 @router.get("")
 async def list_dashboards(
-    skip: int = 0,
     limit: int = 50,
+    offset: int = 0,
+    skip: Optional[int] = None,  # deprecated alias for offset
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
+    effective_offset = skip if skip is not None else offset
     svc = _svc(db)
-    items, total = await svc.list_all(skip=skip, limit=limit)
-    return {"items": items, "total": total, "skip": skip, "limit": limit}
+    items, total = await svc.list_all(skip=effective_offset, limit=limit)
+    return paginated(items, total, limit, effective_offset)
 
 
 @router.post("")

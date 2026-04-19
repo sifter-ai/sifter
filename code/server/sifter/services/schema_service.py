@@ -123,6 +123,16 @@ def emit_json_schema(sift: "Sift") -> dict:
     }
 
 
+def _to_snake_case(key: str) -> str:
+    import re
+    key = re.sub(r"[\s\-\.]+", "_", key.strip())
+    key = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", key)
+    key = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", key)
+    key = key.lower()
+    key = re.sub(r"_+", "_", key).strip("_")
+    return key or "field"
+
+
 def infer_schema_fields(extracted_data: dict) -> list[dict]:
     """Infer schema_fields from a sample extracted_data dict."""
     fields = []
@@ -148,5 +158,5 @@ def infer_schema_fields(extracted_data: dict) -> list[dict]:
                 ftype = "string"
         else:
             ftype = "string"
-        fields.append({"name": key, "type": ftype, "nullable": True})
+        fields.append({"name": _to_snake_case(key), "type": ftype, "nullable": True})
     return fields

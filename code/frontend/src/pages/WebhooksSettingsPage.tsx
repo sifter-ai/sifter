@@ -157,10 +157,11 @@ function EndpointsCard() {
   const [selectedEvents, setSelectedEvents] = useState<string[]>(["sift.document.processed"]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const { data: webhooks = [], isLoading, error } = useQuery({
+  const { data: webhooksPage, isLoading, error } = useQuery({
     queryKey: ["webhooks"],
     queryFn: fetchWebhooks,
   });
+  const webhooks = webhooksPage?.items ?? [];
 
   const createMutation = useMutation({
     mutationFn: () => createWebhook({ url: newUrl, events: selectedEvents }),

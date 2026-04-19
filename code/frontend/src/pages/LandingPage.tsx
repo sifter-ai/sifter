@@ -57,7 +57,7 @@ export default function LandingPage() {
             {/* Left: text + code */}
             <div>
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide">
-                Open Source · Apache 2.0
+                Open Source · MIT
               </span>
               <h1 className="text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
                 Turn documents<br />into structured<br />data — instantly.
@@ -304,8 +304,8 @@ export default function LandingPage() {
             <FeatureCard icon={<Zap />} title="Queryable results">
               Filter, sort, aggregate, and export. Ask questions in natural language over your extracted data.
             </FeatureCard>
-            <FeatureCard icon={<Code2 />} title="Python SDK">
-              Full async SDK with SiftHandle, FolderHandle, polling helpers, and event callbacks.
+            <FeatureCard icon={<Code2 />} title="Python + TypeScript SDK">
+              Full async Python SDK and TypeScript client with typed schemas generated per sift.
             </FeatureCard>
             <FeatureCard icon={<Terminal />} title="MCP server">
               Connect Claude Desktop or Cursor to your extracted records via the Model Context Protocol.
@@ -331,25 +331,24 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
             <PricingCard name="Free" price="$0" period="forever" docs="10 docs/mo" sifts="1 sift" features={[
-              "Up to 10 pages / doc",
-              "Web UI + SDK",
-              "Basic chat",
-              "Unlimited retention",
+              "Web UI",
+              "7-day retention",
+              "No API access",
+              "No MCP remote",
             ]} cta="Start free" highlighted={false} />
-            <PricingCard name="Starter" price="$19" period="per month" docs="500 docs/mo" sifts="10 sifts" features={[
-              "Up to 10 pages / doc",
+            <PricingCard name="Starter" price="$19" period="per month" docs="500 docs/mo" sifts="5 sifts" features={[
               "Full REST API",
-              "Advanced chat",
-              "Live dashboard",
-              "Gmail + Drive (1×)",
+              "MCP remote endpoint",
+              "Google Drive (1×)",
               "Mail-to-upload",
               "CSV export",
+              "Unlimited retention",
             ]} cta="Start Starter" highlighted={false} />
             <PricingCard name="Pro" price="$49" period="per month" docs="3,000 docs/mo" sifts="∞ sifts" features={[
               "Everything in Starter",
               "Unlimited connectors",
               "SSO (Google + GitHub)",
-              "Higher rate limits",
+              "300 RPM",
             ]} cta="Start Pro" highlighted={true} />
             <PricingCard name="Business" price="$149" period="per month" docs="15,000 docs/mo" sifts="∞ sifts" features={[
               "Everything in Pro",
@@ -407,7 +406,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">Sifter Self-hosted</h3>
-                <p className="text-sm text-white/40 mt-1">Open source · Apache 2.0</p>
+                <p className="text-sm text-white/40 mt-1">Open source · MIT</p>
               </div>
               <p className="text-sm text-white/50 leading-relaxed flex-1">
                 Run on your own infrastructure. Bring your own LLM API key. Full control over data, storage, and scaling.
@@ -430,7 +429,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary text-xs font-medium px-3 py-1 rounded-full mb-5 border border-primary/20">
-                <GitBranch className="h-3 w-3" /> Apache 2.0 · Self-hostable
+                <GitBranch className="h-3 w-3" /> MIT · Self-hostable
               </div>
               <h2 className="text-2xl font-bold leading-tight">Open source.<br />No lock-in.</h2>
               <p className="text-muted-foreground mt-3 leading-relaxed text-sm">
@@ -499,7 +498,7 @@ export default function LandingPage() {
         <div className="flex items-center justify-between max-w-6xl mx-auto px-6 text-sm text-muted-foreground flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Sifter" className="h-5 w-5" />
-            <span>Sifter — Apache 2.0</span>
+            <span>Sifter — MIT</span>
           </div>
           <div className="flex items-center gap-5 flex-wrap">
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"

@@ -221,11 +221,16 @@ class SiftService:
         if not sift:
             raise ValueError(f"Sift {sift_id} not found")
 
+        # Re-read schema right before the LLM call so that a document processed
+        # slightly later picks up the schema written by the first document to finish.
+        latest = await self.get(sift_id)
+        current_schema = latest.schema if latest else sift.schema
+
         result = await sift_agent.extract(
             source=source,
             filename=filename,
             instructions=sift.instructions,
-            schema=sift.schema,
+            schema=current_schema,
             multi_record=sift.multi_record,
         )
 
@@ -373,6 +378,15 @@ class SiftService:
         ], total
 
 
+def _snake(key: str) -> str:
+    import re as _re
+    key = _re.sub(r"[\s\-\.]+", "_", key.strip())
+    key = _re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", key)
+    key = _re.sub(r"([a-z\d])([A-Z])", r"\1_\2", key)
+    key = key.lower()
+    return _re.sub(r"_+", "_", key).strip("_") or "field"
+
+
 def _infer_schema(extracted_data: dict[str, Any]) -> str:
     """
     Generate a schema string from extracted data.
@@ -392,5 +406,5 @@ def _infer_schema(extracted_data: dict[str, Any]) -> str:
             type_str = "object"
         else:
             type_str = "string"
-        parts.append(f"{field} ({type_str})")
+        parts.append(f"{_snake(field)} ({type_str})")
     return ", ".join(parts)

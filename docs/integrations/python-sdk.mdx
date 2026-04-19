@@ -60,11 +60,16 @@ Autocomplete surfaces every method on both OSS and Cloud. The runtime decides if
 # Create
 sift = s.create_sift("Invoices", "client, date, total amount, VAT number")
 
-# Read
-sift = s.get_sift("sift-id")
-sifts = s.list_sifts()
+# Read — one page
+page = s.list_sifts(limit=50, offset=0)   # returns Page(items, total, limit, offset)
+print(f"{page.total} sifts total")
+
+# Read — iterate all
+for sift_data in s.iter_sifts():
+    print(sift_data["name"])
 
 # Update / delete
+sift = s.get_sift("sift-id")
 sift.update(name="Invoices 2024")
 sift.delete()
 ```
@@ -74,7 +79,14 @@ sift.delete()
 ```python
 sift.upload("./invoices/")           # file or directory
 sift.wait(poll_interval=2, timeout=300)  # block until done
-records = sift.records(limit=100, offset=0)
+
+# One page of records
+page = sift.records(limit=100, offset=0)   # Page(items, total, limit, offset, next_cursor)
+
+# Iterate all records across pages (recommended for large datasets)
+for record in sift.iter_records():
+    print(record["extracted_data"])
+
 results = sift.query("Total by client")
 sift.export_csv("invoices.csv")
 ```
@@ -85,8 +97,16 @@ sift.export_csv("invoices.csv")
 folder = s.create_folder("Q1 Contracts")
 folder.add_sift(sift)
 folder.upload("./contracts/q1/")
-docs = folder.documents()
-folder.sifts()
+
+# One page
+page = folder.documents(limit=50, offset=0)
+
+# Iterate all
+for doc in folder.iter_documents():
+    print(doc["filename"])
+
+folder.sifts()          # Page of linked sifts
+folder.iter_sifts()     # iterate all linked sifts
 folder.delete()
 ```
 

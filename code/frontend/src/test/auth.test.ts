@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { login, register, fetchMe, switchOrg } from "../api/auth";
 import { fetchApiKeys, createApiKey, revokeApiKey } from "../api/keys";
 import { fetchWebhooks, createWebhook, deleteWebhook } from "../api/webhooks";
-import { fetchOrgs, createOrg, fetchMembers, addMember } from "../api/orgs";
+import { listOrgs, getMyOrg, listMembers, removeMember } from "../api/orgs";
 
 // ---- Helpers ----
 
@@ -115,10 +115,10 @@ describe("fetchApiKeys", () => {
     const keys = [
       { id: "k1", name: "CI Bot", prefix: "sk-ab", created_at: "2024-01-01T00:00:00Z" },
     ];
-    vi.stubGlobal("fetch", mockFetch(200, keys));
+    vi.stubGlobal("fetch", mockFetch(200, paginated(keys)));
     const result = await fetchApiKeys();
-    expect(result).toEqual(keys);
-    expect(fetch).toHaveBeenCalledWith("/api/keys", expect.objectContaining({}));
+    expect(result.items).toEqual(keys);
+    expect(fetch).toHaveBeenCalledWith("/api/keys?limit=100", expect.objectContaining({}));
   });
 });
 
@@ -161,9 +161,9 @@ describe("fetchWebhooks", () => {
     ];
     vi.stubGlobal("fetch", mockFetch(200, paginated(hooks)));
     const result = await fetchWebhooks();
-    expect(result).toEqual(hooks);
+    expect(result.items).toEqual(hooks);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/webhooks?limit=1000",
+      "/api/webhooks?limit=100",
       expect.objectContaining({})
     );
   });
@@ -209,58 +209,31 @@ describe("deleteWebhook", () => {
 
 // ---- Orgs ----
 
-describe("fetchOrgs", () => {
-  it("returns list of orgs", async () => {
-    const orgs = [{ id: "org1", name: "Acme Corp" }];
-    vi.stubGlobal("fetch", mockFetch(200, orgs));
-    const result = await fetchOrgs();
-    expect(result).toEqual(orgs);
+describe("listOrgs", () => {
+  it("returns list of orgs with current_org_id", async () => {
+    const resp = { orgs: [{ org_id: "org1", name: "Acme Corp", role: "owner" }], current_org_id: "org1" };
+    vi.stubGlobal("fetch", mockFetch(200, resp));
+    const result = await listOrgs();
+    expect(result.orgs[0].name).toBe("Acme Corp");
     expect(fetch).toHaveBeenCalledWith("/api/orgs", expect.objectContaining({}));
   });
 });
 
-describe("createOrg", () => {
-  it("creates org and returns new token", async () => {
-    const resp = {
-      org: { id: "org2", name: "New Corp" },
-      access_token: "new-jwt",
-    };
-    vi.stubGlobal("fetch", mockFetch(200, resp));
-    const result = await createOrg("New Corp");
-    expect(result.org.name).toBe("New Corp");
-    expect(result.access_token).toBe("new-jwt");
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/orgs",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ name: "New Corp" }),
-      })
-    );
-  });
-});
-
-describe("fetchMembers", () => {
+describe("listMembers", () => {
   it("returns org members", async () => {
-    const members = [{ id: "m1", email: "a@b.com", role: "admin" }];
-    vi.stubGlobal("fetch", mockFetch(200, members));
-    const result = await fetchMembers("org1");
-    expect(result).toEqual(members);
-    expect(fetch).toHaveBeenCalledWith("/api/orgs/org1/members", expect.objectContaining({}));
+    const resp = { members: [{ user_id: "m1", email: "a@b.com", role: "owner" }] };
+    vi.stubGlobal("fetch", mockFetch(200, resp));
+    const result = await listMembers();
+    expect(result.members[0].email).toBe("a@b.com");
+    expect(fetch).toHaveBeenCalledWith("/api/orgs/me/members", expect.objectContaining({}));
   });
 });
 
-describe("addMember", () => {
-  it("adds member with given role", async () => {
-    const member = { id: "m2", email: "b@b.com", role: "member" };
-    vi.stubGlobal("fetch", mockFetch(200, member));
-    const result = await addMember("org1", "b@b.com", "member");
-    expect(result).toEqual(member);
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/orgs/org1/members",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ email: "b@b.com", role: "member" }),
-      })
-    );
+describe("removeMember", () => {
+  it("removes member by user_id", async () => {
+    vi.stubGlobal("fetch", mockFetch(200, { status: "removed" }));
+    const result = await removeMember("m1");
+    expect(result.status).toBe("removed");
+    expect(fetch).toHaveBeenCalledWith("/api/orgs/me/members/m1", expect.objectContaining({ method: "DELETE" }));
   });
 });

@@ -41,13 +41,14 @@ beforeEach(() => {
 // ---- Folders ----
 
 describe("fetchFolders", () => {
-  it("returns list of folders", async () => {
+  it("returns paginated response of folders", async () => {
     const data = [{ id: "f1", name: "Invoices", description: "", document_count: 3 }];
     vi.stubGlobal("fetch", mockFetch(200, paginated(data)));
     const result = await fetchFolders();
-    expect(result).toEqual(data);
+    expect(result.items).toEqual(data);
+    expect(result.total).toBe(data.length);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/folders?limit=1000",
+      "/api/folders?limit=200&offset=0",
       expect.objectContaining({})
     );
   });
@@ -130,13 +131,13 @@ describe("deleteFolder", () => {
 // ---- Folder-Sift Links ----
 
 describe("fetchFolderExtractors", () => {
-  it("fetches extractors for a folder", async () => {
+  it("fetches extractors for a folder as paginated response", async () => {
     const data = [{ sift_id: "s1", folder_id: "f1", status: "active" }];
-    vi.stubGlobal("fetch", mockFetch(200, data));
+    vi.stubGlobal("fetch", mockFetch(200, paginated(data)));
     const result = await fetchFolderExtractors("f1");
-    expect(result).toEqual(data);
+    expect(result.items).toEqual(data);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/folders/f1/extractors",
+      "/api/folders/f1/extractors?limit=100",
       expect.objectContaining({})
     );
   });
@@ -172,7 +173,7 @@ describe("unlinkExtractor", () => {
 // ---- Documents ----
 
 describe("fetchFolderDocuments", () => {
-  it("returns list of documents in a folder", async () => {
+  it("returns paginated response of documents in a folder", async () => {
     const docs = [
       {
         id: "d1",
@@ -186,9 +187,10 @@ describe("fetchFolderDocuments", () => {
     ];
     vi.stubGlobal("fetch", mockFetch(200, paginated(docs)));
     const result = await fetchFolderDocuments("f1");
-    expect(result).toEqual(docs);
+    expect(result.items).toEqual(docs);
+    expect(result.total).toBe(docs.length);
     expect(fetch).toHaveBeenCalledWith(
-      "/api/folders/f1/documents?limit=1000",
+      "/api/folders/f1/documents?limit=50&offset=0",
       expect.objectContaining({})
     );
   });

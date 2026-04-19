@@ -3,7 +3,7 @@ import { Plus, FileText, AlertCircle, Loader2, PauseCircle, CheckCircle2, Layers
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiftForm } from "@/components/SiftForm";
-import { useSifts } from "@/hooks/useExtractions";
+import { useSiftsInfinite } from "@/hooks/useExtractions";
 import { useAuthContext } from "@/context/AuthContext";
 import type { Sift } from "@/api/types";
 
@@ -299,7 +299,8 @@ function StatsStrip({ sifts }: { sifts: Sift[] }) {
 
 export function SiftsPage() {
   const navigate = useNavigate();
-  const { data: sifts, isLoading, error } = useSifts();
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useSiftsInfinite();
+  const sifts = data?.pages.flatMap((p) => p.items) ?? [];
   const { user } = useAuthContext();
 
   const firstName = user?.full_name?.split(" ")[0] ?? null;
@@ -392,15 +393,29 @@ export function SiftsPage() {
 
         {/* Sift grid */}
         {sifts && sifts.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {sifts.map((sift) => (
-              <SiftCard
-                key={sift.id}
-                sift={sift}
-                onClick={() => navigate(`/sifts/${sift.id}`)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {sifts.map((sift) => (
+                <SiftCard
+                  key={sift.id}
+                  sift={sift}
+                  onClick={() => navigate(`/sifts/${sift.id}`)}
+                />
+              ))}
+            </div>
+            {hasNextPage && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? "Loading…" : "Load more"}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

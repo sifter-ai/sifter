@@ -1,10 +1,13 @@
-import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React, { lazy, Suspense, useState } from "react";
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
   BookOpen,
   Bot,
+  Building2,
+  Check,
+  ChevronUp,
   FileText,
   Folder,
   Key,
@@ -16,6 +19,16 @@ import {
   User as UserIcon,
   Webhook,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { listOrgs, switchOrg } from "@/api/orgs";
+import { setToken } from "@/lib/apiFetch";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import logo from "@/assets/logo.svg";
 import { SiftsPage } from "@/pages/SiftsPage";
@@ -53,6 +66,7 @@ const AuditLogPage = lazy(() => import("@/pages/cloud/AuditLogPage"));
 const ConnectorsPage = lazy(() => import("@/pages/cloud/ConnectorsPage"));
 const ConnectorCallbackPage = lazy(() => import("@/pages/cloud/ConnectorCallbackPage"));
 const SharesPage = lazy(() => import("@/pages/cloud/SharesPage"));
+const OrganizationSettingsPage = lazy(() => import("@/pages/cloud/OrganizationSettingsPage"));
 const PublicViewerPage = lazy(() => import("@/pages/cloud/PublicViewerPage"));
 const DashboardListPage = lazy(() => import("@/pages/cloud/DashboardListPage"));
 const DashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
@@ -87,8 +101,96 @@ function UserAvatar({ src, name, size = 28 }: { src: string | null; name: string
   );
 }
 
+function OrgSwitcher() {
+  const { user, logout } = useAuthContext();
+  const { mode } = useConfig();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data } = useQuery({
+    queryKey: ["orgs"],
+    queryFn: listOrgs,
+    enabled: mode === "cloud" && open,
+    staleTime: 30_000,
+  });
+
+  const orgs = data?.orgs ?? [];
+  const currentOrgId = data?.current_org_id;
+
+  async function handleSwitch(orgId: string) {
+    if (orgId === currentOrgId) { setOpen(false); return; }
+    try {
+      const res = await switchOrg(orgId);
+      setToken(res.access_token);
+      qc.clear();
+      setOpen(false);
+      navigate("/");
+    } catch {}
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2.5 w-full px-4 py-3 hover:bg-muted/70 transition-colors text-left">
+          <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={27} />
+          <div className="min-w-0 flex-1">
+            {user?.full_name && (
+              <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
+            )}
+            <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
+          </div>
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="start" className="w-64 mb-1">
+        <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+          {user?.email}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        {mode === "cloud" && orgs.length > 0 && (
+          <>
+            {orgs.map((org) => (
+              <DropdownMenuItem
+                key={org.org_id}
+                onClick={() => handleSwitch(org.org_id)}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
+                <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{org.name}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize">{org.role}</p>
+                </div>
+                {org.org_id === currentOrgId && (
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+          </>
+        )}
+
+        <DropdownMenuItem asChild>
+          <Link to="/settings/account" className="cursor-pointer">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function Sidebar() {
-  const { isAuthenticated, user, logout } = useAuthContext();
+  const { isAuthenticated } = useAuthContext();
   const { mode } = useConfig();
   useDarkMode();
 
@@ -173,13 +275,6 @@ function Sidebar() {
             <Settings className="h-4 w-4 shrink-0" />
             Settings
           </NavLink>
-          <button
-            onClick={logout}
-            className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]`}
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Sign out
-          </button>
         </div>
       </nav>
 
@@ -194,21 +289,8 @@ function Sidebar() {
 
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
 
-      {/* User identity — clean, no actions */}
-      <div className="px-2 py-3">
-        <Link
-          to="/settings/account"
-          className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/70 transition-colors"
-        >
-          <UserAvatar src={user?.avatar_url ?? null} name={user?.full_name ?? user?.email ?? ""} size={27} />
-          <div className="min-w-0 flex-1">
-            {user?.full_name && (
-              <p className="text-xs font-medium truncate leading-snug">{user.full_name}</p>
-            )}
-            <p className="text-[11px] text-muted-foreground truncate leading-snug">{user?.email}</p>
-          </div>
-        </Link>
-      </div>
+      {/* User / org switcher */}
+      <OrgSwitcher />
     </aside>
   );
 }
@@ -282,6 +364,7 @@ function AppRoutes() {
                     <Route path="billing" element={<BillingPage />} />
                     <Route path="audit" element={<AuditLogPage />} />
                     <Route path="shares" element={<SharesPage />} />
+                    <Route path="organization" element={<OrganizationSettingsPage />} />
                   </>
                 )}
               </Route>

@@ -3,9 +3,10 @@ import type { Aggregation, AggregationResult, CreateAggregationPayload, Paginate
 
 const BASE = "/api/aggregations";
 
-export const fetchAggregations = (siftId?: string): Promise<Aggregation[]> => {
-  const url = siftId ? `${BASE}?sift_id=${siftId}&limit=1000` : `${BASE}?limit=1000`;
-  return apiFetchJson<PaginatedResponse<Aggregation>>(url).then((r) => r.items);
+export const fetchAggregations = (siftId?: string, limit = 100, offset = 0): Promise<PaginatedResponse<Aggregation>> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (siftId) params.set("sift_id", siftId);
+  return apiFetchJson<PaginatedResponse<Aggregation>>(`${BASE}?${params}`);
 };
 
 export const fetchAggregation = (id: string): Promise<Aggregation> =>

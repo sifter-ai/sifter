@@ -17,4 +17,4 @@ docker compose up -d
 
 See the [main repository](https://github.com/bfortunato/sifter) for full documentation, configuration reference, and deployment guide.
 
-Apache 2.0. By [Bruno Fortunato](https://github.com/bfortunato).
+MIT. By [Bruno Fortunato](https://github.com/bfortunato).

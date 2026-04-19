@@ -11,8 +11,8 @@ import type {
 
 const BASE = "/api/sifts";
 
-export const fetchSifts = (): Promise<Sift[]> =>
-  apiFetchJson<PaginatedResponse<Sift>>(`${BASE}?limit=1000`).then((r) => r.items);
+export const fetchSifts = (limit = 50, offset = 0): Promise<PaginatedResponse<Sift>> =>
+  apiFetchJson<PaginatedResponse<Sift>>(`${BASE}?limit=${limit}&offset=${offset}`);
 
 export const fetchSift = (id: string): Promise<Sift> =>
   apiFetchJson<Sift>(`${BASE}/${id}`);
@@ -37,8 +37,8 @@ export const updateSift = (
 export const deleteSift = (id: string): Promise<void> =>
   apiFetchJson<void>(`${BASE}/${id}`, { method: "DELETE" });
 
-export const fetchSiftFolders = (id: string): Promise<{ items: { id: string; name: string; path: string | null }[] }> =>
-  apiFetchJson<{ items: { id: string; name: string; path: string | null }[] }>(`${BASE}/${id}/folders`);
+export const fetchSiftFolders = (id: string): Promise<PaginatedResponse<{ id: string; name: string; path: string | null }>> =>
+  apiFetchJson<PaginatedResponse<{ id: string; name: string; path: string | null }>>(`${BASE}/${id}/folders`);
 
 export const uploadDocuments = (id: string, formData: FormData): Promise<unknown> =>
   apiFetchJson<unknown>(`${BASE}/${id}/upload`, { method: "POST", body: formData });
@@ -49,11 +49,11 @@ export const reindexSift = (id: string): Promise<unknown> =>
 export const resetSift = (id: string): Promise<Sift> =>
   apiFetchJson<Sift>(`${BASE}/${id}/reset`, { method: "POST" });
 
-export const fetchSiftRecords = (id: string): Promise<SiftRecord[]> =>
-  apiFetchJson<PaginatedResponse<SiftRecord>>(`${BASE}/${id}/records?limit=1000`).then((r) => r.items);
+export const fetchSiftRecords = (id: string, limit = 50, offset = 0): Promise<PaginatedResponse<SiftRecord>> =>
+  apiFetchJson<PaginatedResponse<SiftRecord>>(`${BASE}/${id}/records?limit=${limit}&offset=${offset}`);
 
-export const fetchSiftDocuments = (id: string): Promise<PaginatedResponse<SiftDocument>> =>
-  apiFetchJson<PaginatedResponse<SiftDocument>>(`${BASE}/${id}/documents?limit=200`);
+export const fetchSiftDocuments = (id: string, limit = 50, offset = 0): Promise<PaginatedResponse<SiftDocument>> =>
+  apiFetchJson<PaginatedResponse<SiftDocument>>(`${BASE}/${id}/documents?limit=${limit}&offset=${offset}`);
 
 export const exportSiftCsv = async (id: string, name: string): Promise<void> => {
   const res = await apiFetch(`${BASE}/${id}/records/csv`);

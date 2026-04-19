@@ -57,7 +57,8 @@ function collectTouchedSiftIds(messages: ChatMessage[]): Set<string> {
 }
 
 export function ChatPage() {
-  const { data: sifts, isLoading: siftsLoading } = useSifts();
+  const { data: siftsPage, isLoading: siftsLoading } = useSifts();
+  const sifts = siftsPage?.items;
   const siftCount = sifts?.length ?? 0;
   const [clearKey, setClearKey] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

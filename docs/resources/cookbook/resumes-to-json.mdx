@@ -1,0 +1,98 @@
+---
+title: "Cookbook: Resume parsing"
+description: Parse CVs and resumes into typed JSON records — name, contact, skills, experience, education.
+---
+
+# Resume parsing
+
+Extract structured candidate data from PDF resumes. Works on any layout — chronological, skills-first, table-based, or infographic.
+
+## Setup
+
+```bash
+pip install sifter-ai
+```
+
+## Schema and extraction
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+
+sift = s.create_sift(
+    name="Candidates",
+    instructions="""
+    Extract:
+    - full_name (string)
+    - email (string or null)
+    - phone (string or null)
+    - location (string or null)
+    - linkedin_url (string or null)
+    - years_of_experience (integer or null)
+    - skills (array of strings)
+    - languages (array of {language: string, level: string})
+    - experience (array of {
+        company: string,
+        role: string,
+        start: string (YYYY-MM),
+        end: string or null,
+        current: bool,
+        description: string or null
+      })
+    - education (array of {
+        institution: string,
+        degree: string,
+        year: integer or null
+      })
+    - open_to_remote (bool or null)
+    """,
+)
+
+folder = s.create_folder("Applications — Q2 2025")
+folder.add_sift(sift)
+folder.upload("./resumes/")
+
+sift.wait()
+print(f"Parsed {sift.records().total} resumes")
+```
+
+## Query across candidates
+
+```python
+# Natural language
+result = sift.query("Who has Python and more than 5 years of experience?")
+print(result)
+
+# Programmatic filter — iterate all matching records across pages
+seniors = sift.find(filter={
+    "skills": {"$in": ["Python"]},
+    "years_of_experience": {"$gte": 5},
+    "open_to_remote": True,
+})
+for r in seniors.items:
+    print(r["extracted_data"]["full_name"], r["extracted_data"]["years_of_experience"])
+```
+
+## Export to CSV
+
+```python
+sift.export_csv("candidates.csv")
+```
+
+## Process new applications automatically
+
+```python
+# Every file dropped in the folder is parsed automatically
+folder.upload("./new_batch/")
+```
+
+## MCP — ask Claude about candidates
+
+Add Sifter to Claude Desktop ([guide](/integrations/mcp-server)), then:
+
+```
+"Show me all candidates open to remote with Kubernetes experience"
+"Compare the top 3 applicants for the backend role"
+"Which resumes were uploaded this week?"
+```

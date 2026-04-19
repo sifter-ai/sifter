@@ -1,26 +1,36 @@
-import { Organization, OrganizationMember } from "./types";
 import { apiFetchJson } from "../lib/apiFetch";
 
-export async function fetchOrgs(): Promise<Organization[]> {
-  return apiFetchJson<Organization[]>("/api/orgs");
+export interface OrgInfo {
+  org_id: string;
+  name: string;
+  role: string;
+  owner_user_id?: string;
+  created_at?: string;
 }
 
-export async function createOrg(name: string): Promise<{ org: Organization; access_token: string }> {
-  return apiFetchJson("/api/orgs", {
+export interface OrgMember {
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: "owner" | "admin" | "member";
+  joined_at?: string;
+}
+
+export const listOrgs = (): Promise<{ orgs: OrgInfo[]; current_org_id: string }> =>
+  apiFetchJson("/api/orgs");
+
+export const switchOrg = (org_id: string): Promise<{ access_token: string; org_id: string }> =>
+  apiFetchJson("/api/orgs/switch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ org_id }),
   });
-}
 
-export async function fetchMembers(orgId: string): Promise<OrganizationMember[]> {
-  return apiFetchJson<OrganizationMember[]>(`/api/orgs/${orgId}/members`);
-}
+export const getMyOrg = (): Promise<OrgInfo> =>
+  apiFetchJson("/api/orgs/me");
 
-export async function addMember(orgId: string, email: string, role: string): Promise<OrganizationMember> {
-  return apiFetchJson<OrganizationMember>(`/api/orgs/${orgId}/members`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role }),
-  });
-}
+export const listMembers = (): Promise<{ members: OrgMember[] }> =>
+  apiFetchJson("/api/orgs/me/members");
+
+export const removeMember = (userId: string): Promise<{ status: string }> =>
+  apiFetchJson(`/api/orgs/me/members/${userId}`, { method: "DELETE" });

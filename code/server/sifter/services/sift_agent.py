@@ -36,6 +36,23 @@ def _strip_markdown_fences(text: str) -> str:
     return text.strip()
 
 
+def _to_snake_case(key: str) -> str:
+    """Normalize a field name to snake_case regardless of what the LLM returned."""
+    # spaces / hyphens / dots → underscore
+    key = re.sub(r"[\s\-\.]+", "_", key.strip())
+    # camelCase → snake_case
+    key = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", key)
+    key = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", key)
+    key = key.lower()
+    # collapse consecutive underscores and strip leading/trailing
+    key = re.sub(r"_+", "_", key).strip("_")
+    return key or "field"
+
+
+def _normalize_record(record: dict) -> dict:
+    return {_to_snake_case(k): v for k, v in record.items()}
+
+
 async def extract(
     source: "bytes | str",
     filename: str,
@@ -109,6 +126,9 @@ async def extract(
             extracted_list = [raw_extracted[0]] if raw_extracted else [{}]
         else:
             extracted_list = [raw_extracted]
+
+    # Normalize all field names to snake_case regardless of LLM output
+    extracted_list = [_normalize_record(r) for r in extracted_list]
 
     return ExtractionAgentResult(
         document_type=data_parsed.get("documentType", "unknown"),

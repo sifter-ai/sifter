@@ -14,6 +14,7 @@ from ..services.document_processor import enqueue
 from ..services.document_service import DocumentService
 from ..services.limits import NoopLimiter, get_usage_limiter
 from ..storage import get_storage_backend
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/folders", tags=["folders"])
@@ -108,7 +109,7 @@ async def list_folders(
         folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=None)
     else:
         folders, total = await svc.list_folders(skip=offset, limit=limit, parent_id=parent_id)
-    return {"items": [_folder_dict(f) for f in folders], "total": total, "limit": limit, "offset": offset}
+    return paginated([_folder_dict(f) for f in folders], total, limit, offset)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -247,6 +248,8 @@ async def delete_folder(
 @router.get("/{folder_id}/sifts")
 async def list_sifts_for_folder(
     folder_id: str,
+    limit: int = 100,
+    offset: int = 0,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
@@ -255,7 +258,8 @@ async def list_sifts_for_folder(
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     links = await svc.list_folder_extractors(folder_id)
-    return [{"id": l.id, "sift_id": l.sift_id, "created_at": l.created_at.isoformat()} for l in links]
+    items = [{"id": l.id, "sift_id": l.sift_id, "created_at": l.created_at.isoformat()} for l in links]
+    return paginated(items[offset:offset + limit], len(items), limit, offset)
 
 
 @router.post("/{folder_id}/sifts", status_code=status.HTTP_201_CREATED)
@@ -297,6 +301,8 @@ async def unlink_sift(
 @router.get("/{folder_id}/extractors")
 async def list_extractors(
     folder_id: str,
+    limit: int = 100,
+    offset: int = 0,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
@@ -305,10 +311,11 @@ async def list_extractors(
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     links = await svc.list_folder_extractors(folder_id)
-    return [
+    items = [
         {"id": l.id, "sift_id": l.sift_id, "extraction_id": l.sift_id, "created_at": l.created_at.isoformat()}
         for l in links
     ]
+    return paginated(items[offset:offset + limit], len(items), limit, offset)
 
 
 @router.post("/{folder_id}/extractors", status_code=status.HTTP_201_CREATED)
@@ -364,7 +371,7 @@ async def list_documents(
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     documents, total = await svc.list_documents(folder_id, skip=offset, limit=limit)
-    return {"items": documents, "total": total, "limit": limit, "offset": offset}
+    return paginated(documents, total, limit, offset)
 
 
 @router.post("/{folder_id}/documents", status_code=status.HTTP_202_ACCEPTED)

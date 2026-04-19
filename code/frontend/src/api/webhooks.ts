@@ -9,8 +9,8 @@ export interface Webhook {
   created_at: string;
 }
 
-export const fetchWebhooks = (): Promise<Webhook[]> =>
-  apiFetchJson<PaginatedResponse<Webhook>>("/api/webhooks?limit=1000").then((r) => r.items);
+export const fetchWebhooks = (): Promise<PaginatedResponse<Webhook>> =>
+  apiFetchJson<PaginatedResponse<Webhook>>("/api/webhooks?limit=100");
 
 export const createWebhook = (payload: {
   events: string[];

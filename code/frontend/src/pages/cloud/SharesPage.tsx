@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Link2, Trash2 } from "lucide-react";
+import { Check, Copy, Link2, Trash2 } from "lucide-react";
 import { fetchShares, revokeShare, deleteShare, type Share } from "@/api/cloud";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ const ACCESS_VARIANTS: Record<string, string> = {
 
 export default function SharesPage() {
   const qc = useQueryClient();
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["shares"], queryFn: fetchShares });
 
   const revokeMutation = useMutation({
@@ -30,8 +31,11 @@ export default function SharesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shares"] }),
   });
 
-  const copyLink = (slug: string) =>
+  const copyLink = (slug: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/s/${slug}`);
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(null), 2000);
+  };
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;
 
@@ -69,7 +73,9 @@ export default function SharesPage() {
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" onClick={() => copyLink(s.slug)} title="Copy link">
-                        <Copy className="h-3.5 w-3.5" />
+                        {copiedSlug === s.slug
+                          ? <Check className="h-3.5 w-3.5 text-emerald-500" />
+                          : <Copy className="h-3.5 w-3.5" />}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => revokeMutation.mutate(s.id)} title="Revoke">
                         <Link2 className="h-3.5 w-3.5 text-amber-600" />

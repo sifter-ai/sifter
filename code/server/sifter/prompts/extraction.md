@@ -24,7 +24,7 @@ You MUST respond with a single valid JSON object — no markdown fences, no expl
 - Extract ONLY the fields specified in the extraction instructions
 - If a field is not found or cannot be determined from the document, set it to `null`
 - Do NOT invent, guess, or hallucinate values — only extract what is clearly present
-- Field names in `extractedData` must match the extraction instructions exactly (same casing, same spelling)
+- **Field names in `extractedData` MUST use snake_case** (lowercase words joined by underscores). Never use spaces or hyphens in field names. Examples: `supplier_name`, `document_date`, `unit_price`, `vat_number`
 - Numeric values (amounts, quantities) must be stored as numbers, not strings
 - Date fields must be formatted as ISO 8601: `YYYY-MM-DD`
 - Boolean fields: `true` or `false`

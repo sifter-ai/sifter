@@ -5,6 +5,7 @@ export interface PaginatedResponse<T> {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }
 
 // ---- Auth ----

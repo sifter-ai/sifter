@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..services.webhook_service import WebhookService
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -37,7 +38,7 @@ async def list_webhooks(
 ):
     svc = WebhookService(db)
     hooks, total = await svc.list_all(skip=offset, limit=limit)
-    return {"items": [_wh_dict(h) for h in hooks], "total": total, "limit": limit, "offset": offset}
+    return paginated([_wh_dict(h) for h in hooks], total, limit, offset)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

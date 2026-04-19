@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..services.api_key_service import ApiKeyService
+from ._pagination import paginated
 
 router = APIRouter(prefix="/api/keys", tags=["keys"])
 
@@ -25,12 +26,15 @@ def _key_dict(key) -> dict:
 
 @router.get("")
 async def list_keys(
+    limit: int = 100,
+    offset: int = 0,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = ApiKeyService(db)
     keys = await svc.list_api_keys()
-    return [_key_dict(k) for k in keys]
+    items = [_key_dict(k) for k in keys]
+    return paginated(items[offset:offset + limit], len(items), limit, offset)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

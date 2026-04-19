@@ -44,7 +44,7 @@ sift.upload("./invoices/").wait()
 
 # Export to CSV
 sift.export_csv("invoices_extracted.csv")
-print(f"Exported {len(sift.records())} records")
+print(f"Exported {sift.records().total} records")
 ```
 
 ## Running on new invoices

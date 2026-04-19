@@ -9,8 +9,8 @@ import {
 
 // ---- Folders ----
 
-export async function fetchFolders(): Promise<Folder[]> {
-  return apiFetchJson<PaginatedResponse<Folder>>("/api/folders?limit=1000").then((r) => r.items);
+export async function fetchFolders(limit = 200, offset = 0): Promise<PaginatedResponse<Folder>> {
+  return apiFetchJson<PaginatedResponse<Folder>>(`/api/folders?limit=${limit}&offset=${offset}`);
 }
 
 export async function fetchFolder(folderId: string): Promise<Folder & { extractors: FolderExtractor[]; inherited_extractors: (FolderExtractor & { folder_id: string })[] }> {
@@ -50,8 +50,8 @@ export async function deleteFolder(folderId: string): Promise<void> {
 
 // ---- Folder-Sift Links ----
 
-export async function fetchFolderExtractors(folderId: string): Promise<FolderExtractor[]> {
-  return apiFetchJson<FolderExtractor[]>(`/api/folders/${folderId}/extractors`);
+export async function fetchFolderExtractors(folderId: string): Promise<PaginatedResponse<FolderExtractor>> {
+  return apiFetchJson<PaginatedResponse<FolderExtractor>>(`/api/folders/${folderId}/extractors?limit=100`);
 }
 
 export async function linkExtractor(folderId: string, siftId: string): Promise<FolderExtractor> {
@@ -81,9 +81,11 @@ export interface DocumentWithStatuses {
 }
 
 export async function fetchFolderDocuments(
-  folderId: string
-): Promise<DocumentWithStatuses[]> {
-  return apiFetchJson<PaginatedResponse<DocumentWithStatuses>>(`/api/folders/${folderId}/documents?limit=1000`).then((r) => r.items);
+  folderId: string,
+  limit = 50,
+  offset = 0
+): Promise<PaginatedResponse<DocumentWithStatuses>> {
+  return apiFetchJson<PaginatedResponse<DocumentWithStatuses>>(`/api/folders/${folderId}/documents?limit=${limit}&offset=${offset}`);
 }
 
 export async function uploadDocument(

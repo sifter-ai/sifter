@@ -247,10 +247,11 @@ export default function FolderBrowserPage() {
   // Track expanded tree nodes
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const { data: folders = [], isLoading: foldersLoading } = useQuery({
+  const { data: foldersPage, isLoading: foldersLoading } = useQuery({
     queryKey: ["folders"],
-    queryFn: fetchFolders,
+    queryFn: () => fetchFolders(200, 0),
   });
+  const folders = foldersPage?.items ?? [];
 
   const { data: folder, isLoading: folderLoading } = useQuery({
     queryKey: ["folder", folderId],
@@ -258,23 +259,25 @@ export default function FolderBrowserPage() {
     enabled: !!folderId,
   });
 
-  const { data: documents = [], isLoading: docsLoading } = useQuery({
+  const { data: documentsPage, isLoading: docsLoading } = useQuery({
     queryKey: ["folder-documents", folderId],
-    queryFn: () => fetchFolderDocuments(folderId!),
+    queryFn: () => fetchFolderDocuments(folderId!, 200, 0),
     enabled: !!folderId,
     refetchInterval: (query) => {
-      const docs = query.state.data as DocumentWithStatuses[] | undefined;
+      const docs = (query.state.data as { items?: DocumentWithStatuses[] } | undefined)?.items;
       const hasProcessing = docs?.some((d) =>
         d.sift_statuses?.some((s) => s.status === "processing" || s.status === "pending")
       );
       return hasProcessing ? 2000 : false;
     },
   });
+  const documents = documentsPage?.items ?? [];
 
-  const { data: allSifts = [] } = useQuery({
-    queryKey: ["sifts"],
-    queryFn: fetchSifts,
+  const { data: allSiftsPage } = useQuery({
+    queryKey: ["sifts", 200],
+    queryFn: () => fetchSifts(200, 0),
   });
+  const allSifts = allSiftsPage?.items ?? [];
 
   // Build tree and compute ancestors for auto-expand
   const folderTree = useMemo(() => buildTree(folders), [folders]);

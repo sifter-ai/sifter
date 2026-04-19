@@ -1,4 +1,4 @@
-import { APIKey } from "./types";
+import { APIKey, PaginatedResponse } from "./types";
 import { apiFetchJson } from "../lib/apiFetch";
 
 interface CreateKeyResponse {
@@ -6,8 +6,8 @@ interface CreateKeyResponse {
   plaintext: string;
 }
 
-export async function fetchApiKeys(): Promise<APIKey[]> {
-  return apiFetchJson<APIKey[]>("/api/keys");
+export async function fetchApiKeys(): Promise<PaginatedResponse<APIKey>> {
+  return apiFetchJson<PaginatedResponse<APIKey>>("/api/keys?limit=100");
 }
 
 export async function createApiKey(name: string): Promise<CreateKeyResponse> {

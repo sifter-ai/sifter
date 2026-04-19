@@ -16,4 +16,4 @@ records = s.sift("./invoices/", "client, date, total amount")
 
 See the [main repository](https://github.com/bfortunato/sifter) for full documentation.
 
-Apache 2.0. By [Bruno Fortunato](https://github.com/bfortunato).
+MIT. By [Bruno Fortunato](https://github.com/bfortunato).

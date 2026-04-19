@@ -9,7 +9,7 @@ last-modified: "2026-04-18T00:00:00.000Z"
 
 Sifter is an open-source document intelligence engine that turns unstructured documents — invoices, contracts, receipts, reports — into a structured, queryable database. It ships as a self-contained stack (REST API, Python SDK, TypeScript SDK, CLI, MCP server, chat, dashboards, webhook infrastructure) that developers embed into their own products, internal tools, or AI agents — and that small teams can also use directly via the bundled UI.
 
-**Tagline:** *"Chat with your documents. Query them like a database. Build on top via API."*
+**Tagline:** *"Structure any document. Query it like a database. Build on top via API."*
 
 Positioning: **structured RAG** — typed outputs, aggregation queries, verifiable citations down to the bounding box. Not semantic soup.
 
@@ -31,7 +31,7 @@ Sifter OSS provides the complete extraction-to-query-to-verify stack as open-sou
 - **Webhook infrastructure** — subscribe to extraction events with HMAC signing and retry policy. First-class primitive, not an afterthought.
 - **Admin UI** — a React frontend covering folders, sifts, records, schema, documents, chat, dashboards, webhooks, settings. Complete enough to be used as a product by a small technical team; not a replacement for a polished prosumer SaaS.
 
-Self-hostable end-to-end under Apache-2.0. Bring your own LLM API key; run on any server with MongoDB.
+Self-hostable end-to-end under MIT. Bring your own LLM API key; run on any server with MongoDB.
 
 ## What Sifter OSS is
 
@@ -59,11 +59,11 @@ The split is simple: if a feature runs in-process against your Mongo and your LL
 - **Typed SDKs** — Python and TypeScript clients with first-class typing per sift, matching the ergonomics developers expect from modern dev tools.
 - **CLI** — `sifter extract`, `sifter sifts`, `sifter records` for terminal workflows and CI.
 - **Chat + spec-driven dashboards bundled** — verify the pipeline, show your teammates the data, without writing a frontend first.
-- **Self-hostable** — `docker run` evaluation path; `docker-compose` production path; Apache-2.0 license.
+- **Self-hostable** — `docker run` evaluation path; `docker-compose` production path; MIT license.
 
 ## Licensing & Distribution
 
-- License: **Apache-2.0**.
+- License: **MIT**.
 - Source: this repository (`sifter`).
 - Distribution:
   - `pip install sifter-ai` — Python SDK (exposes OSS + Cloud surfaces; Cloud methods raise `NotAvailableError` when pointed at a self-hosted server)

@@ -9,7 +9,7 @@ status: synced
 
 Sifter uses an **open-core model**:
 
-- **`sifter`** (public, Apache-2.0) — the core extraction engine + React UI + Python SDK + MCP server. No billing, no usage limits, single-tenant. This is what developers self-host.
+- **`sifter`** (public, MIT) — the core extraction engine + React UI + Python SDK + MCP server. No billing, no usage limits, single-tenant. This is what developers self-host.
 - **`sifter-cloud`** (private) — the managed SaaS offering. A backend-only extension that imports and extends `sifter` with multi-tenant auth, billing, subscriptions, usage metering, and team invitations. `sifter-cloud` is **the product** that business users sign up for — not a "cloud tier" layered on top of an enterprise version.
 
 ---

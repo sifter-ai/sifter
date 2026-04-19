@@ -302,10 +302,10 @@ function OrgCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Organisation details and seat usage are managed in billing.
+          Manage your team, invite members, and view pending invitations.
         </p>
         <Button variant="outline" size="sm" asChild>
-          <a href="/settings/billing">Manage billing →</a>
+          <a href="/settings/organization">Manage organisation →</a>
         </Button>
       </CardContent>
     </Card>

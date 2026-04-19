@@ -261,12 +261,12 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
   });
 
   const { data: siftsData } = useQuery({
-    queryKey: ["sifts"],
-    queryFn: fetchSifts,
+    queryKey: ["sifts", 200],
+    queryFn: () => fetchSifts(200, 0),
   });
 
   const sessions = sessionsData?.items ?? [];
-  const sifts = siftsData ?? [];
+  const sifts = siftsData?.items ?? [];
   const activeSession = sessions.find((s: ChatSession) => s.id === activeSessionId);
 
   const groupedSessions = useMemo(() => groupSessions(sessions), [sessions]);

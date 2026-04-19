@@ -150,10 +150,11 @@ export default function DocumentDetailPage() {
     enabled: !!doc?.folder_id,
   });
 
-  const { data: sifts = [] } = useQuery({
-    queryKey: ["sifts"],
-    queryFn: fetchSifts,
+  const { data: siftsPage } = useQuery({
+    queryKey: ["sifts", 200],
+    queryFn: () => fetchSifts(200, 0),
   });
+  const sifts = siftsPage?.items ?? [];
 
   useEffect(() => {
     return () => {

@@ -50,7 +50,7 @@ from datetime import date, timedelta
 threshold = date.today() + timedelta(days=90)
 
 expiring_soon = []
-for r in sift.records():
+for r in sift.iter_records():
     data = r.get("extracted_data", r)
     expiry = data.get("expiry_date")
     if expiry:

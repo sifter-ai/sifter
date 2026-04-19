@@ -7,7 +7,7 @@ last-modified: "2026-04-17T00:00:00.000Z"
 
 # TypeScript SDK
 
-`@sifter-ai/sdk` is the first-class TypeScript client for the Sifter REST API. Feature parity with the Python SDK (`sifter-ai`), targeted at web, edge, and server JavaScript runtimes. Published to npm. Apache-2.0.
+`@sifter-ai/sdk` is the first-class TypeScript client for the Sifter REST API. Feature parity with the Python SDK (`sifter-ai`), targeted at web, edge, and server JavaScript runtimes. Published to npm. MIT.
 
 ## Package
 

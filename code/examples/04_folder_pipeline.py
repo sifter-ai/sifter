@@ -41,7 +41,7 @@ sift_category = s.create_sift(
 folder.add_sift(sift_accounting)
 folder.add_sift(sift_category)
 
-print(f"Folder '{folder.name}' linked to {len(folder.sifts())} sifts")
+print(f"Folder '{folder.name}' linked to {folder.sifts().total} sifts")
 
 # Upload receipts — both sifts process every document automatically
 folder.on(
@@ -57,8 +57,8 @@ print("Waiting for category extraction...")
 sift_category.wait()
 
 # Merge results by document
-accounting = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_accounting.records()}
-categories = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_category.records()}
+accounting = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_accounting.iter_records()}
+categories = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_category.iter_records()}
 
 print("\nMerged results:")
 for doc_id, acc in accounting.items():

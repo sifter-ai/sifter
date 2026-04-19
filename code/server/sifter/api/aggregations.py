@@ -8,6 +8,7 @@ from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..models.aggregation import Aggregation
 from ..services.aggregation_service import AggregationService
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/aggregations", tags=["aggregations"])
@@ -47,7 +48,7 @@ async def list_aggregations(
 ):
     svc = AggregationService(db)
     aggregations, total = await svc.list_all(sift_id=sift_id, skip=offset, limit=limit)
-    return {"items": [_agg_to_dict(a) for a in aggregations], "total": total, "limit": limit, "offset": offset}
+    return paginated([_agg_to_dict(a) for a in aggregations], total, limit, offset)
 
 
 @router.get("/{agg_id}", response_model=dict)

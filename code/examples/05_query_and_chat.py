@@ -14,12 +14,12 @@ from sifter import Sifter
 s = Sifter(api_key="sk-dev")
 
 # Get the first available sift (or specify an ID)
-sifts = s.list_sifts()
-if not sifts:
+sifts_page = s.list_sifts()
+if not sifts_page.items:
     print("No sifts found. Run 02_invoices.py first.")
     exit(1)
 
-sift = s.get_sift(sifts[0]["id"])
+sift = s.get_sift(sifts_page.items[0]["id"])
 print(f"Using sift: '{sift.name}' ({sift.id})\n")
 
 # ── Natural language query ────────────────────────────────────────────────────

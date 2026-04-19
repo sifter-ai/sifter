@@ -18,7 +18,7 @@ def batch_extract(folder_path: str, instructions: str, output_csv: str) -> None:
     sift = s.create_sift(name="Batch extraction", instructions=instructions)
     sift.upload(folder_path).wait()
     sift.export_csv(output_csv)
-    print(f"Exported {len(sift.records())} records to {output_csv}")
+    print(f"Exported {sift.records().total} records to {output_csv}")
 
 if __name__ == "__main__":
     batch_extract(

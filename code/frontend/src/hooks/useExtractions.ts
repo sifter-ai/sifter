@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   chatWithSift,
   createSift,
@@ -23,16 +23,34 @@ import {
   regenerateAggregation,
 } from "@/api/aggregations";
 import { fetchSiftDocuments } from "@/api/extractions";
-import type { ChatMessage, CreateAggregationPayload, CreateSiftPayload } from "@/api/types";
+import type { ChatMessage, CreateAggregationPayload, CreateSiftPayload, PaginatedResponse, Sift, SiftRecord, SiftDocument } from "@/api/types";
 
-export const useSifts = () =>
+const SIFTS_PAGE_SIZE = 50;
+
+// Flat query — for selectors that need all sifts (dropdowns, etc.)
+export const useSifts = (limit = 200) =>
   useQuery({
-    queryKey: ["sifts"],
-    queryFn: fetchSifts,
+    queryKey: ["sifts", limit],
+    queryFn: () => fetchSifts(limit, 0),
     refetchInterval: (query: any) => {
-      const hasIndexing = (query.state.data as any)?.items?.some((s: any) => s.status === "indexing");
+      const data = query.state.data as PaginatedResponse<Sift> | undefined;
+      const hasIndexing = Array.isArray(data?.items) && data!.items.some((s) => s?.status === "indexing");
       return hasIndexing ? 3000 : false;
     },
+    refetchOnMount: "always",
+  });
+
+// Infinite query — for the sifts grid with "Load more"
+export const useSiftsInfinite = () =>
+  useInfiniteQuery({
+    queryKey: ["sifts-infinite"],
+    queryFn: ({ pageParam = 0 }) => fetchSifts(SIFTS_PAGE_SIZE, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: PaginatedResponse<Sift>, allPages) => {
+      const fetched = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return fetched < lastPage.total ? fetched : undefined;
+    },
+    refetchOnMount: "always",
   });
 
 type RefetchInterval = number | false | ((query: any) => number | false);
@@ -42,28 +60,45 @@ export const useSift = (id: string, options?: { refetchInterval?: RefetchInterva
     queryKey: ["sift", id],
     queryFn: () => fetchSift(id),
     refetchInterval: options?.refetchInterval,
+    // Optimistic updates (see useUploadDocuments) touch dataUpdatedAt, which can
+    // suppress the default refetch-if-stale behaviour. Force a refetch on every
+    // mount so navigating list → detail always pulls the latest state.
+    refetchOnMount: "always",
   });
 
-export const useSiftRecords = (id: string, options?: { refetchInterval?: RefetchInterval }) =>
+const RECORDS_PAGE_SIZE = 50;
+
+export const useSiftRecords = (
+  id: string,
+  options?: { refetchInterval?: RefetchInterval; limit?: number; offset?: number }
+) =>
   useQuery({
-    queryKey: ["sift-records", id],
-    queryFn: () => fetchSiftRecords(id),
+    queryKey: ["sift-records", id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0],
+    queryFn: () => fetchSiftRecords(id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0),
     refetchInterval: options?.refetchInterval,
+    refetchOnMount: "always",
   });
 
-export const useSiftDocuments = (siftId: string, options?: { refetchInterval?: RefetchInterval }) =>
+export const useSiftDocuments = (
+  siftId: string,
+  options?: { refetchInterval?: RefetchInterval; limit?: number; offset?: number }
+) =>
   useQuery({
-    queryKey: ["sift-documents", siftId],
-    queryFn: () => fetchSiftDocuments(siftId),
+    queryKey: ["sift-documents", siftId, options?.limit ?? 50, options?.offset ?? 0],
+    queryFn: () => fetchSiftDocuments(siftId, options?.limit ?? 50, options?.offset ?? 0),
     refetchInterval: options?.refetchInterval,
     enabled: !!siftId,
+    refetchOnMount: "always",
   });
 
 export const useCreateSift = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateSiftPayload) => createSift(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sifts"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sifts"] });
+      qc.invalidateQueries({ queryKey: ["sifts-infinite"] });
+    },
   });
 };
 
@@ -83,7 +118,10 @@ export const useDeleteSift = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteSift(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sifts"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sifts"] });
+      qc.invalidateQueries({ queryKey: ["sifts-infinite"] });
+    },
   });
 };
 
@@ -109,10 +147,31 @@ export const useUploadDocuments = (siftId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (formData: FormData) => uploadDocuments(siftId, formData),
+    onMutate: async () => {
+      // Flip the sift to "indexing" immediately. The HTTP upload can take
+      // several seconds, and for fast workers the backend may transition back
+      // to ACTIVE before onSuccess fires — without this optimistic update the
+      // UI never reflects the indexing state and the detail-page polling loop
+      // (which keys off status === "indexing") never starts.
+      await qc.cancelQueries({ queryKey: ["sift", siftId] });
+      const previous = qc.getQueryData<any>(["sift", siftId]);
+      if (previous) {
+        qc.setQueryData(["sift", siftId], { ...previous, status: "indexing" });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) {
+        qc.setQueryData(["sift", siftId], context.previous);
+      }
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sift", siftId] });
-      qc.invalidateQueries({ queryKey: ["sift-records", siftId] });
-      qc.invalidateQueries({ queryKey: ["sift-documents", siftId] });
+      // refetchQueries bypasses staleTime and forces an immediate fetch
+      qc.refetchQueries({ queryKey: ["sift", siftId] });
+      qc.refetchQueries({ queryKey: ["sifts"] });
+      qc.refetchQueries({ queryKey: ["sifts-infinite"] });
+      qc.refetchQueries({ queryKey: ["sift-records", siftId] });
+      qc.refetchQueries({ queryKey: ["sift-documents", siftId] });
     },
   });
 };
@@ -155,7 +214,7 @@ export const useSiftChat = (siftId: string) =>
 export const useAggregations = (siftId: string, options?: { refetchInterval?: number | false | ((query: any) => number | false) }) =>
   useQuery({
     queryKey: ["aggregations", siftId],
-    queryFn: () => fetchAggregations(siftId),
+    queryFn: () => fetchAggregations(siftId, 100, 0),
     refetchInterval: options?.refetchInterval,
     enabled: !!siftId,
   });

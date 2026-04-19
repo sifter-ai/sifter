@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from "react-router-dom";
 import {
+  Building2,
   ClipboardList,
   CreditCard,
   Palette,
@@ -42,6 +43,9 @@ export default function SettingsPage() {
           {mode === "cloud" && (
             <>
               <p className="px-3 py-1 mt-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cloud</p>
+              <NavLink to="/settings/organization" className={settingsNavClass}>
+                <Building2 className="h-4 w-4 shrink-0" />Organization
+              </NavLink>
               <NavLink to="/settings/billing" className={settingsNavClass}>
                 <CreditCard className="h-4 w-4 shrink-0" />Billing
               </NavLink>

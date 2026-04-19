@@ -36,9 +36,15 @@ def _get_client() -> Sifter:
 
 
 @mcp.tool()
-def list_sifts() -> list[dict]:
-    """List all sifts with their name, instructions, and document/record counts."""
-    return _get_client().list_sifts()
+def list_sifts(limit: int = 50, offset: int = 0) -> dict:
+    """List sifts with their name, instructions, and document/record counts.
+
+    Args:
+        limit: Maximum number of sifts to return (default 50, max 200)
+        offset: Number of sifts to skip for pagination
+    """
+    page = _get_client().list_sifts(limit=min(limit, 200), offset=offset)
+    return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
@@ -49,16 +55,22 @@ def get_sift(sift_id: str) -> dict:
 
 
 @mcp.tool()
-def list_records(sift_id: str, limit: int = 20, offset: int = 0) -> list[dict]:
+def list_records(sift_id: str, limit: int = 20, offset: int = 0, cursor: str = "") -> dict:
     """Get extracted records from a sift.
 
     Args:
         sift_id: The sift identifier
         limit: Maximum number of records to return (default 20, max 100)
-        offset: Number of records to skip for pagination
+        offset: Number of records to skip (ignored when cursor is provided)
+        cursor: Opaque pagination cursor from a previous call's next_cursor field
     """
     limit = min(limit, 100)
-    return _get_client().get_sift(sift_id).records(limit=limit, offset=offset)
+    page = _get_client().get_sift(sift_id).records(
+        limit=limit,
+        offset=offset,
+        cursor=cursor or None,
+    )
+    return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset, "next_cursor": page.next_cursor}
 
 
 @mcp.tool()
@@ -73,9 +85,15 @@ def query_sift(sift_id: str, natural_language: str) -> list[dict]:
 
 
 @mcp.tool()
-def list_folders() -> list[dict]:
-    """List all folders with their name and document count."""
-    return _get_client().list_folders()
+def list_folders(limit: int = 100, offset: int = 0) -> dict:
+    """List folders with their name and document count.
+
+    Args:
+        limit: Maximum number of folders to return (default 100, max 200)
+        offset: Number of folders to skip for pagination
+    """
+    page = _get_client().list_folders(limit=min(limit, 200), offset=offset)
+    return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
@@ -86,12 +104,16 @@ def get_folder(folder_path: str) -> dict:
         folder_path: Folder path (e.g. '/invoices/2025')
     """
     handle = _get_client().get_folder(folder_path)
+    docs_page = handle.documents(limit=200)
+    sifts_page = handle.sifts(limit=200)
     return {
         "path": handle.path,
         "id": handle.id,
         "name": handle.name,
-        "documents": handle.documents(),
-        "sifts": handle.sifts(),
+        "documents": docs_page.items,
+        "documents_total": docs_page.total,
+        "sifts": sifts_page.items,
+        "sifts_total": sifts_page.total,
     }
 
 
@@ -239,7 +261,7 @@ def find_records(
         limit=min(limit, 200),
         cursor=cursor or None,
     )
-    return {"records": page.records, "next_cursor": page.next_cursor}
+    return {"records": page.items, "next_cursor": page.next_cursor, "total": page.total}
 
 
 @mcp.tool()
@@ -263,7 +285,11 @@ def aggregate_sift(sift_id: str, pipeline: list) -> list:
 
 @mcp.resource("sift://{sift_id}/records")
 def sift_records_resource(sift_id: str) -> str:
-    """All extracted records for a sift as a JSON resource."""
+    """First 100 extracted records for a sift. Check next_cursor to fetch more."""
     import json
-    records = _get_client().get_sift(sift_id).records()
-    return json.dumps(records, default=str, indent=2)
+    page = _get_client().get_sift(sift_id).records(limit=100)
+    return json.dumps(
+        {"items": page.items, "total": page.total, "next_cursor": page.next_cursor},
+        default=str,
+        indent=2,
+    )
