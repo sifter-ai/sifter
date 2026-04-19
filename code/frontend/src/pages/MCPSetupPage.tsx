@@ -160,7 +160,7 @@ function CloudMCPBody() {
   };
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
       {/* Hero: the remote endpoint */}
       <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-emerald-500/[0.06] p-6 space-y-4 relative overflow-hidden">
         <div
@@ -296,7 +296,7 @@ function CloudMCPBody() {
 
 function OssMCPBody() {
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
       <section>
         <h2 className="text-sm font-medium mb-1">Claude Desktop</h2>
         <p className="text-xs text-muted-foreground mb-3">

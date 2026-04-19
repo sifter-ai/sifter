@@ -240,7 +240,7 @@ export default function ApiKeysPage() {
           </div>
         </header>
 
-        <div className="max-w-3xl space-y-8">
+        <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <ApiKeyUseCase
               icon={<Code2 className="h-4 w-4" strokeWidth={1.75} />}
