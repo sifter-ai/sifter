@@ -4,12 +4,14 @@ import {
   CheckCircle2,
   ExternalLink,
   FolderOpen,
+  Mail,
   Plug,
   RefreshCw,
   Trash2,
   XCircle,
   AlertCircle,
   Loader2,
+  Sparkles,
   Zap,
 } from "lucide-react";
 import {
@@ -30,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PlanLimitError } from "@/lib/apiFetch";
+import { InboundEmailPanel } from "@/components/cloud/InboundEmailPanel";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -280,6 +283,64 @@ function ConnectorSection({
   );
 }
 
+// ─── Mail-to-Upload section ───────────────────────────────────────────────────
+
+function MailToUploadSection({ folders }: { folders: { id: string; name: string }[] }) {
+  const [folderId, setFolderId] = useState<string>("");
+
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="p-5 space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Mail to Upload</p>
+            <p className="text-[11px] text-muted-foreground">
+              Forward emails with PDF attachments to a Sifter folder automatically
+            </p>
+          </div>
+        </div>
+
+        {/* Folder selector */}
+        <div className="space-y-1">
+          <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+            <FolderOpen className="h-3 w-3" />
+            Target folder
+          </label>
+          <select
+            className="w-full max-w-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
+          >
+            <option value="">— select a folder to configure —</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Panel */}
+        {folderId ? (
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <InboundEmailPanel folderId={folderId} />
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed px-4 py-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              Select a folder above to view or configure its inbound email address.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function DriveLogo() {
@@ -333,7 +394,44 @@ export default function ConnectorsPage() {
           </div>
         </header>
 
-        {/* ── Connectors ──────────────────────────────────────────────────────── */}
+        {/* Cloud feature hero */}
+        <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-sky-500/[0.06] p-6 space-y-4 relative overflow-hidden">
+          <div
+            className="pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full blur-3xl opacity-40"
+            style={{ background: "radial-gradient(closest-side, hsl(200 85% 55% / 0.3), transparent)" }}
+            aria-hidden
+          />
+          <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-primary/90">
+            <Sparkles className="h-3 w-3" strokeWidth={2.25} />
+            <span>Sifter Cloud</span>
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-semibold tracking-tight">
+              Connect once. Sync forever.
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
+              Link a Google Drive folder and Sifter pulls in new documents automatically —
+              no manual uploads, no scripts. Every synced file lands in the Sifter folder of your choice and is
+              processed through your sifts.
+            </p>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
+            <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.25} />
+            <div className="text-xs leading-relaxed space-y-0.5">
+              <p className="text-amber-900 dark:text-amber-200 font-medium">
+                Connectors are a <span className="font-semibold">Starter</span> feature.
+              </p>
+              <p className="text-amber-800/80 dark:text-amber-300/80">
+                Free-plan orgs cannot connect external sources.{" "}
+                <a href="/settings/billing" className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100">
+                  Upgrade →
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── OAuth Connectors ─────────────────────────────────────────────────── */}
         <div className="rounded-xl border overflow-hidden">
           <div className="p-5 space-y-4">
             <ConnectorSection
@@ -345,14 +443,17 @@ export default function ConnectorsPage() {
               revoke={revokeGDrive}
               logo={<DriveLogo />}
               name="Google Drive"
-              description="Watch a Drive folder and sync new PDFs to Sifter automatically"
+              description="Watch a Drive folder and sync new documents to Sifter automatically"
               folders={folders}
             />
           </div>
         </div>
 
+        {/* ── Mail-to-Upload ────────────────────────────────────────────────────── */}
+        <MailToUploadSection folders={folders} />
+
         <p className="text-[11px] text-muted-foreground px-0.5">
-          Connectors require Starter plan or above. Documents synced via connectors count toward your monthly quota.
+          Documents synced via connectors count toward your monthly quota.
         </p>
       </div>
     </div>

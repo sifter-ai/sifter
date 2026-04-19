@@ -135,11 +135,17 @@ export const revokeGDrive = (id: string): Promise<void> =>
 // ---- Inbound Email ----
 
 export interface InboundPolicy {
+  folder_id?: string;
   enabled: boolean;
-  address: string;
   allowed_senders: string[];
   allow_pdf_only: boolean;
   max_attachment_size_mb: number;
+  secret_token?: string;
+}
+
+export interface InboundPolicyResponse {
+  policy: InboundPolicy;
+  inbound_address: string;
 }
 
 export interface InboundEvent {
@@ -149,19 +155,29 @@ export interface InboundEvent {
   rejection_reason: string | null;
 }
 
-export const fetchInboundPolicy = (folderId: string): Promise<InboundPolicy> =>
+export const fetchInboundPolicy = (folderId: string): Promise<InboundPolicyResponse> =>
   apiFetchJson(`/api/cloud/folders/${folderId}/inbound`);
-export const enableInbound = (folderId: string): Promise<void> =>
-  apiFetchJson(`/api/cloud/folders/${folderId}/inbound/enable`, { method: "POST" });
+export const enableInbound = (
+  folderId: string,
+  params?: { allowed_senders?: string[]; allow_pdf_only?: boolean; max_attachment_size_mb?: number }
+): Promise<{ status: string; inbound_address: string }> =>
+  apiFetchJson(`/api/cloud/folders/${folderId}/inbound/enable`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params ?? {}),
+  });
 export const disableInbound = (folderId: string): Promise<void> =>
   apiFetchJson(`/api/cloud/folders/${folderId}/inbound/disable`, { method: "POST" });
-export const updateInboundPolicy = (folderId: string, policy: Partial<InboundPolicy>): Promise<void> =>
+export const updateInboundPolicy = (
+  folderId: string,
+  policy: Partial<Pick<InboundPolicy, "allowed_senders" | "allow_pdf_only" | "max_attachment_size_mb">>
+): Promise<void> =>
   apiFetchJson(`/api/cloud/folders/${folderId}/inbound`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(policy),
   });
-export const fetchInboundEvents = (folderId: string): Promise<InboundEvent[]> =>
+export const fetchInboundEvents = (folderId: string): Promise<{ events: InboundEvent[] }> =>
   apiFetchJson(`/api/cloud/folders/${folderId}/inbound/events`);
 
 // ---- Shares ----
