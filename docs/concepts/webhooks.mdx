@@ -38,6 +38,15 @@ s.register_hook(
 )
 ```
   </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+await sifter.createWebhook({
+  events: ["sift.document.processed", "sift.error"],
+  url: "https://example.com/hooks/sifter",
+  sift_id: "sift-abc", // optional: scope to one sift
+});
+```
+  </Tab>
   <Tab title="REST API">
 ```bash
 POST /api/webhooks

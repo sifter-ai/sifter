@@ -22,16 +22,7 @@ A sift gives you a table. A table tells you *what was extracted*. A dashboard te
 
 All derived from the same records, refreshed automatically as new documents flow in.
 
-## Two flavors
-
-<CardGroup cols={2}>
-  <Card title="Per-sift dashboards" icon="chart-simple">
-    Each sift auto-generates a default dashboard tailored to its schema. Open any sift and you get KPIs, distributions, and trends for free — no configuration.
-  </Card>
-  <Card title="Standalone multi-sift" icon="grid">
-    Cross-sift dashboards. Combine invoices, contracts, and receipts into one board. Full drag-and-drop editor, custom tile ordering.
-  </Card>
-</CardGroup>
+Dashboards are standalone and can span multiple sifts — combine invoices, contracts, and receipts into one board. Full drag-and-drop editor, custom tile ordering.
 
 ## Spec-driven
 
@@ -65,10 +56,7 @@ Each tile has a MongoDB-style pipeline under the hood. You can hand-edit the pip
 ## Creating a dashboard
 
 <Steps>
-  <Step title="From a sift">
-    Open a sift and click **Dashboard** in the header. The default dashboard is auto-generated from the sift's schema. Edit the spec to shape it.
-  </Step>
-  <Step title="Standalone">
+  <Step title="New dashboard">
     Go to **Dashboards** in the sidebar and click **New dashboard**. Pick which sifts to include, write a spec, generate.
   </Step>
   <Step title="Add tiles">

@@ -22,9 +22,18 @@ A **Record** is a structured result produced when a document is processed by a s
 <Tabs>
   <Tab title="Python SDK">
 ```python
-for record in sift.records():
+for record in sift.iter_records():
     print(record["extracted_data"])
     print(record["confidence"])
+```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const records = await sift.records({ limit: 100 });
+records.forEach((r) => {
+  console.log(r.extracted_data);
+  console.log(r.confidence);
+});
 ```
   </Tab>
   <Tab title="REST API">
@@ -59,8 +68,22 @@ Example for an invoice sift:
 
 ## Exporting
 
+<Tabs>
+  <Tab title="Python SDK">
 ```python
 sift.export_csv("invoices.csv")
 ```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const csv = await sift.exportCsv();
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+GET /api/sifts/{id}/export/csv
+```
+  </Tab>
+</Tabs>
 
 Or download from the UI table via the **Export CSV** button.

@@ -21,7 +21,13 @@ A **Folder** is a document container. Its key property: it can be linked to mult
 folder = s.create_folder("Q1 Contracts")
 folder.add_sift(parties_sift)
 folder.add_sift(clauses_sift)
-folder.upload("./contracts/q1/")
+```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const folder = await sifter.createFolder("Q1 Contracts");
+await folder.addSift(partiesSift);
+await folder.addSift(clausesSift);
 ```
   </Tab>
   <Tab title="REST API">
@@ -31,9 +37,74 @@ POST /api/folders
 
 POST /api/folders/{id}/extractors
 {"sift_id": "sift-abc"}
+```
+  </Tab>
+</Tabs>
 
-POST /api/folders/{id}/documents
-# multipart file upload
+## Uploading documents
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+# Upload a directory
+folder.upload("./contracts/q1/")
+
+# Upload a single file
+folder.upload("./invoice.pdf")
+
+# Upload from bytes
+with open("./invoice.pdf", "rb") as f:
+    folder.upload_bytes(f.read(), filename="invoice.pdf")
+```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+// Single file (Node.js)
+import { readFileSync } from "fs";
+const bytes = readFileSync("./invoice.pdf");
+await folder.uploadBytes(bytes, "invoice.pdf");
+
+// From a browser File object
+await folder.uploadFile(fileInput.files[0]);
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+# Single file
+curl -X POST https://api.sifter.ai/api/folders/{id}/documents \
+  -H "X-API-Key: sk-..." \
+  -F "files=@invoice.pdf"
+
+# Multiple files
+curl -X POST https://api.sifter.ai/api/folders/{id}/documents \
+  -H "X-API-Key: sk-..." \
+  -F "files=@invoice1.pdf" \
+  -F "files=@invoice2.pdf"
+```
+  </Tab>
+</Tabs>
+
+## Listing documents
+
+<Tabs>
+  <Tab title="Python SDK">
+```python
+# One page
+page = folder.documents(limit=50, offset=0)
+
+# Iterate all
+for doc in folder.iter_documents():
+    print(doc["filename"])
+```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const docs = await folder.documents();
+```
+  </Tab>
+  <Tab title="REST API">
+```bash
+GET /api/folders/{id}/documents?limit=50&offset=0
 ```
   </Tab>
 </Tabs>

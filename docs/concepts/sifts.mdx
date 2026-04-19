@@ -19,8 +19,16 @@ A **Sift** is Sifter's core abstraction. It defines:
 ```python
 sift = s.create_sift(
     name="Invoices",
-    instructions="Extract: client name, invoice date, line items, total amount, VAT number",
+    instructions="Extract client name, invoice date, line items, total amount, and VAT number.",
 )
+```
+  </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const sift = await sifter.createSift(
+  "Invoices",
+  "Extract client name, invoice date, line items, total amount, and VAT number.",
+);
 ```
   </Tab>
   <Tab title="REST API">
@@ -28,7 +36,7 @@ sift = s.create_sift(
 POST /api/sifts
 {
   "name": "Invoices",
-  "instructions": "Extract: client name, invoice date, line items, total amount, VAT number"
+  "instructions": "Extract client name, invoice date, line items, total amount, and VAT number."
 }
 ```
   </Tab>

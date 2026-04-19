@@ -17,6 +17,11 @@ A one-off question that returns results immediately without saving.
 results = sift.query("List all invoices from Acme Corp over $1000")
 ```
   </Tab>
+  <Tab title="TypeScript SDK">
+```ts
+const { results } = await sift.query("List all invoices from Acme Corp over $1000");
+```
+  </Tab>
   <Tab title="REST API">
 ```bash
 POST /api/sifts/{id}/query
