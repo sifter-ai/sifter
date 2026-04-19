@@ -48,7 +48,6 @@ export default function AccountSettingsPage() {
       <ProfileSection user={user} updateUser={updateUser} />
       <AvatarSection user={user} updateUser={updateUser} />
       {user?.auth_provider === "email" && <PasswordSection />}
-      {mode === "cloud" && <OrgCard />}
     </div>
   );
 }
@@ -294,20 +293,3 @@ function PasswordSection() {
   );
 }
 
-function OrgCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Organisation</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Manage your team, invite members, and view pending invitations.
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <a href="/settings/organization">Manage organisation →</a>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
