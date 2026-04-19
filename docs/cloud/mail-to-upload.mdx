@@ -19,8 +19,7 @@ Mail-to-upload is a **Sifter Cloud** feature. Available on **Starter+**. Free pl
   </Step>
   <Step title="Configure the policy">
     - **Allowed senders** — tag list with wildcard support (`*@acme.com`). Empty list = only org members can send.
-    - **Allow PDF only** — default on. Blocks `.docx`, `.xlsx`, anything non-PDF/image.
-    - **Max attachment size** — MB cap per attachment. Enforced plan limit is the hard ceiling.
+    - **Allowed formats** — by default all supported formats are accepted (PDF, Word, Excel, PowerPoint, images). Enable strict mode to accept only specific types.
   </Step>
   <Step title="Forward email">
     Forward anything with an attachment to the address. Sifter verifies DKIM/SPF, checks the sender against your allowed list, splits the attachments, and drops each one into the folder.
@@ -39,11 +38,7 @@ The **Inbound** panel shows the last 10 events:
 | From | Sender address |
 | Received | When the email hit the inbox |
 | Accepted | ✓ (ingested) or ✗ (rejected) |
-| Reason | If rejected: `sender_not_allowed`, `attachment_too_large`, `non_pdf`, `no_attachments` |
-
-## Policy vs. plan limits
-
-Your policy's `max_attachment_size_mb` cannot exceed your plan's global max attachment size. If you set 100 MB on a Starter plan (25 MB ceiling), the effective cap is 25 MB and oversize attachments are rejected with `attachment_too_large`.
+| Reason | If rejected: `sender_not_allowed`, `attachment_too_large`, `unsupported_format`, `no_attachments` |
 
 ## Security
 
@@ -68,8 +63,7 @@ Your policy's `max_attachment_size_mb` cannot exceed your plan's global max atta
 PATCH /api/cloud/folders/{id}/inbound
 {
   "allowed_senders": ["billing@acme.com", "*@acme.com"],
-  "allow_pdf_only": true,
-  "max_attachment_size_mb": 25
+  "allowed_formats": ["pdf", "docx", "xlsx", "png", "jpg"]
 }
 ```
 
@@ -80,8 +74,7 @@ Response includes the current `address`:
   "enabled": true,
   "address": "folder-abc123@in.sifter.run",
   "allowed_senders": ["*@acme.com"],
-  "allow_pdf_only": true,
-  "max_attachment_size_mb": 25
+  "allowed_formats": ["pdf", "docx", "xlsx", "png", "jpg"]
 }
 ```
 

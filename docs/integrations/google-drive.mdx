@@ -30,8 +30,8 @@ See the [Google Drive → Sifter tutorial](/resources/tutorials/drive-to-sifter)
 
 - Background syncs run approximately every **15 minutes**.
 - A sync can be triggered on demand from the UI or the API.
-- Only **PDFs and images** are ingested. Google Docs / Sheets / Slides are skipped.
-- Files above your plan's max attachment size or longer than 10 pages are counted as `skipped`.
+- **Supported formats**: PDF, Word (DOCX/DOC), Excel (XLSX/XLS), PowerPoint (PPTX/PPT), and images (PNG, JPG, TIFF, WEBP). Native Google Docs / Sheets / Slides are skipped — export them first.
+- Documents longer than 10 pages are counted as `skipped`.
 - Each ingested document counts against your monthly document quota and fires `folder.document.uploaded` if you have a matching [webhook](/concepts/webhooks).
 
 ## API
@@ -69,15 +69,15 @@ curl -X POST https://sifter.run/api/cloud/connectors/gdrive/conn-xyz/sync \
 { "synced": 12, "skipped": 3 }
 ```
 
-## Quotas and limits
+## Plan limits
 
-| Plan | Drive connections | Max file size | Monthly documents |
-|------|-------------------|---------------|-------------------|
-| Free | — | — | 10 |
-| Starter | 1 | 25 MB | 500 |
-| Pro | Unlimited | 50 MB | 3,000 |
-| Business | Unlimited | 100 MB | 15,000 |
-| Scale | Unlimited | 250 MB | 50,000 |
+| Plan | Drive connections | Monthly documents |
+|------|-------------------|-------------------|
+| Free | — | 10 |
+| Starter | 1 | 500 |
+| Pro | Unlimited | 3,000 |
+| Business | Unlimited | 15,000 |
+| Scale | Unlimited | 50,000 |
 
 Exceeding the connection count on Starter returns `402 Payment Required` with a `PlanLimitError` in the SDK.
 

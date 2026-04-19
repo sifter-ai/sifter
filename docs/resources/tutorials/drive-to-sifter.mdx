@@ -42,7 +42,7 @@ Drive connectors are a **Sifter Cloud** feature. Starter ($19/mo) includes 1 con
   <Step title="Pick the Drive folder">
     After consent, Sifter redirects back and asks which Drive folder to watch. Pick one — it can be a shared drive folder, a regular folder, or "My Drive".
 
-    Only PDFs and image files are synced. Google Docs / Sheets / Slides are skipped (export them as PDF first).
+    Supported formats (PDF, Word, Excel, PowerPoint, images) are synced. Native Google Docs / Sheets / Slides are skipped — export them to a supported format first.
   </Step>
   <Step title="Pick the Sifter destination folder">
     In the connection card, choose the Sifter folder that should receive the synced documents. Every sift linked to that folder will run on each new document automatically.
@@ -62,7 +62,7 @@ Subsequent syncs run on a background schedule (~every 15 minutes) and pick up an
 
 Every document that Sifter picks up:
 
-1. Downloads into your Sifter folder (respects your plan's attachment size cap).
+1. Downloads into your Sifter folder.
 2. Triggers extraction on every linked sift.
 3. Fires a `folder.document.uploaded` webhook if you have one registered ([see webhooks](/concepts/webhooks)).
 4. Counts against your monthly document quota.
@@ -92,8 +92,8 @@ Revoking stops future syncs. Documents already in your Sifter folder are kept �
 | Symptom | Fix |
 |---------|-----|
 | Connection shows **Error** with "insufficient_scope" | Revoke and reconnect — Google's consent screen was dismissed without granting all scopes. |
-| New files aren't picked up | Confirm they're PDFs or images. Google Docs / Sheets / Slides must be exported first. |
-| Sync reports `skipped` | File exceeded your plan's max attachment size, or the document has more than 10 pages. |
+| New files aren't picked up | Confirm the format is supported (PDF, Word, Excel, PowerPoint, images). Native Google Docs / Sheets / Slides must be exported first. |
+| Sync reports `skipped` | The document has more than 10 pages. |
 | Upgrade prompt appears | Your plan doesn't include Drive (Free), or you hit the connector count limit (Starter: 1). |
 
 ## See also

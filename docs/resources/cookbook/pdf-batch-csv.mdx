@@ -1,17 +1,16 @@
 ---
-title: "Cookbook: PDF batch to CSV"
-description: Generic pattern for extracting any structured data from a folder of PDFs and saving to CSV.
+title: "Cookbook: Document batch to CSV"
+description: Generic pattern for extracting structured data from a folder of documents and saving to CSV.
 ---
 
-# PDF batch → CSV
+# Document batch → CSV
 
-A minimal generic pattern: give Sifter a folder of PDFs and a description of what to extract, get a CSV back.
+A minimal generic pattern: give Sifter a folder of documents and a description of what to extract, get a CSV back. Works with PDFs, Word, Excel, PowerPoint, and images.
 
 ## Code
 
 ```python
 from sifter import Sifter
-import sys
 
 def batch_extract(folder_path: str, instructions: str, output_csv: str) -> None:
     s = Sifter(api_key="sk-...")
@@ -20,15 +19,27 @@ def batch_extract(folder_path: str, instructions: str, output_csv: str) -> None:
     sift.export_csv(output_csv)
     print(f"Exported {sift.records().total} records to {output_csv}")
 
-if __name__ == "__main__":
-    batch_extract(
-        folder_path="./documents/",
-        instructions="Extract: title, author, date, summary (one sentence)",
-        output_csv="output.csv",
-    )
+batch_extract(
+    folder_path="./documents/",
+    instructions="Extract: title, author, date, summary (one sentence)",
+    output_csv="output.csv",
+)
 ```
 
-## One-liner
+## TypeScript
+
+```ts
+import { SifterClient } from "@sifter-ai/sdk";
+import { writeFileSync } from "fs";
+
+const sifter = new SifterClient({ apiKey: "sk-..." });
+const sift = await sifter.createSift("Batch extraction", "title, author, date, summary");
+await (await sifter.uploadToSift(sift.id, ["./documents/"])).wait();
+const csv = await sift.exportCsv();
+writeFileSync("output.csv", csv);
+```
+
+## One-liner (Python)
 
 ```python
 from sifter import Sifter

@@ -19,7 +19,7 @@ The `POST /api/documents` endpoint is fine for one-off uploads, but most real wo
 
 <CardGroup cols={2}>
   <Card title="Google Drive" icon="folder-open">
-    Watch a Drive folder (shared drive, My Drive, or regular folder). Sifter polls every ~15 minutes and picks up new or modified PDFs and images. Read-only scope — Sifter never writes to your Drive.
+    Watch a Drive folder (shared drive, My Drive, or regular folder). Sifter polls every ~15 minutes and picks up new or modified documents. Read-only scope — Sifter never writes to your Drive.
 
     [Setup →](/integrations/google-drive)
   </Card>
@@ -61,8 +61,8 @@ See [Pricing](/overview/pricing) for full plan details.
 
 ## What gets ingested
 
-- **PDFs and images** only. Google Docs, Sheets, and Slides are skipped — export them first.
-- Files over your plan's max attachment size or longer than 10 pages are counted as `skipped` and reported in the sync result.
+- **Supported formats**: PDF, Word (DOCX/DOC), Excel (XLSX/XLS), PowerPoint (PPTX/PPT), and images (PNG, JPG, TIFF, WEBP). Native Google Docs / Sheets / Slides are skipped — export them to a supported format first.
+- Documents longer than 10 pages are counted as `skipped` and reported in the sync result.
 - Each successfully ingested document counts against your monthly document quota.
 
 ## Connectors vs. direct upload
