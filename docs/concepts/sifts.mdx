@@ -34,15 +34,19 @@ POST /api/sifts
   </Tab>
 </Tabs>
 
-## Writing good instructions
+## Writing instructions
 
-Instructions are natural language. Be specific about field names and types:
+Instructions are plain natural language — write what you want extracted as you would explain it to a person. Sifter infers the schema automatically from the first processed document.
 
 ```
-Extract: client_name (string), invoice_date (ISO date), line_items (array of {description, quantity, unit_price}), total_amount (number), vat_number (string)
+Extract the client name, invoice date, line items with description and unit price, total amount, and VAT number.
 ```
 
-You don't need to specify types — Sifter infers them. But naming fields explicitly (snake_case) produces cleaner schemas.
+```
+For each party in the contract, extract their full name, role, and signing date.
+```
+
+No need to specify types, formats, or field names — Sifter figures those out. If the inferred schema doesn't match what you expected, edit the instructions and re-process.
 
 ## Status lifecycle
 
