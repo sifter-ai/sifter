@@ -1,15 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, CheckCircle2, CornerDownLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/hooks/useChat";
 import type { ChatMessage, ToolCallTrace } from "@/api/types";
 
+export interface ChatInterfaceHandle {
+  submit: (text: string) => void;
+}
+
 interface ChatInterfaceProps {
   siftId?: string;
   height?: string;
   /** Hides the keyboard hint below the input — useful inside compact tabs */
   compact?: boolean;
+  /** Called whenever the message list changes — lets parents derive UI from the transcript (e.g. touched sifts). */
+  onMessagesChange?: (messages: ChatMessage[]) => void;
 }
 
 // ---------- atoms ----------
@@ -245,7 +251,10 @@ function KeyboardHint() {
 
 // ---------- component ----------
 
-export function ChatInterface({ siftId, height = "500px", compact = false }: ChatInterfaceProps) {
+export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(function ChatInterface(
+  { siftId, height = "500px", compact = false, onMessagesChange },
+  ref,
+) {
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useChat(siftId);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -253,6 +262,18 @@ export function ChatInterface({ siftId, height = "500px", compact = false }: Cha
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
+  useImperativeHandle(ref, () => ({
+    submit: (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isLoading) return;
+      sendMessage(trimmed);
+    },
+  }), [sendMessage, isLoading]);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -305,4 +326,4 @@ export function ChatInterface({ siftId, height = "500px", compact = false }: Cha
       </div>
     </div>
   );
-}
+});
