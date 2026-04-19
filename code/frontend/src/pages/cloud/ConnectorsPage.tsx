@@ -13,11 +13,6 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  fetchGmailConnections,
-  getGmailOAuthUrl,
-  configureGmail,
-  syncGmail,
-  revokeGmail,
   fetchGDriveConnections,
   getGDriveOAuthUrl,
   configureGDrive,
@@ -287,14 +282,6 @@ function ConnectorSection({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function GmailLogo() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-      <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.907 1.528-1.148C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335" />
-    </svg>
-  );
-}
-
 function DriveLogo() {
   return (
     <svg viewBox="0 0 87.3 78" className="h-5 w-5" aria-hidden="true">
@@ -316,59 +303,58 @@ export default function ConnectorsPage() {
   const folders: { id: string; name: string }[] = foldersData ?? [];
 
   return (
-    <div className="space-y-8">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="flex items-start gap-4">
-        <div className="shrink-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-3 ring-1 ring-primary/10">
-          <Plug className="h-6 w-6 text-primary" strokeWidth={1.5} />
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
-            Cloud
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight leading-none">Connectors</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Auto-sync documents from Gmail and Google Drive into your Sifter folders.
-          </p>
-        </div>
-      </header>
+    <div className="relative min-h-full">
+      {/* Atmospheric backdrop */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[240px] -z-10"
+        style={{
+          background:
+            "radial-gradient(900px 280px at 25% -10%, hsl(263 72% 52% / 0.10), transparent 60%), radial-gradient(700px 220px at 85% -20%, hsl(200 85% 55% / 0.07), transparent 55%)",
+        }}
+        aria-hidden
+      />
+      <div className="px-6 py-10 max-w-6xl mx-auto space-y-8">
+        {/* Editorial header */}
+        <header className="flex items-end justify-between gap-6 flex-wrap pb-6 border-b border-border/70">
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
+              <Plug className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
+              <span>Build</span>
+              <span className="h-px w-6 bg-border" aria-hidden />
+              <span>Ingest</span>
+            </div>
+            <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em] text-foreground">
+              Connectors
+            </h1>
+            <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
+              Auto-sync documents from Google Drive straight into your Sifter folders.{" "}
+              <span className="text-foreground/80">No uploads. No babysitting.</span>
+            </p>
+          </div>
+        </header>
 
-      {/* ── Connectors ──────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border overflow-hidden divide-y">
-        <div className="p-5 space-y-4">
-          <ConnectorSection
-            queryKey="gmail-connections"
-            fetchConnections={fetchGmailConnections}
-            getOAuthUrl={getGmailOAuthUrl}
-            configure={configureGmail}
-            sync={syncGmail}
-            revoke={revokeGmail}
-            logo={<GmailLogo />}
-            name="Gmail"
-            description="Forward attachments from a Gmail label to a Sifter folder"
-            folders={folders}
-          />
+        {/* ── Connectors ──────────────────────────────────────────────────────── */}
+        <div className="rounded-xl border overflow-hidden">
+          <div className="p-5 space-y-4">
+            <ConnectorSection
+              queryKey="gdrive-connections"
+              fetchConnections={fetchGDriveConnections}
+              getOAuthUrl={getGDriveOAuthUrl}
+              configure={configureGDrive}
+              sync={syncGDrive}
+              revoke={revokeGDrive}
+              logo={<DriveLogo />}
+              name="Google Drive"
+              description="Watch a Drive folder and sync new PDFs to Sifter automatically"
+              folders={folders}
+            />
+          </div>
         </div>
 
-        <div className="p-5 space-y-4">
-          <ConnectorSection
-            queryKey="gdrive-connections"
-            fetchConnections={fetchGDriveConnections}
-            getOAuthUrl={getGDriveOAuthUrl}
-            configure={configureGDrive}
-            sync={syncGDrive}
-            revoke={revokeGDrive}
-            logo={<DriveLogo />}
-            name="Google Drive"
-            description="Watch a Drive folder and sync new PDFs to Sifter automatically"
-            folders={folders}
-          />
-        </div>
+        <p className="text-[11px] text-muted-foreground px-0.5">
+          Connectors require Starter plan or above. Documents synced via connectors count toward your monthly quota.
+        </p>
       </div>
-
-      <p className="text-[11px] text-muted-foreground px-0.5">
-        Connectors require Starter plan or above. Documents synced via connectors count toward your monthly quota.
-      </p>
     </div>
   );
 }

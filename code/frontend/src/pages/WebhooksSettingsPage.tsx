@@ -35,51 +35,65 @@ const AVAILABLE_EVENTS = [
 
 export default function WebhooksSettingsPage() {
   return (
-    <div className="space-y-8">
-      <header className="flex items-start gap-4">
-        <div className="shrink-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-3 ring-1 ring-primary/10">
-          <WebhookIcon className="h-6 w-6 text-primary" strokeWidth={1.5} />
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
-            Developer
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight leading-none">Webhooks</h2>
-          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-            Push Sifter events to your stack the instant they happen.{" "}
-            <span className="text-foreground/80">No polling. No cron.</span>
-          </p>
-        </div>
-      </header>
+    <div className="relative min-h-full">
+      {/* Atmospheric backdrop */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[240px] -z-10"
+        style={{
+          background:
+            "radial-gradient(900px 280px at 25% -10%, hsl(263 72% 52% / 0.10), transparent 60%), radial-gradient(700px 220px at 85% -20%, hsl(40 92% 58% / 0.07), transparent 55%)",
+        }}
+        aria-hidden
+      />
+      <div className="px-6 py-10 max-w-6xl mx-auto space-y-8">
+        {/* Editorial header */}
+        <header className="flex items-end justify-between gap-6 flex-wrap pb-6 border-b border-border/70">
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
+              <WebhookIcon className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
+              <span>Build</span>
+              <span className="h-px w-6 bg-border" aria-hidden />
+              <span>Event stream</span>
+            </div>
+            <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em] text-foreground">
+              Webhooks
+            </h1>
+            <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
+              Push Sifter events to your stack the instant they happen.{" "}
+              <span className="text-foreground/80">No polling. No cron.</span>
+            </p>
+          </div>
+        </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <UseCase
-          icon={<Database className="h-4 w-4" strokeWidth={1.75} />}
-          title="Data pipelines"
-          body="Stream extracted records into your warehouse, CRM, or database as soon as a document is processed."
-        />
-        <UseCase
-          icon={<Bell className="h-4 w-4" strokeWidth={1.75} />}
-          title="Real-time alerts"
-          body="Ping Slack, email, or PagerDuty the moment a specific record type — a high-value invoice, a contract clause — lands."
-        />
-        <UseCase
-          icon={<Workflow className="h-4 w-4" strokeWidth={1.75} />}
-          title="Automations"
-          body="Trigger downstream flows in n8n, Zapier, or your own code. Each webhook is a deterministic fan-out point."
-        />
-      </div>
-
-      <PayloadPreview />
-
-      <div className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-sm font-semibold tracking-tight">Endpoints</h3>
-          <p className="text-[11px] text-muted-foreground">
-            Signed with <code className="font-mono">HMAC-SHA256</code> · retried on non-2xx
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <UseCase
+            icon={<Database className="h-4 w-4" strokeWidth={1.75} />}
+            title="Data pipelines"
+            body="Stream extracted records into your warehouse, CRM, or database as soon as a document is processed."
+          />
+          <UseCase
+            icon={<Bell className="h-4 w-4" strokeWidth={1.75} />}
+            title="Real-time alerts"
+            body="Ping Slack, email, or PagerDuty the moment a specific record type — a high-value invoice, a contract clause — lands."
+          />
+          <UseCase
+            icon={<Workflow className="h-4 w-4" strokeWidth={1.75} />}
+            title="Automations"
+            body="Trigger downstream flows in n8n, Zapier, or your own code. Each webhook is a deterministic fan-out point."
+          />
         </div>
-        <EndpointsCard />
+
+        <PayloadPreview />
+
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold tracking-tight">Endpoints</h3>
+            <p className="text-[11px] text-muted-foreground">
+              Signed with <code className="font-mono">HMAC-SHA256</code> · retried on non-2xx
+            </p>
+          </div>
+          <EndpointsCard />
+        </div>
       </div>
     </div>
   );

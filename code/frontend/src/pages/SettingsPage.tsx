@@ -8,14 +8,12 @@ import {
   CreditCard,
   Key,
   Palette,
-  Plug,
   Plug2,
   Plus,
   Share2,
   Terminal,
   Trash2,
   UserCircle,
-  Webhook as WebhookIcon,
 } from "lucide-react";
 import { createApiKey, fetchApiKeys, revokeApiKey } from "../api/keys";
 import { Alert, AlertDescription } from "../components/ui/alert";
@@ -71,9 +69,6 @@ export default function SettingsPage() {
           <NavLink to="/settings" end className={settingsNavClass}>
             <Key className="h-4 w-4 shrink-0" />API Keys
           </NavLink>
-          <NavLink to="/settings/webhooks" className={settingsNavClass}>
-            <WebhookIcon className="h-4 w-4 shrink-0" />Webhooks
-          </NavLink>
 
           {mode === "cloud" && (
             <>
@@ -83,9 +78,6 @@ export default function SettingsPage() {
               </NavLink>
               <NavLink to="/settings/audit" className={settingsNavClass}>
                 <ClipboardList className="h-4 w-4 shrink-0" />Audit log
-              </NavLink>
-              <NavLink to="/settings/connectors" className={settingsNavClass}>
-                <Plug className="h-4 w-4 shrink-0" />Connectors
               </NavLink>
               <NavLink to="/settings/shares" className={settingsNavClass}>
                 <Share2 className="h-4 w-4 shrink-0" />Shares

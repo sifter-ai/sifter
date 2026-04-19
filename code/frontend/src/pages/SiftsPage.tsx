@@ -276,7 +276,7 @@ function StatsStrip({ sifts }: { sifts: Sift[] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {stats.map((s) => (
         <div
           key={s.label}
@@ -305,86 +305,104 @@ export function SiftsPage() {
   const firstName = user?.full_name?.split(" ")[0] ?? null;
 
   return (
-    <div className="px-6 py-8 max-w-6xl mx-auto">
-      {/* Page header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            {firstName ? `Hey, ${firstName}` : "Sifts"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            AI extraction pipelines — define once, run on every document
-          </p>
-        </div>
-        <SiftForm
-          trigger={
-            <Button size="sm" className="gap-1.5 shrink-0">
-              <Plus className="h-3.5 w-3.5" />
-              New Sift
-            </Button>
-          }
-          onCreated={(id) => navigate(`/sifts/${id}`)}
-        />
-      </div>
-
-      {/* KPI strip — shown once data is loaded */}
-      {sifts && <StatsStrip sifts={sifts} />}
-
-      {/* Loading */}
-      {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          Failed to load sifts: {(error as Error).message}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {sifts && sifts.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="relative mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center">
-              <FileText className="h-7 w-7 text-primary/50" />
+    <div className="relative min-h-full">
+      {/* Atmospheric backdrop */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[240px] -z-10"
+        style={{
+          background:
+            "radial-gradient(900px 280px at 25% -10%, hsl(263 72% 52% / 0.10), transparent 60%), radial-gradient(700px 220px at 85% -20%, hsl(340 82% 60% / 0.07), transparent 55%)",
+        }}
+        aria-hidden
+      />
+      <div className="px-6 py-10 max-w-6xl mx-auto space-y-8">
+        {/* Editorial header */}
+        <header className="flex items-end justify-between gap-6 flex-wrap pb-6 border-b border-border/70">
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
+              <FileText className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
+              <span>Workspace</span>
+              <span className="h-px w-6 bg-border" aria-hidden />
+              <span>Pipelines</span>
             </div>
-            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-100 border-2 border-background flex items-center justify-center">
-              <Plus className="h-2.5 w-2.5 text-emerald-600" />
-            </div>
+            <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em] text-foreground">
+              {firstName ? `Hey, ${firstName}` : "Sifts"}
+            </h1>
+            <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
+              AI extraction pipelines —{" "}
+              <span className="text-foreground/80">define once, run on every document.</span>
+            </p>
           </div>
-          <p className="text-base font-semibold">No sifts yet</p>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-sm leading-relaxed">
-            A sift is an extraction pipeline. Define what fields to extract from your documents and Sifter will process them automatically.
-          </p>
           <SiftForm
             trigger={
-              <Button size="sm" className="mt-6 gap-1.5">
+              <Button size="sm" className="gap-1.5 shrink-0">
                 <Plus className="h-3.5 w-3.5" />
-                Create your first sift
+                New Sift
               </Button>
             }
             onCreated={(id) => navigate(`/sifts/${id}`)}
           />
-        </div>
-      )}
+        </header>
 
-      {/* Sift grid */}
-      {sifts && sifts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {sifts.map((sift) => (
-            <SiftCard
-              key={sift.id}
-              sift={sift}
-              onClick={() => navigate(`/sifts/${sift.id}`)}
+        {/* KPI strip — shown once data is loaded */}
+        {sifts && <StatsStrip sifts={sifts} />}
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            Failed to load sifts: {(error as Error).message}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {sifts && sifts.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="relative mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center">
+                <FileText className="h-7 w-7 text-primary/50" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-100 border-2 border-background flex items-center justify-center">
+                <Plus className="h-2.5 w-2.5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-base font-semibold">No sifts yet</p>
+            <p className="text-sm text-muted-foreground mt-1.5 max-w-sm leading-relaxed">
+              A sift is an extraction pipeline. Define what fields to extract from your documents and Sifter will process them automatically.
+            </p>
+            <SiftForm
+              trigger={
+                <Button size="sm" className="mt-6 gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Create your first sift
+                </Button>
+              }
+              onCreated={(id) => navigate(`/sifts/${id}`)}
             />
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Sift grid */}
+        {sifts && sifts.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {sifts.map((sift) => (
+              <SiftCard
+                key={sift.id}
+                sift={sift}
+                onClick={() => navigate(`/sifts/${sift.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -42,6 +42,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -220,6 +230,7 @@ export default function FolderBrowserPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [deleteFolderOpen, setDeleteFolderOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -360,10 +371,7 @@ export default function FolderBrowserPage() {
   const isAllDocs = !folderId;
   const currentFolderName = folder?.name ?? "My Documents";
 
-  const handleDeleteFolder = () => {
-    if (!confirm(`Delete "${folder?.name}" and all its documents? This cannot be undone.`)) return;
-    deleteMutation.mutate();
-  };
+  const handleDeleteFolder = () => setDeleteFolderOpen(true);
 
   const openCreateDialog = (parentId: string | null = null) => {
     setNewParentId(parentId);
@@ -745,6 +753,27 @@ export default function FolderBrowserPage() {
       {/* Upload Modal */}
       <UploadModal open={showUpload} onOpenChange={setShowUpload}
         folders={folders} defaultFolderId={folderId} />
+
+      {/* Delete Folder Confirmation */}
+      <AlertDialog open={deleteFolderOpen} onOpenChange={setDeleteFolderOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{folder?.name}" and all its documents will be permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Link Sift Dialog */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>

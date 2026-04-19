@@ -13,6 +13,16 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 import { deleteDocument, downloadDocument, fetchDocument, fetchDocumentBlob, fetchFolder, reprocessDocument } from "../api/folders";
 import { fetchSifts } from "../api/extractions";
 import { Alert, AlertDescription } from "../components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -113,6 +123,7 @@ export default function DocumentDetailPage() {
   const { id: documentId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<string>("");
@@ -184,10 +195,7 @@ export default function DocumentDetailPage() {
     onSuccess: () => navigate(-1),
   });
 
-  const handleDelete = () => {
-    if (!confirm(`Delete "${doc?.filename}"? This cannot be undone.`)) return;
-    deleteMutation.mutate();
-  };
+  const handleDelete = () => setDeleteOpen(true);
 
   const handleDownload = () => {
     downloadDocument(documentId!, doc?.original_filename ?? doc?.filename ?? "document");
@@ -422,6 +430,26 @@ export default function DocumentDetailPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{doc.filename}" will be permanently deleted along with all extracted records linked to it in your sifts. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -10,8 +10,10 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  Plug,
   Settings,
   User as UserIcon,
+  Webhook,
 } from "lucide-react";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import logo from "@/assets/logo.svg";
@@ -50,7 +52,6 @@ const ConnectorsPage = lazy(() => import("@/pages/cloud/ConnectorsPage"));
 const ConnectorCallbackPage = lazy(() => import("@/pages/cloud/ConnectorCallbackPage"));
 const SharesPage = lazy(() => import("@/pages/cloud/SharesPage"));
 const PublicViewerPage = lazy(() => import("@/pages/cloud/PublicViewerPage"));
-const CloudChatPage = lazy(() => import("@/pages/cloud/CloudChatPage"));
 const DashboardListPage = lazy(() => import("@/pages/cloud/DashboardListPage"));
 const DashboardPage = lazy(() => import("@/pages/cloud/DashboardPage"));
 
@@ -109,23 +110,46 @@ function Sidebar() {
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
 
       {/* Main nav */}
-      <nav className="flex flex-col gap-0.5 px-2 pt-3 flex-1">
-        <NavLink to="/" end className={navLinkClass}>
-          <FileText className="h-4 w-4 shrink-0" />
-          Sifts
-        </NavLink>
-        <NavLink to="/dashboards" className={navLinkClass}>
-          <LayoutDashboard className="h-4 w-4 shrink-0" />
-          Dashboards
-        </NavLink>
-        <NavLink to="/folders" className={navLinkClass}>
-          <Folder className="h-4 w-4 shrink-0" />
-          Folders
-        </NavLink>
-        <NavLink to="/chat" className={navLinkClass}>
-          <MessageCircle className="h-4 w-4 shrink-0" />
-          Chat
-        </NavLink>
+      <nav className="flex flex-col px-2 pt-3 flex-1">
+        <p className="px-3 pb-1.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.14em]">
+          Workspace
+        </p>
+        <div className="flex flex-col gap-0.5">
+          <NavLink to="/" end className={navLinkClass}>
+            <FileText className="h-4 w-4 shrink-0" />
+            Sifts
+          </NavLink>
+          <NavLink to="/folders" className={navLinkClass}>
+            <Folder className="h-4 w-4 shrink-0" />
+            Folders
+          </NavLink>
+          <NavLink to="/chat" className={navLinkClass}>
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            Chat
+          </NavLink>
+          <NavLink to="/dashboards" className={navLinkClass}>
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            Dashboards
+          </NavLink>
+        </div>
+
+        <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.14em]">
+          Build
+        </p>
+        <div className="flex flex-col gap-0.5">
+          <NavLink to="/connectors" className={navLinkClass}>
+            <Plug className="h-4 w-4 shrink-0" />
+            Connectors
+          </NavLink>
+          <NavLink to="/webhooks" className={navLinkClass}>
+            <Webhook className="h-4 w-4 shrink-0" />
+            Webhooks
+          </NavLink>
+          <NavLink to="/mcp" className={navLinkClass}>
+            <Bot className="h-4 w-4 shrink-0" />
+            MCP
+          </NavLink>
+        </div>
 
         {/* Secondary nav — pushed to bottom of the nav flex */}
         <div className="mt-auto pt-3 flex flex-col gap-0.5">
@@ -183,20 +207,23 @@ function Sidebar() {
   );
 }
 
-// CloudRoutes is unused — routes are defined inline in AppRoutes.
-// Kept as a reference stub.
-function CloudRoutes() {
-  return (
-    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading…</div>}>
-      <Route path="/settings/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-      <Route path="/settings/audit" element={<ProtectedRoute><AuditLogPage /></ProtectedRoute>} />
-      <Route path="/settings/connectors" element={<ProtectedRoute><ConnectorsPage /></ProtectedRoute>} />
-      <Route path="/settings/shares" element={<ProtectedRoute><SharesPage /></ProtectedRoute>} />
-      <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
-      <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-      <Route path="/sifts/:id/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-    </Suspense>
-  );
+function ConnectorsRoute() {
+  const { mode } = useConfig();
+  if (mode !== "cloud") {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] px-6">
+        <div className="max-w-md text-center space-y-3">
+          <Plug className="h-8 w-8 mx-auto text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Connectors require Sifter Cloud</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Google Drive sync and mail-to-upload run on managed infrastructure. Upgrade at{" "}
+            <a href="https://sifter.run" className="underline text-primary" target="_blank" rel="noopener noreferrer">sifter.run</a>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return <ConnectorsPage />;
 }
 
 function AppRoutes() {
@@ -227,11 +254,7 @@ function AppRoutes() {
               <Route path="/sifts/:id" element={<ProtectedRoute><SiftDetailPage /></ProtectedRoute>} />
               <Route
                 path="/chat"
-                element={
-                  <ProtectedRoute>
-                    {mode === "cloud" ? <CloudChatPage /> : <ChatPage />}
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute><ChatPage /></ProtectedRoute>}
               />
               {/* Dashboards — available in both OSS and cloud */}
               <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
@@ -239,16 +262,18 @@ function AppRoutes() {
               <Route path="/folders" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
               <Route path="/folders/:id" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
               <Route path="/documents/:id" element={<ProtectedRoute><DocumentDetailPage /></ProtectedRoute>} />
+              {/* Top-level Build surface — OSS + Cloud */}
+              <Route path="/webhooks" element={<ProtectedRoute><WebhooksSettingsPage /></ProtectedRoute>} />
+              <Route path="/connectors" element={<ProtectedRoute><ConnectorsRoute /></ProtectedRoute>} />
+              <Route path="/mcp" element={<ProtectedRoute><MCPSetupPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
                 <Route index element={<SettingsIndex />} />
                 <Route path="account" element={<AccountSettingsPage />} />
                 <Route path="appearance" element={<AppearanceSettingsPage />} />
-                <Route path="webhooks" element={<WebhooksSettingsPage />} />
                 {mode === "cloud" && (
                   <>
                     <Route path="billing" element={<BillingPage />} />
                     <Route path="audit" element={<AuditLogPage />} />
-                    <Route path="connectors" element={<ConnectorsPage />} />
                     <Route path="shares" element={<SharesPage />} />
                   </>
                 )}
