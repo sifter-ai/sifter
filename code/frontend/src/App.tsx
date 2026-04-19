@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import {
@@ -7,6 +7,7 @@ import {
   Bot,
   FileText,
   Folder,
+  Key,
   LayoutDashboard,
   LogOut,
   MessageCircle,
@@ -23,7 +24,8 @@ import MCPSetupPage from "@/pages/MCPSetupPage";
 import { ChatPage } from "@/pages/ChatPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
-import SettingsPage, { SettingsIndex } from "@/pages/SettingsPage";
+import SettingsPage from "@/pages/SettingsPage";
+import ApiKeysPage from "@/pages/ApiKeysPage";
 import AccountSettingsPage from "@/pages/AccountSettingsPage";
 import AppearanceSettingsPage from "@/pages/AppearanceSettingsPage";
 import WebhooksSettingsPage from "@/pages/WebhooksSettingsPage";
@@ -149,6 +151,10 @@ function Sidebar() {
             <Bot className="h-4 w-4 shrink-0" />
             MCP
           </NavLink>
+          <NavLink to="/api-keys" className={navLinkClass}>
+            <Key className="h-4 w-4 shrink-0" />
+            API Keys
+          </NavLink>
         </div>
 
         {/* Secondary nav — pushed to bottom of the nav flex */}
@@ -266,8 +272,9 @@ function AppRoutes() {
               <Route path="/webhooks" element={<ProtectedRoute><WebhooksSettingsPage /></ProtectedRoute>} />
               <Route path="/connectors" element={<ProtectedRoute><ConnectorsRoute /></ProtectedRoute>} />
               <Route path="/mcp" element={<ProtectedRoute><MCPSetupPage /></ProtectedRoute>} />
+              <Route path="/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
-                <Route index element={<SettingsIndex />} />
+                <Route index element={<Navigate to="/settings/account" replace />} />
                 <Route path="account" element={<AccountSettingsPage />} />
                 <Route path="appearance" element={<AppearanceSettingsPage />} />
                 {mode === "cloud" && (
