@@ -10,6 +10,7 @@ import structlog
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
+import warnings
 from pydantic import BaseModel
 
 from ..auth import Principal, get_current_principal
@@ -22,25 +23,28 @@ from ..services.pipeline_validator import cap_limit, validate_pipeline
 from ..services.sift_results import SiftResultsService
 from ..services.sift_service import SiftService
 from ..storage import get_storage_backend
+from ._pagination import paginated
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/sifts", tags=["sifts"])
 
 
-class CreateSiftRequest(BaseModel):
-    name: str
-    description: str = ""
-    instructions: str
-    schema: Optional[str] = None
-    multi_record: bool = False
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message="Field name.*shadows", category=UserWarning)
 
+    class CreateSiftRequest(BaseModel):
+        name: str
+        description: str = ""
+        instructions: str
+        schema: Optional[str] = None
+        multi_record: bool = False
 
-class UpdateSiftRequest(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    instructions: Optional[str] = None
-    schema: Optional[str] = None
-    multi_record: Optional[bool] = None
+    class UpdateSiftRequest(BaseModel):
+        name: Optional[str] = None
+        description: Optional[str] = None
+        instructions: Optional[str] = None
+        schema: Optional[str] = None
+        multi_record: Optional[bool] = None
 
 
 class QueryRequest(BaseModel):
@@ -140,7 +144,7 @@ async def list_sifts(
 ):
     svc = SiftService(db)
     sifts, total = await svc.list_all(skip=offset, limit=limit)
-    return {"items": [_sift_to_dict(s) for s in sifts], "total": total, "limit": limit, "offset": offset}
+    return paginated([_sift_to_dict(s) for s in sifts], total, limit, offset)
 
 
 @router.get("/{sift_id}", response_model=dict)
@@ -174,6 +178,8 @@ async def update_sift(
 @router.get("/{sift_id}/folders")
 async def list_sift_folders(
     sift_id: str,
+    limit: int = 100,
+    offset: int = 0,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
@@ -181,12 +187,11 @@ async def list_sift_folders(
     links = await db["folder_extractors"].find({"sift_id": sift_id}).to_list(length=None)
     folder_ids = [ObjectId(lnk["folder_id"]) for lnk in links if lnk.get("folder_id")]
     if not folder_ids:
-        return {"items": []}
+        return paginated([], 0, limit, offset)
     folders = await db["folders"].find({"_id": {"$in": folder_ids}}).to_list(length=None)
-    result = []
-    for f in folders:
-        result.append({"id": str(f["_id"]), "name": f.get("name", ""), "path": f.get("path")})
-    return {"items": result}
+    result = [{"id": str(f["_id"]), "name": f.get("name", ""), "path": f.get("path")} for f in folders]
+    total = len(result)
+    return paginated(result[offset:offset + limit], total, limit, offset)
 
 
 @router.delete("/{sift_id}")
@@ -236,6 +241,13 @@ async def upload_documents(
         await svc.update(sift_id, {"default_folder_id": folder.id})
         folder_id = folder.id
 
+    # Flip to INDEXING upfront so the UI (and API consumers polling /sifts)
+    # reflect the new state while the file loop runs. Without this, the status
+    # stays ACTIVE for the whole request — which can be several seconds — and
+    # by the time the loop finishes a fast worker may already have transitioned
+    # the sift back to ACTIVE, so the indexing state is never observed.
+    await svc.update(sift_id, {"status": SiftStatus.INDEXING, "error": None})
+
     max_bytes = config.max_file_size_mb * 1024 * 1024
     storage = get_storage_backend()
     uploaded_files = []
@@ -270,21 +282,25 @@ async def upload_documents(
             storage_path=storage_path,
         )
         await doc_svc.create_sift_status(doc.id, sift_id)
-        await enqueue(doc.id, sift_id, storage_path)
-        uploaded_files.append(file.filename)
 
-    if uploaded_files:
+        # Atomically bump total_documents and flip to INDEXING *before* enqueue.
+        # Otherwise a fast worker can finish the task, see processed>=total, and
+        # mark the sift ACTIVE before we ever record the new total — leaving it
+        # stuck in INDEXING once we set the total afterwards.
         await svc.col.update_one(
             {"_id": ObjectId(sift_id)},
             {
+                "$inc": {"total_documents": 1},
                 "$set": {
                     "status": SiftStatus.INDEXING,
                     "error": None,
                     "updated_at": datetime.now(timezone.utc),
                 },
-                "$inc": {"total_documents": len(uploaded_files)},
             },
         )
+
+        await enqueue(doc.id, sift_id, storage_path)
+        uploaded_files.append(file.filename)
 
     return {"uploaded": len(uploaded_files), "files": uploaded_files, "folder_id": folder_id}
 
@@ -412,7 +428,7 @@ async def list_sift_documents(
             "sift_record_id": s.get("sift_record_id") or s.get("extraction_record_id"),
         })
 
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+    return paginated(items, total, limit, offset)
 
 
 # ---------------------------------------------------------------------------
@@ -521,11 +537,9 @@ async def get_records(
         next_cursor = _encode_cursor(docs[-1]["_id"])
 
     if cursor is not None or offset is None:
-        # Cursor-mode response
-        return {"items": items, "next_cursor": next_cursor, "total": total}
+        return paginated(items, total, limit, 0, next_cursor)
     else:
-        # Legacy offset-mode response
-        return {"items": items, "total": total, "limit": limit, "offset": offset}
+        return paginated(items, total, limit, offset, next_cursor)
 
 
 @router.get("/{sift_id}/records/csv")
