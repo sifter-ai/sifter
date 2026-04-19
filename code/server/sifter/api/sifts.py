@@ -273,6 +273,19 @@ async def upload_documents(
         await enqueue(doc.id, sift_id, storage_path)
         uploaded_files.append(file.filename)
 
+    if uploaded_files:
+        await svc.col.update_one(
+            {"_id": ObjectId(sift_id)},
+            {
+                "$set": {
+                    "status": SiftStatus.INDEXING,
+                    "error": None,
+                    "updated_at": datetime.now(timezone.utc),
+                },
+                "$inc": {"total_documents": len(uploaded_files)},
+            },
+        )
+
     return {"uploaded": len(uploaded_files), "files": uploaded_files, "folder_id": folder_id}
 
 
