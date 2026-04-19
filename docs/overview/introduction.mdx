@@ -9,7 +9,7 @@ description: Chat with your documents. Query them like a database. Build on top 
 
 **Chat with your documents. Query them like a database. Build on top via API.**
 
-Sifter is an open-source AI-powered document extraction engine. It turns PDFs, contracts, invoices, and receipts into a structured, queryable store — defined in natural language, no templates required. Once extracted, your records are chattable, aggregatable, and hookable into any downstream pipeline.
+Sifter is an open-source AI-powered document extraction engine. It turns documents — contracts, invoices, receipts, reports, and more — into a structured, queryable store, defined in natural language with no templates required. Once extracted, your records are chattable, aggregatable, and hookable into any downstream pipeline.
 
 ## Why not RAG?
 
@@ -37,7 +37,7 @@ RAG is the default answer for "AI + documents." It works well on diverse corpora
     Give it a name and describe what to extract in natural language: `"Extract: client name, invoice date, total amount, VAT number"`. Sifter infers the JSON schema automatically from the first processed document.
   </Step>
   <Step title="Upload documents">
-    Upload PDFs or images via the web UI, the REST API, or the Python SDK. Organize documents into folders to run multiple extractors automatically.
+    Upload documents via the web UI, the REST API, or the Python SDK. Organize them into folders to run multiple extractors automatically.
   </Step>
   <Step title="Query and export">
     Browse extracted records in a table. Filter, sort, run aggregations, or ask questions in natural language. Export to CSV or query programmatically via the API.
@@ -51,17 +51,17 @@ RAG is the default answer for "AI + documents." It works well on diverse corpora
 | [Sift](/concepts/sifts) | An extraction schema defined in natural language. One sift → one structured table. |
 | [Folder](/concepts/folders) | A document container. Link it to multiple sifts — every upload triggers all of them. |
 | [Record](/concepts/records) | A single extracted result: one document processed by one sift. |
-| [Aggregation](/concepts/aggregations) | A saved MongoDB pipeline generated from natural language. Reusable and refreshable. |
+| [Dashboard](/concepts/dashboards) | A live board of KPIs and charts generated from extracted records. |
 | [Webhook](/concepts/webhooks) | HTTP callback fired on extraction events. Wildcard patterns, retry on failure. |
 
 ## Three pillars
 
 <CardGroup cols={3}>
-  <Card title="Chat" icon="message">
-    Ask questions in plain language — "how much did I invoice to Acme last quarter?" — and get an answer grounded in your records with citations back to the source document.
+  <Card title="Extract" icon="file-search">
+    Define what to extract in plain language. Sifter infers the schema, processes every document, and stores the results as structured records — no templates, no code.
   </Card>
-  <Card title="Query" icon="table">
-    Extracted records are real structured data. Filter, sort, aggregate, or build [dashboards](/concepts/dashboards) on top. Export to CSV, PDF, or pipe to your warehouse.
+  <Card title="Analyze" icon="table">
+    Extracted records are real structured data. Filter, sort, build [dashboards](/concepts/dashboards), or ask questions in natural language. Export to CSV or pipe to your warehouse.
   </Card>
   <Card title="Build" icon="code">
     REST API, Python SDK, [webhooks](/concepts/webhooks), and an [MCP server](/integrations/mcp-server) for Claude, ChatGPT, Gemini, Cursor — any MCP-aware client.

@@ -28,7 +28,6 @@
           "concepts/folders",
           "concepts/records",
           "concepts/dashboards",
-          "concepts/aggregations",
           "concepts/queries-and-chat",
           "concepts/webhooks",
           "concepts/connectors"

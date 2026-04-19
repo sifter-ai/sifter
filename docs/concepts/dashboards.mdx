@@ -98,18 +98,16 @@ Dashboards are first-class REST resources:
 
 See [REST API](/integrations/rest-api) for full request/response schemas.
 
-## Dashboards vs. aggregations vs. chat
+## Dashboards vs. chat
 
-All three operate on the same extracted records. Pick the one that fits the shape of the answer:
+Both operate on the same extracted records. Pick the one that fits the shape of the answer:
 
 | You want… | Use |
 |-----------|-----|
-| A live, persistent board of numbers | **Dashboard** |
-| A named, parameterizable query ("revenue by client") | [Aggregation](/concepts/aggregations) |
+| A live, persistent board of numbers and charts | **Dashboard** |
 | A one-off question, answered in prose with citations | [Chat](/concepts/queries-and-chat) |
 
 ## See also
 
 - [Sifts](/concepts/sifts) — the extraction pipelines dashboards query
-- [Aggregations](/concepts/aggregations) — the MongoDB pipelines dashboards compile into
 - [Queries and chat](/concepts/queries-and-chat) — natural-language answers over records
