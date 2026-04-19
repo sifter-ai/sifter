@@ -54,6 +54,59 @@ sift.export_csv("invoices.csv")
 ```
 
   </Tab>
+  <Tab title="TypeScript SDK">
+
+## Install
+
+```bash
+npm install @sifter-ai/sdk
+# or
+pnpm add @sifter-ai/sdk
+# or
+bun add @sifter-ai/sdk
+```
+
+## Get an API key
+
+Sign up at [sifter.ai](https://sifter.ai) and go to **Settings → API Keys → Create API Key**.
+
+Or, if you're self-hosting, use `sk-dev` (the default key) or create one in the Settings page.
+
+## Extract your first documents
+
+```ts
+import { SifterClient } from "@sifter-ai/sdk";
+
+const sifter = new SifterClient({ apiKey: "sk-..." });
+
+// Create an extractor
+const sift = await sifter.createSift(
+  "Invoices",
+  "Extract: client name, invoice date, total amount, VAT number",
+);
+
+// Upload documents and wait for processing
+const handle = await sifter.uploadToSift(sift.id, ["./invoices/"]);
+await handle.wait();
+
+// Retrieve structured records
+const records = await sift.records({ limit: 100 });
+records.forEach((r) => console.log(r.extracted_data));
+```
+
+The schema is inferred from the first document — no templates, no training data.
+
+## Query your data
+
+```ts
+// Natural language query
+const { results } = await sift.query("What is the total revenue by client?");
+
+// Export to CSV
+const csv = await sift.exportCsv();
+```
+
+  </Tab>
   <Tab title="REST API">
 
 ## Get an API key
@@ -104,6 +157,9 @@ curl https://api.sifter.ai/api/sifts/{id}/records \
   </Card>
   <Card title="Python SDK" icon="python" href="/integrations/python-sdk">
     Full SDK reference with handles, polling, and callbacks
+  </Card>
+  <Card title="TypeScript SDK" icon="js" href="/integrations/typescript-sdk">
+    Typed client for Node, Deno, Bun, and the browser
   </Card>
   <Card title="MCP server" icon="cpu-chip" href="/integrations/mcp-server">
     Connect Claude Desktop or Cursor to your data
