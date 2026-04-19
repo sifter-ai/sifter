@@ -52,25 +52,31 @@ function DriveFolderPickerDialog({
   onSelect: (folder: { id: string; name: string }) => void;
 }) {
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
+  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
   const parentId = path[path.length - 1]?.id;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["gdrive-browse", connectionId, parentId ?? "root"],
     queryFn: () => browseGDrive(connectionId, parentId),
     enabled: open,
-    select: (d) => (Array.isArray(d) ? d : []),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    select: (d: any) => Array.isArray(d) ? d : (d?.folders ?? []),
   });
 
-  const folders = items.filter((i) => i.is_folder);
-  const current = path[path.length - 1];
+  const folders = items;
 
-  const navigate = (item: { id: string; name: string }) =>
+  const navigate = (item: { id: string; name: string }) => {
+    setSelected(null);
     setPath((p) => [...p, item]);
+  };
 
-  const goUp = () => setPath((p) => p.slice(0, -1));
+  const goUp = () => {
+    setSelected(null);
+    setPath((p) => p.slice(0, -1));
+  };
 
   const handleOpen = (v: boolean) => {
-    if (!v) setPath([]);
+    if (!v) { setPath([]); setSelected(null); }
     onOpenChange(v);
   };
 
@@ -127,7 +133,8 @@ function DriveFolderPickerDialog({
               {folders.map((f) => (
                 <button
                   key={f.id}
-                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group"
+                  className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group ${selected?.id === f.id ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
+                  onClick={() => setSelected(f)}
                   onDoubleClick={() => navigate(f)}
                 >
                   <FolderIcon className="h-4 w-4 text-amber-500/70 shrink-0" />
@@ -147,7 +154,7 @@ function DriveFolderPickerDialog({
 
         <div className="flex items-center justify-between pt-1">
           <p className="text-[11px] text-muted-foreground">
-            Double-click to navigate · click row to select
+            Click to select · double-click to navigate in
           </p>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleOpen(false)}>
@@ -156,12 +163,12 @@ function DriveFolderPickerDialog({
             <Button
               size="sm"
               className="h-8 text-xs"
-              disabled={!current}
+              disabled={!selected}
               onClick={() => {
-                if (current) { onSelect(current); handleOpen(false); }
+                if (selected) { onSelect(selected); handleOpen(false); }
               }}
             >
-              Select{current ? ` "${current.name}"` : ""}
+              Select{selected ? ` "${selected.name}"` : ""}
             </Button>
           </div>
         </div>

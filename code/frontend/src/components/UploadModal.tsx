@@ -167,12 +167,12 @@ export function UploadModal({
           >
             <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm font-medium">Drag & drop files here</p>
-            <p className="text-xs text-muted-foreground mt-1">PDF, PNG, JPG, TIFF — or click to select</p>
+            <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, HTML, TXT, MD, CSV, PNG, JPG, TIFF — or click to select</p>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,.png,.jpg,.jpeg,.tiff,.webp"
+              accept=".pdf,.docx,.html,.htm,.txt,.md,.csv,.png,.jpg,.jpeg,.tiff,.tif,.webp"
               className="hidden"
               onChange={(e) => addFiles(e.target.files)}
             />

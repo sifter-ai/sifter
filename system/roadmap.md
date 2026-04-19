@@ -27,7 +27,7 @@ Priority order for Sifter OSS. Grouped by phase. This roadmap covers only this r
 
 *Target: production-grade reliability and security*
 
-- [ ] **Input validation** — Pydantic validators on all request bodies: email format, password strength, URL format (webhooks), file MIME type on upload.
+- [ ] **Input validation** — Pydantic validators on all request bodies: email format, password strength, URL format (webhooks).
 - [ ] **LLM retry logic** — exponential backoff with jitter on `litellm.acompletion()` calls. Max 3 retries on transient errors.
 - [ ] **Webhook delivery tracking** — record delivery attempts, response status, and timestamp. Retry failed deliveries up to 3 times with exponential backoff.
 - [ ] **Graceful shutdown** — on SIGTERM, stop accepting new tasks, wait up to 30s for in-progress workers to finish before cancelling.

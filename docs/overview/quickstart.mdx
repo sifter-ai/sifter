@@ -33,7 +33,7 @@ sift = s.create_sift(
     instructions="Extract: client name, invoice date, total amount, VAT number",
 )
 
-# Upload a folder of PDFs and wait for processing
+# Upload a folder of documents and wait for processing
 sift.upload("./invoices/").wait()
 
 # Retrieve structured records
@@ -143,7 +143,7 @@ curl https://api.sifter.ai/api/sifts/{id}/records \
 1. Sign up at [sifter.ai](https://sifter.ai) (or open `http://localhost:3000` if self-hosting)
 2. Click **New Sift** — enter a name and instructions
 3. Go to **Folders**, create a folder, link the sift to it
-4. Upload PDFs — processing starts automatically
+4. Upload documents (PDF, DOCX, HTML, TXT, MD, CSV, or images) — processing starts automatically
 5. Click the sift to view extracted records, run queries, or export CSV
 
   </Tab>

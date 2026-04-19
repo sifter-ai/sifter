@@ -27,7 +27,7 @@ Four first-class clients against the public REST API — all shipped from this r
 - **Framework**: FastAPI (async)
 - **Database**: MongoDB via `motor` (async driver)
 - **AI**: LiteLLM (multi-provider: OpenAI, Anthropic, Google, Ollama)
-- **PDF processing**: pymupdf (fitz) for text extraction + page images
+- **PDF processing**: pymupdf (fitz) for page images; DOCX via mammoth (→ Markdown); HTML via beautifulsoup4 (→ plain text); TXT/MD/CSV via stdlib
 - **Auth**: `python-jose` (JWT HS256) + `passlib[bcrypt]` (password hashing) + `google-auth` (Google OAuth ID token verification)
 - **Rate limiting**: `slowapi` with `get_remote_address` key function
 - **Logging**: structlog
