@@ -20,6 +20,12 @@ import {
   configureGDrive,
   syncGDrive,
   revokeGDrive,
+  fetchGmailConnections,
+  getGmailOAuthUrl,
+  fetchGmailLabels,
+  configureGmail,
+  syncGmail,
+  revokeGmail,
   type ConnectorConnection,
 } from "@/api/cloud";
 import { fetchFolders } from "@/api/folders";
@@ -283,6 +289,218 @@ function ConnectorSection({
   );
 }
 
+// ─── Gmail connection card ────────────────────────────────────────────────────
+
+function GmailConnectionCard({
+  conn,
+  folders,
+  onConfigure,
+  onSync,
+  onRevoke,
+  syncPending,
+  revokePending,
+}: {
+  conn: ConnectorConnection;
+  folders: { id: string; name: string }[];
+  onConfigure: (cfg: Record<string, unknown>) => void;
+  onSync: () => void;
+  onRevoke: () => void;
+  syncPending: boolean;
+  revokePending: boolean;
+}) {
+  const status = STATUS[conn.status] ?? STATUS.active;
+  const StatusIcon = status.icon;
+  const [labelId, setLabelId] = useState(conn.label_id ?? "");
+  const [folderId, setFolderId] = useState(conn.folder_id ?? "");
+
+  const { data: labels = [] } = useQuery({
+    queryKey: ["gmail-labels", conn.id],
+    queryFn: () => fetchGmailLabels(conn.id),
+    select: (d) => (Array.isArray(d) ? d : []),
+  });
+
+  return (
+    <div className="flex items-start gap-4 p-4 rounded-xl border bg-card transition-colors hover:border-foreground/15">
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium truncate">{conn.account_email || "Gmail account"}</span>
+          <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${status.cls}`}>
+            <StatusIcon className="h-3 w-3" />
+            {status.label}
+          </span>
+        </div>
+
+        {conn.last_error && (
+          <p className="text-xs text-destructive leading-snug">{conn.last_error}</p>
+        )}
+
+        {conn.label_name && (
+          <p className="text-xs text-muted-foreground">
+            Label: <span className="text-foreground/70 font-medium">{conn.label_name}</span>
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground font-medium">Gmail label</label>
+            <select
+              className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              value={labelId}
+              onChange={(e) => setLabelId(e.target.value)}
+            >
+              <option value="">— all mail —</option>
+              {labels.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+              <FolderOpen className="h-3 w-3" />
+              Sifter folder
+            </label>
+            <select
+              className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              value={folderId}
+              onChange={(e) => setFolderId(e.target.value)}
+            >
+              <option value="">— select folder —</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => onConfigure({ label_id: labelId, folder_id: folderId })}
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5 shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={onSync}
+          disabled={syncPending}
+        >
+          {syncPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Sync
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={onRevoke}
+          disabled={revokePending}
+        >
+          <Trash2 className="h-3 w-3" />
+          Revoke
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Gmail section ────────────────────────────────────────────────────────────
+
+function GmailSection({ folders }: { folders: { id: string; name: string }[] }) {
+  const qc = useQueryClient();
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  const { data: connections = [], isLoading } = useQuery({
+    queryKey: ["gmail-connections"],
+    queryFn: fetchGmailConnections,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async () => {
+      const { url } = await getGmailOAuthUrl();
+      window.location.href = url;
+    },
+    onError: (err) => {
+      if (err instanceof PlanLimitError) {
+        setPlanError("Your plan doesn't include this connector. Upgrade to connect.");
+      }
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["gmail-connections"] });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
+            <GmailLogo />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Gmail</p>
+            <p className="text-[11px] text-muted-foreground">Sync email attachments from a Gmail label to Sifter</p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-xs shrink-0"
+          onClick={() => connectMutation.mutate()}
+          disabled={connectMutation.isPending}
+        >
+          {connectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+          Connect
+        </Button>
+      </div>
+
+      {planError && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
+          <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <p className="text-amber-800 dark:text-amber-300 font-medium">{planError}</p>
+            <a href="/settings/billing" className="text-amber-600 hover:underline">View plans →</a>
+          </div>
+        </div>
+      )}
+
+      {isLoading && <Skeleton className="h-20 rounded-xl" />}
+
+      {!isLoading && connections.length === 0 && !planError && (
+        <div className="rounded-xl border border-dashed px-4 py-6 text-center">
+          <p className="text-xs text-muted-foreground">No Gmail accounts connected yet.</p>
+        </div>
+      )}
+
+      {connections.map((conn) => (
+        <GmailConnectionCard
+          key={conn.id}
+          conn={conn}
+          folders={folders}
+          onConfigure={(cfg) => configureGmail(conn.id, cfg).then(invalidate)}
+          onSync={() => {
+            setSyncingId(conn.id);
+            syncGmail(conn.id).then(invalidate).finally(() => setSyncingId(null));
+          }}
+          onRevoke={() => {
+            setRevokingId(conn.id);
+            revokeGmail(conn.id).then(invalidate).finally(() => setRevokingId(null));
+          }}
+          syncPending={syncingId === conn.id}
+          revokePending={revokingId === conn.id}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Mail-to-Upload section ───────────────────────────────────────────────────
 
 function MailToUploadSection({ folders }: { folders: { id: string; name: string }[] }) {
@@ -342,6 +560,18 @@ function MailToUploadSection({ folders }: { folders: { id: string; name: string 
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+function GmailLogo() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-5 w-5" aria-hidden="true">
+      <path fill="#4caf50" d="M45,16.2l-5,2.75l-5,4.75L35,40h7c1.657,0,3-1.343,3-3V16.2z" />
+      <path fill="#1e88e5" d="M3,16.2l3.614,1.71L13,23.7V40H6c-1.657,0-3-1.343-3-3V16.2z" />
+      <polygon fill="#e53935" points="35,11.2 24,19.45 13,11.2 12,17 13,23.7 24,31.95 35,23.7 36,17" />
+      <path fill="#c62828" d="M3,12.298V16.2l10,7.5V11.2L9.876,8.859C9.132,8.301,8.228,8,7.298,8h0C4.924,8,3,9.924,3,12.298z" />
+      <path fill="#fbc02d" d="M45,12.298V16.2l-10,7.5V11.2l3.124-2.341C38.868,8.301,39.772,8,40.702,8h0C43.076,8,45,9.924,45,12.298z" />
+    </svg>
+  );
+}
 
 function DriveLogo() {
   return (
@@ -432,8 +662,11 @@ export default function ConnectorsPage() {
         </section>
 
         {/* ── OAuth Connectors ─────────────────────────────────────────────────── */}
-        <div className="rounded-xl border overflow-hidden">
-          <div className="p-5 space-y-4">
+        <div className="rounded-xl border overflow-hidden divide-y">
+          <div className="p-5">
+            <GmailSection folders={folders} />
+          </div>
+          <div className="p-5">
             <ConnectorSection
               queryKey="gdrive-connections"
               fetchConnections={fetchGDriveConnections}
