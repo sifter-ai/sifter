@@ -27,15 +27,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-function ApiKeyUseCase({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
+function ApiKeyUseCase({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div className="group relative rounded-xl border bg-card/60 p-4 hover:border-foreground/20 transition-colors">
       <div className="flex items-center gap-2 mb-2.5">
@@ -102,9 +94,7 @@ function ApiKeysCard() {
       return { previous };
     },
     onError: (_err, _keyId, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["api-keys"], context.previous);
-      }
+      if (context?.previous) queryClient.setQueryData(["api-keys"], context.previous);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
@@ -130,9 +120,7 @@ function ApiKeysCard() {
               >
                 <div>
                   <p className="font-medium text-sm">{key.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono">
-                    {key.key_prefix}…
-                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">{key.key_prefix}…</p>
                   <p className="text-[11px] text-muted-foreground">
                     Created {formatDate(key.created_at)}
                     {key.last_used_at && ` · Last used ${formatDate(key.last_used_at)}`}
@@ -151,20 +139,13 @@ function ApiKeysCard() {
           </div>
         )}
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1"
-        >
+        <Button variant="outline" size="sm" onClick={() => setShowCreate(true)} className="flex items-center gap-1">
           <Plus className="h-4 w-4" /> Create key
         </Button>
 
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create API Key</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Create API Key</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Key name</Label>
@@ -172,16 +153,10 @@ function ApiKeysCard() {
                   placeholder="e.g. Production SDK"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newKeyName.trim()) createMutation.mutate(newKeyName);
-                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && newKeyName.trim()) createMutation.mutate(newKeyName); }}
                 />
               </div>
-              <Button
-                onClick={() => createMutation.mutate(newKeyName)}
-                disabled={!newKeyName.trim() || createMutation.isPending}
-                className="w-full"
-              >
+              <Button onClick={() => createMutation.mutate(newKeyName)} disabled={!newKeyName.trim() || createMutation.isPending} className="w-full">
                 {createMutation.isPending ? "Creating..." : "Create"}
               </Button>
               {createMutation.isError && (
@@ -195,53 +170,32 @@ function ApiKeysCard() {
 
         <Dialog open={!!createdKey} onOpenChange={() => setCreatedKey(null)}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Your new API key</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Your new API key</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Copy this key now — it will not be shown again.
-              </p>
+              <p className="text-sm text-muted-foreground">Copy this key now — it will not be shown again.</p>
               <div className="flex gap-2 items-center">
-                <code className="flex-1 text-xs bg-muted p-2 rounded font-mono break-all">
-                  {createdKey}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => createdKey && navigator.clipboard.writeText(createdKey)}
-                >
+                <code className="flex-1 text-xs bg-muted p-2 rounded font-mono break-all">{createdKey}</code>
+                <Button variant="ghost" size="sm" onClick={() => createdKey && navigator.clipboard.writeText(createdKey)}>
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>
-              <Button onClick={() => setCreatedKey(null)} className="w-full">
-                Done
-              </Button>
+              <Button onClick={() => setCreatedKey(null)} className="w-full">Done</Button>
             </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={!!confirmRevokeId} onOpenChange={() => setConfirmRevokeId(null)}>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Revoke API Key</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Revoke API Key</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
               Are you sure you want to revoke this API key? This action cannot be undone.
               Any application using this key will lose access immediately.
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmRevokeId(null)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => setConfirmRevokeId(null)}>Cancel</Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  if (confirmRevokeId) {
-                    revokeMutation.mutate(confirmRevokeId);
-                    setConfirmRevokeId(null);
-                  }
-                }}
+                onClick={() => { if (confirmRevokeId) { revokeMutation.mutate(confirmRevokeId); setConfirmRevokeId(null); } }}
                 disabled={revokeMutation.isPending}
               >
                 {revokeMutation.isPending ? "Revoking..." : "Revoke"}
@@ -256,28 +210,37 @@ function ApiKeysCard() {
 
 export default function ApiKeysPage() {
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-6 py-3 border-b bg-card/60 min-h-[48px]">
-        <h1 className="text-sm font-semibold">API Keys</h1>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-6 py-6 space-y-8">
-          <header className="flex items-start gap-4">
-            <div className="shrink-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-3 ring-1 ring-primary/10">
-              <Key className="h-6 w-6 text-primary" strokeWidth={1.5} />
+    <div className="relative min-h-full">
+      {/* Atmospheric backdrop */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[240px] -z-10"
+        style={{
+          background:
+            "radial-gradient(900px 280px at 25% -10%, hsl(263 72% 52% / 0.10), transparent 60%), radial-gradient(700px 220px at 85% -20%, hsl(300 70% 55% / 0.06), transparent 55%)",
+        }}
+        aria-hidden
+      />
+      <div className="px-6 py-10 max-w-6xl mx-auto space-y-8">
+        {/* Editorial header */}
+        <header className="flex items-end justify-between gap-6 flex-wrap pb-6 border-b border-border/70">
+          <div className="flex-1 min-w-0 space-y-2.5">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/70">
+              <Key className="h-3 w-3 text-primary/80" strokeWidth={2.25} />
+              <span>Build</span>
+              <span className="h-px w-6 bg-border" aria-hidden />
+              <span>Developer</span>
             </div>
-            <div className="space-y-1.5">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
-                Developer
-              </p>
-              <h2 className="text-2xl font-semibold tracking-tight leading-none">API Keys</h2>
-              <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-                One key unlocks the entire Sifter surface — REST, SDK, CLI, MCP.{" "}
-                <span className="text-foreground/80">Shown once. Scoped to you.</span>
-              </p>
-            </div>
-          </header>
+            <h1 className="text-[34px] leading-[1.05] font-bold tracking-[-0.025em] text-foreground">
+              API Keys
+            </h1>
+            <p className="text-sm text-muted-foreground/90 max-w-xl leading-relaxed">
+              One key unlocks the entire Sifter surface — REST, SDK, CLI, MCP.{" "}
+              <span className="text-foreground/80">Shown once. Scoped to you.</span>
+            </p>
+          </div>
+        </header>
 
+        <div className="max-w-3xl space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <ApiKeyUseCase
               icon={<Code2 className="h-4 w-4" strokeWidth={1.75} />}

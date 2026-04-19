@@ -232,10 +232,10 @@ function CloudMCPBody() {
           <p className="text-[11px] text-muted-foreground/90 leading-relaxed px-0.5">
             Generate a key in{" "}
             <a
-              href="/settings"
+              href="/api-keys"
               className="underline underline-offset-2 hover:text-foreground transition-colors"
             >
-              Settings → API Keys
+              API Keys
             </a>
             , then paste it as the <code className="font-mono text-foreground/80">Bearer</code> token.
             The same key unlocks REST, SDK, and MCP.
@@ -326,8 +326,8 @@ function OssMCPBody() {
       <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         Replace <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">your-api-key</code>{" "}
         with a key generated in{" "}
-        <a href="/settings" className="underline underline-offset-4 hover:text-foreground transition-colors">
-          Settings → API Keys
+        <a href="/api-keys" className="underline underline-offset-4 hover:text-foreground transition-colors">
+          API Keys
         </a>
         .
       </div>
