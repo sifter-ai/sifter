@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
-const DOCS_URL = "https://docs.sifter.ai";
+const DOCS_URL = "https://sifterai.mintlify.app";
 const GITHUB_URL = "https://github.com/bfortunato/sifter";
 
 export default function LandingPage() {

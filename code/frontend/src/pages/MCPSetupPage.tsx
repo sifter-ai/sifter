@@ -367,7 +367,7 @@ function ToolsList() {
 function DocsLink() {
   return (
     <a
-      href="https://docs.sifter.ai/mcp"
+      href="https://sifterai.mintlify.app/integrations/mcp-server"
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-4"

@@ -154,7 +154,7 @@ function Sidebar() {
         {/* Secondary nav — pushed to bottom of the nav flex */}
         <div className="mt-auto pt-3 flex flex-col gap-0.5">
           <a
-            href="https://docs.sifter.ai"
+            href="https://sifterai.mintlify.app"
             target="_blank"
             rel="noopener noreferrer"
             className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]`}
