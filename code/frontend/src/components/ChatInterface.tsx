@@ -157,11 +157,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div className="flex-1 min-w-0 space-y-3 pt-0.5">
         {message.trace && message.trace.length > 0 && <TraceList traces={message.trace} />}
         {message.content && (
-          <div className="rounded-xl border border-border/60 bg-card/60 px-4 py-3">
-            <p className="text-[14px] leading-[1.65] whitespace-pre-wrap text-foreground/95">
-              {message.content}
-            </p>
-          </div>
+          <p className="text-[14px] leading-[1.65] whitespace-pre-wrap text-foreground/95">
+            {message.content}
+          </p>
         )}
         {message.data && message.data.length > 0 && (
           <DataTable data={message.data as Record<string, unknown>[]} />
