@@ -10,7 +10,7 @@ A **Sift** is Sifter's core abstraction. It defines:
 - A **name** and optional description
 - **Instructions** — natural language description of what to extract
 - A **schema** — automatically inferred from the first processed document
-- A persistent **table of results** — one record per `(document, sift)` pair
+- A persistent **table of results** — one or more records per document (a single document can yield multiple records depending on what the instructions extract)
 
 ## Creating a sift
 
