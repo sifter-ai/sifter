@@ -9,17 +9,19 @@ export default function ConnectorCallbackPage() {
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
-    if (!code || !state) { navigate("/settings/connectors"); return; }
+    if (!code || !state) { navigate("/connectors"); return; }
 
     let type = "gmail";
     try {
-      const decoded = JSON.parse(atob(state.split(".")[1] ?? "{}"));
+      const payload = state.split(".")[1] ?? "";
+      const padded = payload + "=".repeat((4 - payload.length % 4) % 4);
+      const decoded = JSON.parse(atob(padded));
       type = decoded.connector_type ?? "gmail";
     } catch {}
 
     const fn = type === "gdrive" ? gdriveOAuthCallback : gmailOAuthCallback;
     fn(code, state)
-      .finally(() => navigate("/settings/connectors"));
+      .finally(() => navigate("/connectors"));
   }, []);
 
   return (
