@@ -1,34 +1,33 @@
 ---
 title: Single Sign-On
-description: Google and GitHub SSO for Sifter Cloud workspaces.
+description: Google SSO for Sifter Cloud workspaces.
 ---
 
 # Single Sign-On
 
-Sifter Cloud supports SSO via Google and GitHub. Both are one-click flows from the login page — no SAML configuration, no IdP setup.
+Sifter Cloud supports SSO via Google. One-click flow from the login page — no SAML configuration, no IdP setup.
 
 <Info>
-SSO is a **Pro+** Sifter Cloud feature. Free and Starter plans can still sign up with email/password; paid plans unlock the SSO buttons on the login page.
+SSO is a **Pro+** Sifter Cloud feature. Free and Starter plans can still sign up with email/password; paid plans unlock the SSO button on the login page.
 </Info>
 
-## Providers
+## Provider
 
 | Provider | Scope | What it gives Sifter |
 |----------|-------|----------------------|
 | Google | `email`, `profile` | Email and display name. No Drive access — that's a separate OAuth consent inside [Connectors](/concepts/connectors). |
-| GitHub | `user:email` | Primary verified email. No repo access. |
 
 ## Flow
 
 <Steps>
   <Step title="Click the provider button">
-    On the login page, click **Continue with Google** or **Continue with GitHub**.
+    On the login page, click **Continue with Google**.
   </Step>
   <Step title="Consent">
-    The provider's OAuth consent screen appears. Approve.
+    Google's OAuth consent screen appears. Approve.
   </Step>
   <Step title="Callback">
-    The provider redirects back to `/auth/google/callback` or `/auth/github/callback` with a `code`.
+    Google redirects back to `/auth/google/callback` with a `code`.
   </Step>
   <Step title="Session">
     Sifter exchanges the code for a token, matches (or creates) a user by verified email, and returns a JWT stored in `localStorage`. The user lands on the workspace home.
@@ -38,7 +37,7 @@ SSO is a **Pro+** Sifter Cloud feature. Free and Starter plans can still sign up
 ## Account matching
 
 - **Existing user, same email** → logged in as that user. The SSO identity is linked so future logins skip the email/password form.
-- **No existing user** → a new user is created and added to the **default org** flow: they see the onboarding wizard.
+- **No existing user** → a new user and org are created automatically.
 - **Conflicting email** (SSO email claimed by another account) → login fails with `email_conflict` and a pointer to contact support.
 
 ## Disabling SSO for a specific user
@@ -50,7 +49,6 @@ From the audit log at `/settings/audit`, the action `user.sso_unlinked` is emitt
 | Action | Method | Path | Body |
 |--------|--------|------|------|
 | Exchange Google code | `POST` | `/api/auth/google` | `{ "code": "..." }` |
-| Exchange GitHub code | `POST` | `/api/auth/github` | `{ "code": "..." }` |
 | List linked SSO identities | `GET` | `/api/auth/sso` | — |
 | Unlink SSO identity | `DELETE` | `/api/auth/sso/{id}` | — |
 
@@ -69,13 +67,9 @@ From the audit log at `/settings/audit`, the action `user.sso_unlinked` is emitt
 
 ## Frontend environment
 
-Self-hosted Cloud instances need:
-
 ```bash
 VITE_GOOGLE_CLIENT_ID=...
 VITE_GOOGLE_REDIRECT_URI=https://sifter.run/auth/google/callback
-VITE_GITHUB_CLIENT_ID=...
-VITE_GITHUB_REDIRECT_URI=https://sifter.run/auth/github/callback
 ```
 
 ## Audit
