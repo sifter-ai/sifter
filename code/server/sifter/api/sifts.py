@@ -184,13 +184,24 @@ async def list_sift_folders(
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
-    """Return folders that have this sift linked to them."""
+    """Return root-level folders that have this sift linked to them.
+
+    When a sift is linked to a folder, it propagates to all subfolders
+    (folder_extractors gets rows for every descendant). This endpoint filters
+    those out and returns only the top-level entries — folders whose parent is
+    not also in the linked set.
+    """
     links = await db["folder_extractors"].find({"sift_id": sift_id}).to_list(length=None)
     folder_ids = [ObjectId(lnk["folder_id"]) for lnk in links if lnk.get("folder_id")]
     if not folder_ids:
         return paginated([], 0, limit, offset)
     folders = await db["folders"].find({"_id": {"$in": folder_ids}}).to_list(length=None)
-    result = [{"id": str(f["_id"]), "name": f.get("name", ""), "path": f.get("path")} for f in folders]
+    linked_id_set = {str(f["_id"]) for f in folders}
+    result = [
+        {"id": str(f["_id"]), "name": f.get("name", ""), "path": f.get("path")}
+        for f in folders
+        if not f.get("parent_id") or f.get("parent_id") not in linked_id_set
+    ]
     total = len(result)
     return paginated(result[offset:offset + limit], total, limit, offset)
 
