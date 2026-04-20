@@ -55,7 +55,7 @@ function AuthSnippet() {
         <span className="text-[10px] font-mono text-muted-foreground">header-based</span>
       </div>
       <pre className="text-xs font-mono leading-relaxed p-4 overflow-x-auto text-foreground/85">
-{`curl https://api.sifter.run/v1/sifts \\
+{`curl https://sifter.run/v1/sifts \\
   -H "X-API-Key: sk_live_xxxxxxxxxxxxxxxx"`}
       </pre>
     </div>
