@@ -513,7 +513,7 @@ export function SiftDetailPage() {
   const [editMultiRecord, setEditMultiRecord] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showLinkFolder, setShowLinkFolder] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(true);
   const updateMutation = useUpdateSift(id!);
 
   const isIndexing = (status: string | undefined) => status === "indexing";
