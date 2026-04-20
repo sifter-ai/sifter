@@ -2,8 +2,8 @@
   "$schema": "https://mintlify.com/schema.json",
   "name": "Sifter",
   "logo": {
-    "dark": "/logo-wordmark-dark.svg",
-    "light": "/logo-wordmark-light.svg"
+    "dark": "/logo-icon-dark.svg",
+    "light": "/logo-icon-light.svg"
   },
   "favicon": "/logo.svg",
   "colors": {
