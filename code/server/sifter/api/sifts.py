@@ -248,7 +248,7 @@ async def upload_documents(
 
     folder_id = sift.default_folder_id
     if not folder_id:
-        folder = await doc_svc.create_folder(sift.name, "")
+        folder = await doc_svc.create_folder(sift.name, "", org_id=principal.org_id)
         await doc_svc.link_extractor(folder.id, sift_id)
         await svc.update(sift_id, {"default_folder_id": folder.id})
         folder_id = folder.id
