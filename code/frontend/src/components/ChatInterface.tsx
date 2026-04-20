@@ -185,31 +185,32 @@ function TypingDots() {
   );
 }
 
-function AutoTextarea({
-  value,
-  onChange,
-  onEnter,
-  placeholder,
-  disabled,
-  autoFocus,
-}: {
+const AutoTextarea = forwardRef<HTMLTextAreaElement, {
   value: string;
   onChange: (v: string) => void;
   onEnter: () => void;
   placeholder?: string;
   disabled?: boolean;
   autoFocus?: boolean;
-}) {
-  const ref = useRef<HTMLTextAreaElement>(null);
+}>(function AutoTextarea({ value, onChange, onEnter, placeholder, disabled, autoFocus }, ref) {
+  const innerRef = useRef<HTMLTextAreaElement>(null);
+
+  const setRefs = (el: HTMLTextAreaElement | null) => {
+    (innerRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+  };
+
   useLayoutEffect(() => {
-    const el = ref.current;
+    const el = innerRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
   }, [value]);
+
   return (
     <textarea
-      ref={ref}
+      ref={setRefs}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
@@ -225,7 +226,7 @@ function AutoTextarea({
       className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none max-h-[200px] disabled:opacity-60"
     />
   );
-}
+});
 
 function KeyboardHint() {
   return (
@@ -256,6 +257,7 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
   const [input, setInput] = useState("");
   const { messages, isLoading, sendMessage } = useChat(siftId);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -277,6 +279,7 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
     if (!input.trim() || isLoading) return;
     sendMessage(input.trim());
     setInput("");
+    textareaRef.current?.focus();
   };
 
   return (
@@ -304,11 +307,13 @@ export const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>
         <div className="max-w-3xl mx-auto">
           <div className="flex items-end gap-2 rounded-2xl border border-border/80 bg-card p-2 shadow-sm focus-within:border-amber-400/40 focus-within:shadow-[0_6px_22px_-10px_hsl(40_92%_50%/0.22)] transition-all">
             <AutoTextarea
+              ref={textareaRef}
               value={input}
               onChange={setInput}
               onEnter={handleSend}
               placeholder="Ask about your data…"
               disabled={isLoading}
+              autoFocus
             />
             <Button
               onClick={handleSend}
