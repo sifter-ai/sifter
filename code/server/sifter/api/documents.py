@@ -34,6 +34,14 @@ async def get_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    raw = await db["documents"].find_one(
+        {"_id": ObjectId(document_id)}, {"metadata": 1}
+    )
+    metadata = raw.get("metadata", {}) if raw else {}
+    connector_source = metadata.get("gdrive_source")
+    if not connector_source and metadata.get("gmail_message_id"):
+        connector_source = f"gmail:{metadata['gmail_message_id']}"
+
     statuses = await svc.get_document_statuses(document_id)
     return {
         "id": doc.id,
@@ -43,6 +51,7 @@ async def get_document(
         "size_bytes": doc.size_bytes,
         "folder_id": doc.folder_id,
         "uploaded_at": doc.uploaded_at.isoformat(),
+        "connector_source": connector_source,
         "sift_statuses": [
             {
                 "id": s.id,

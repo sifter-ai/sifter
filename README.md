@@ -4,7 +4,7 @@
 
 Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python SDK. Self-hostable under MIT.
 
-![Sifter demo](docs/images/hero.png)
+![Sifter demo](docs/images/sifter-demo.gif)
 
 ---
 

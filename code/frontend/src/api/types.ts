@@ -174,6 +174,7 @@ export interface Document {
   size_bytes: number;
   uploaded_at: string;
   storage_path?: string;
+  connector_source?: string | null;
 }
 
 export interface DocumentSiftStatus {

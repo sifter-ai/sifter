@@ -35,6 +35,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { PlanLimitError } from "@/lib/apiFetch";
 import { InboundEmailPanel } from "@/components/cloud/InboundEmailPanel";
 
@@ -52,8 +62,8 @@ function DriveFolderPickerDialog({
   onSelect: (folder: { id: string; name: string }) => void;
 }) {
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
-  const parentId = path[path.length - 1]?.id;
+  const currentFolder = path[path.length - 1] ?? null;
+  const parentId = currentFolder?.id;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["gdrive-browse", connectionId, parentId ?? "root"],
@@ -63,20 +73,13 @@ function DriveFolderPickerDialog({
     select: (d: any) => Array.isArray(d) ? d : (d?.folders ?? []),
   });
 
-  const folders = items;
-
-  const navigate = (item: { id: string; name: string }) => {
-    setSelected(null);
+  const enter = (item: { id: string; name: string }) =>
     setPath((p) => [...p, item]);
-  };
 
-  const goUp = () => {
-    setSelected(null);
-    setPath((p) => p.slice(0, -1));
-  };
+  const goUp = () => setPath((p) => p.slice(0, -1));
 
   const handleOpen = (v: boolean) => {
-    if (!v) { setPath([]); setSelected(null); }
+    if (!v) setPath([]);
     onOpenChange(v);
   };
 
@@ -99,7 +102,7 @@ function DriveFolderPickerDialog({
             <span key={p.id} className="flex items-center gap-1">
               <ChevronRight className="h-3 w-3 opacity-50" />
               <button
-                className="hover:text-foreground transition-colors"
+                className="hover:text-foreground transition-colors font-medium text-foreground"
                 onClick={() => setPath((prev) => prev.slice(0, i + 1))}
               >
                 {p.name}
@@ -124,53 +127,41 @@ function DriveFolderPickerDialog({
             <div className="p-3 space-y-2">
               {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8" />)}
             </div>
-          ) : folders.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="py-10 text-center text-xs text-muted-foreground">
               No subfolders here
             </div>
           ) : (
             <div className="divide-y max-h-[280px] overflow-y-auto">
-              {folders.map((f) => (
+              {items.map((f) => (
                 <button
                   key={f.id}
-                  className={`flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group ${selected?.id === f.id ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}
-                  onClick={() => setSelected(f)}
-                  onDoubleClick={() => navigate(f)}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group"
+                  onClick={() => enter(f)}
                 >
                   <FolderIcon className="h-4 w-4 text-amber-500/70 shrink-0" />
                   <span className="text-sm flex-1 truncate">{f.name}</span>
-                  <button
-                    className="text-muted-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all p-1 rounded"
-                    onClick={(e) => { e.stopPropagation(); navigate(f); }}
-                    title="Open folder"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          <p className="text-[11px] text-muted-foreground">
-            Click to select · double-click to navigate in
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              disabled={!selected}
-              onClick={() => {
-                if (selected) { onSelect(selected); handleOpen(false); }
-              }}
-            >
-              Select{selected ? ` "${selected.name}"` : ""}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 text-xs"
+            disabled={!currentFolder}
+            onClick={() => {
+              if (currentFolder) { onSelect(currentFolder); handleOpen(false); }
+            }}
+          >
+            Select
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -209,12 +200,17 @@ function GDriveConnectionCard({
     conn.drive_folder_id ? { id: conn.drive_folder_id, name: conn.drive_folder_name ?? conn.drive_folder_id } : null
   );
   const [sifterId, setSifterId] = useState(conn.folder_id ?? "");
+  const [recursive, setRecursive] = useState(conn.recursive ?? true);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const isDirty =
     (driveFolder?.id ?? "") !== (conn.drive_folder_id ?? "") ||
-    sifterId !== (conn.folder_id ?? "");
+    sifterId !== (conn.folder_id ?? "") ||
+    recursive !== (conn.recursive ?? true);
+
+  const isSyncing = conn.sync_status === "syncing";
 
   const handleSave = async () => {
     if (!driveFolder || !sifterId) return;
@@ -224,7 +220,7 @@ function GDriveConnectionCard({
         drive_folder_id: driveFolder.id,
         drive_folder_name: driveFolder.name,
         sifter_folder_id: sifterId,
-        recursive: false,
+        recursive,
       });
       onSaved();
     } finally {
@@ -258,16 +254,16 @@ function GDriveConnectionCard({
             <div className="flex items-center gap-1 shrink-0">
               <Button
                 variant="outline" size="sm" className="h-7 gap-1.5 text-xs"
-                onClick={onSync} disabled={syncPending}
+                onClick={onSync} disabled={syncPending || isSyncing}
               >
-                {syncPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                Sync
+                {(syncPending || isSyncing) ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                {isSyncing ? "Syncing…" : "Sync"}
               </Button>
               <Button
                 variant="ghost" size="sm"
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                onClick={onRevoke} disabled={revokePending}
-                title="Revoke connection"
+                onClick={() => setDisconnectOpen(true)} disabled={revokePending}
+                title="Disconnect"
               >
                 {revokePending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
               </Button>
@@ -318,6 +314,25 @@ function GDriveConnectionCard({
             </div>
           </div>
 
+          {/* Recursive toggle + last sync */}
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="h-3 w-3 rounded accent-primary"
+                checked={recursive}
+                onChange={(e) => setRecursive(e.target.checked)}
+              />
+              Include subfolders
+            </label>
+            {conn.last_sync_at && !isSyncing && (
+              <span>Last sync {new Date(conn.last_sync_at).toLocaleString()}</span>
+            )}
+            {isSyncing && (
+              <span className="text-primary animate-pulse">Syncing in progress…</span>
+            )}
+          </div>
+
           {/* Missing folder warning */}
           {(!driveFolder || !sifterId) && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
@@ -353,6 +368,26 @@ function GDriveConnectionCard({
         onOpenChange={setBrowseOpen}
         onSelect={setDriveFolder}
       />
+
+      <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Google Drive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop syncing{conn.drive_folder_name ? ` "${conn.drive_folder_name}"` : ""}. Documents already synced to Sifter will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={onRevoke}
+            >
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -369,6 +404,10 @@ function GDriveSection({ folders }: { folders: { id: string; name: string }[] })
     queryKey: ["gdrive-connections"],
     queryFn: fetchGDriveConnections,
     select: (d) => (Array.isArray(d) ? d : []),
+    refetchInterval: (query) => {
+      const conns = query.state.data ?? [];
+      return conns.some((c: ConnectorConnection) => c.sync_status === "syncing") ? 2000 : false;
+    },
   });
 
   const connectMutation = useMutation({
@@ -398,16 +437,18 @@ function GDriveSection({ folders }: { folders: { id: string; name: string }[] })
             </p>
           </div>
         </div>
-        <Button
-          size="sm" variant="outline" className="gap-1.5 text-xs shrink-0"
-          onClick={() => connectMutation.mutate()}
-          disabled={connectMutation.isPending}
-        >
-          {connectMutation.isPending
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <ExternalLink className="h-3.5 w-3.5" />}
-          Connect
-        </Button>
+        {connections.length === 0 && (
+          <Button
+            size="sm" variant="outline" className="gap-1.5 text-xs shrink-0"
+            onClick={() => connectMutation.mutate()}
+            disabled={connectMutation.isPending}
+          >
+            {connectMutation.isPending
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <ExternalLink className="h-3.5 w-3.5" />}
+            Connect
+          </Button>
+        )}
       </div>
 
       {planError && (
@@ -448,6 +489,19 @@ function GDriveSection({ folders }: { folders: { id: string; name: string }[] })
           revokePending={revokingId === conn.id}
         />
       ))}
+
+      {connections.length > 0 && (
+        <button
+          className="flex items-center gap-2 w-full rounded-xl border border-dashed px-4 py-3 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          onClick={() => connectMutation.mutate()}
+          disabled={connectMutation.isPending}
+        >
+          {connectMutation.isPending
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <span className="text-base leading-none">+</span>}
+          Add another folder
+        </button>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, ExternalLink, Eye, EyeOff, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, ExternalLink, Eye, EyeOff, Loader2, Mail, RefreshCw, Trash2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -328,6 +328,44 @@ export default function DocumentDetailPage() {
                     {folder.name}
                   </button>
                 </dd>
+              </>
+            )}
+            {doc.connector_source && (
+              <>
+                <dt className="text-muted-foreground">Source</dt>
+                <dd>{(() => {
+                  if (doc.connector_source.startsWith("gdrive:")) {
+                    const fileId = doc.connector_source.split(":")[2];
+                    return (
+                      <a
+                        href={`https://drive.google.com/file/d/${fileId}/view`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                      >
+                        <svg viewBox="0 0 87.3 78" className="h-3.5 w-3.5 shrink-0" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+                        Google Drive
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    );
+                  }
+                  if (doc.connector_source.startsWith("gmail:")) {
+                    const msgId = doc.connector_source.split(":")[1];
+                    return (
+                      <a
+                        href={`https://mail.google.com/mail/u/0/#inbox/${msgId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                      >
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        Gmail
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    );
+                  }
+                  return <span className="font-mono text-xs">{doc.connector_source}</span>;
+                })()}</dd>
               </>
             )}
           </dl>

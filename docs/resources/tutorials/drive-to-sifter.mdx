@@ -8,7 +8,7 @@ description: Auto-sync documents from a Drive folder into a Sifter folder — no
 Drop a contract, an invoice, a receipt into a Google Drive folder. Seconds later, it shows up in Sifter — extracted, indexed, queryable.
 
 <Info>
-Drive connectors are a **Sifter Cloud** feature. Starter ($19/mo) includes 1 connection; Pro+ is unlimited. Self-hosted Sifter uses the API/SDK upload path instead.
+Drive connectors are a **Sifter Cloud** feature available on all paid plans. Self-hosted Sifter uses the API/SDK upload path instead.
 </Info>
 
 ## What this tutorial covers
@@ -94,7 +94,7 @@ Revoking stops future syncs. Documents already in your Sifter folder are kept �
 | Connection shows **Error** with "insufficient_scope" | Revoke and reconnect — Google's consent screen was dismissed without granting all scopes. |
 | New files aren't picked up | Confirm the format is supported (PDF, Word, Excel, PowerPoint, images). Native Google Docs / Sheets / Slides must be exported first. |
 | Sync reports `skipped` | The document has more than 10 pages. |
-| Upgrade prompt appears | Your plan doesn't include Drive (Free), or you hit the connector count limit (Starter: 1). |
+| Upgrade prompt appears | Drive connectors require a paid plan (not available on Free). |
 
 ## See also
 

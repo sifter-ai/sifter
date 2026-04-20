@@ -73,12 +73,15 @@ export interface ConnectorConnection {
   id: string;
   account_email: string;
   status: "active" | "error" | "paused";
+  sync_status?: "idle" | "syncing";
   last_error?: string | null;
+  last_sync_at?: string | null;
   label_id?: string | null;
   label_name?: string | null;
   folder_id?: string | null;
   drive_folder_id?: string | null;
   drive_folder_name?: string | null;
+  recursive?: boolean;
 }
 
 export const fetchGmailConnections = (): Promise<ConnectorConnection[]> =>
