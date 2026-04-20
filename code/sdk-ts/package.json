@@ -30,7 +30,7 @@
     "llm",
     "sdk"
   ],
-  "license": "Apache-2.0",
+  "license": "MIT",
   "devDependencies": {
     "typescript": "^5.9.3",
     "vitest": "^4.1.4"

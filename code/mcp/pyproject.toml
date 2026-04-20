@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "MCP server for Sifter — read-only access to extracted records for Claude Desktop, Cursor, and AI agents"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 dependencies = [
     "mcp>=1.0.0",
     "sifter-ai>=0.1.0",

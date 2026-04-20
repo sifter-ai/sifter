@@ -1,6 +1,6 @@
 ---
 title: Vision
-status: changed
+status: synced
 version: "3.0"
 last-modified: "2026-04-18T00:00:00.000Z"
 ---

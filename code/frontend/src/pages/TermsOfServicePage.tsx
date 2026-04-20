@@ -53,7 +53,7 @@ export default function TermsOfServicePage() {
               on our pricing page.
             </p>
             <p>
-              The open-source core of Sifter is published under the Apache 2.0 License and may be
+              The open-source core of Sifter is published under the MIT License and may be
               self-hosted. These Terms apply to the hosted service at sifter.run; self-hosted
               deployments are governed by the open-source license alone.
             </p>
@@ -168,7 +168,7 @@ export default function TermsOfServicePage() {
           <Section title="10. Intellectual property">
             <p>
               The Sifter name, logo, and hosted service are owned by {COMPANY}. The open-source code
-              is licenced under Apache 2.0 and available on GitHub. Nothing in these Terms transfers
+              is licensed under the MIT License and available on GitHub. Nothing in these Terms transfers
               any of our intellectual property to you, other than the limited right to use the
               service as described here.
             </p>
