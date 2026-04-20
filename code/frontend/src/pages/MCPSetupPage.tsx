@@ -14,9 +14,11 @@ function CodeBlock({ code, language = "json" }: { code: string; language?: strin
   };
 
   return (
-    <div className="relative group rounded-lg border bg-muted/40 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/60">
-        <span className="text-xs text-muted-foreground font-mono">{language}</span>
+    <div className="rounded-xl border bg-gradient-to-br from-muted/40 to-muted/10 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b bg-card/40">
+        <span className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground">
+          {language}
+        </span>
         <button
           onClick={copy}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -25,7 +27,7 @@ function CodeBlock({ code, language = "json" }: { code: string; language?: strin
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <pre className="px-4 py-3 text-sm font-mono overflow-x-auto leading-relaxed">{code}</pre>
+      <pre className="text-xs font-mono leading-relaxed p-4 overflow-x-auto text-foreground/85">{code}</pre>
     </div>
   );
 }
