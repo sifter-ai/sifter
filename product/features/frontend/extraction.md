@@ -1,6 +1,6 @@
 ---
 title: "Frontend: Document Extraction (Sifts)"
-status: synced
+status: changed
 version: "1.3"
 last-modified: "2026-04-20T00:00:00.000Z"
 ---
