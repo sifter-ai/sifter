@@ -1,11 +1,27 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, AlertCircle, Loader2, PauseCircle, CheckCircle2, Layers, Zap, FolderOpen, Database } from "lucide-react";
+import { Plus, FileText, AlertCircle, Loader2, PauseCircle, CheckCircle2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiftForm } from "@/components/SiftForm";
+import { SiftsToolbar, SIFT_SORT_VALUES, type SiftSort } from "@/components/SiftsToolbar";
 import { useSiftsInfinite } from "@/hooks/useExtractions";
 import { useAuthContext } from "@/context/AuthContext";
 import type { Sift } from "@/api/types";
+
+const SORT_STORAGE_KEY = "sifts.sort";
+
+function loadSort(): SiftSort {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    if (saved && (SIFT_SORT_VALUES as string[]).includes(saved)) {
+      return saved as SiftSort;
+    }
+  } catch {
+    // localStorage unavailable (SSR, private mode) — fall through
+  }
+  return "activity";
+}
 
 // Parse "client_name (string), date (string), amount (number)" → ["client_name", "date", "amount"]
 function parseSchemaFields(schema: string | null): { name: string; type: string }[] {
@@ -47,26 +63,6 @@ function StatusDot({ status }: { status: string }) {
       return <PauseCircle className="h-3 w-3 text-slate-300 shrink-0" />;
     default:
       return <CheckCircle2 className="h-3 w-3 text-muted-foreground/40 shrink-0" />;
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "active": return "Active";
-    case "indexing": return "Indexing";
-    case "error": return "Error";
-    case "paused": return "Paused";
-    default: return status;
-  }
-}
-
-function statusTextColor(status: string) {
-  switch (status) {
-    case "active": return "text-emerald-600";
-    case "indexing": return "text-amber-600";
-    case "error": return "text-red-500";
-    case "paused": return "text-slate-400";
-    default: return "text-muted-foreground";
   }
 }
 
@@ -126,8 +122,11 @@ function SiftCard({ sift, onClick }: { sift: Sift; onClick: () => void }) {
               <Layers className="h-3 w-3 text-muted-foreground/40" />
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground/40 shrink-0 tabular-nums font-mono">
-            {formatDate(sift.created_at)}
+          <span
+            className="text-[10px] text-muted-foreground/40 shrink-0 tabular-nums font-mono"
+            title={new Date(sift.updated_at).toLocaleString()}
+          >
+            {formatDate(sift.updated_at)}
           </span>
         </div>
 
@@ -169,39 +168,26 @@ function SiftCard({ sift, onClick }: { sift: Sift; onClick: () => void }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-border/40 bg-muted/15 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          {isIndexing && sift.total_documents > 0 ? (
-            <div className="flex items-center gap-2">
-              <div className="w-20 h-1 rounded-full bg-muted overflow-hidden shrink-0">
-                <div
-                  className="h-full rounded-full bg-amber-400 transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="font-mono text-[10px] text-amber-600 tabular-nums">
-                {sift.processed_documents}/{sift.total_documents} docs
-              </span>
+      <div className="px-4 py-2.5 border-t border-border/40 bg-muted/15 flex items-center gap-2.5">
+        {isIndexing && sift.total_documents > 0 ? (
+          <div className="flex items-center gap-2">
+            <div className="w-20 h-1 rounded-full bg-muted overflow-hidden shrink-0">
+              <div
+                className="h-full rounded-full bg-amber-400 transition-all"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-          ) : (
-            <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-              {sift.processed_documents > 0
-                ? `${sift.processed_documents} doc${sift.processed_documents !== 1 ? "s" : ""}`
-                : "No documents yet"}
+            <span className="font-mono text-[10px] text-amber-600 tabular-nums">
+              {sift.processed_documents}/{sift.total_documents} docs
             </span>
-          )}
-          {fields.length > 0 && (
-            <>
-              <span className="text-muted-foreground/25">·</span>
-              <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                {fields.length} field{fields.length !== 1 ? "s" : ""}
-              </span>
-            </>
-          )}
-        </div>
-        <span className={`text-[10px] font-medium ${statusTextColor(sift.status)}`}>
-          {statusLabel(sift.status)}
-        </span>
+          </div>
+        ) : (
+          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+            {sift.processed_documents > 0
+              ? `${sift.processed_documents} doc${sift.processed_documents !== 1 ? "s" : ""}`
+              : "No documents yet"}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -230,80 +216,64 @@ function SkeletonCard() {
   );
 }
 
-function StatsStrip({ sifts }: { sifts: Sift[] }) {
-  const indexing = sifts.filter((s) => s.status === "indexing").length;
-  const errors = sifts.filter((s) => s.status === "error").length;
-  const totalDocs = sifts.reduce((sum, s) => sum + s.processed_documents, 0);
-  const totalFields = sifts.reduce((sum, s) => {
-    if (!s.schema) return sum;
-    return sum + s.schema.split(",").filter(Boolean).length;
-  }, 0);
-
-  const stats = [
-    {
-      label: "Total sifts",
-      value: sifts.length,
-      icon: Database,
-      iconBg: "bg-violet-100 dark:bg-violet-900/40",
-      iconColor: "text-violet-600 dark:text-violet-400",
-      accent: "border-l-violet-400",
-    },
-    {
-      label: "Indexing now",
-      value: indexing,
-      icon: Zap,
-      iconBg: "bg-amber-100 dark:bg-amber-900/40",
-      iconColor: "text-amber-600 dark:text-amber-400",
-      accent: indexing > 0 ? "border-l-amber-400" : "border-l-border",
-    },
-    {
-      label: "Docs processed",
-      value: totalDocs,
-      icon: FolderOpen,
-      iconBg: "bg-blue-100 dark:bg-blue-900/40",
-      iconColor: "text-blue-600 dark:text-blue-400",
-      accent: "border-l-blue-400",
-    },
-    {
-      label: errors > 0 ? `${errors} with errors` : "No errors",
-      value: totalFields,
-      icon: errors > 0 ? AlertCircle : Layers,
-      iconBg: errors > 0 ? "bg-red-100 dark:bg-red-900/40" : "bg-emerald-100 dark:bg-emerald-900/40",
-      iconColor: errors > 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400",
-      accent: errors > 0 ? "border-l-red-400" : "border-l-emerald-400",
-      sublabel: errors > 0 ? "need attention" : "schema fields total",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {stats.map((s) => (
-        <div
-          key={s.label}
-          className={`bg-card border border-border/60 rounded-xl px-5 py-4 flex items-center gap-4 border-l-2 ${s.accent} shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)]`}
-        >
-          <div className={`${s.iconBg} rounded-xl p-2.5 shrink-0`}>
-            <s.icon className={`h-5 w-5 ${s.iconColor}`} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-3xl font-bold tracking-tight tabular-nums leading-none">{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1.5 truncate">
-              {s.sublabel ?? s.label}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function SiftsPage() {
   const navigate = useNavigate();
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useSiftsInfinite();
-  const sifts = data?.pages.flatMap((p) => p.items) ?? [];
+  const sifts = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
   const { user } = useAuthContext();
 
   const firstName = user?.full_name?.split(" ")[0] ?? null;
+
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SiftSort>(loadSort);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SORT_STORAGE_KEY, sort);
+    } catch {
+      // ignore — non-critical
+    }
+  }, [sort]);
+
+  const visibleSifts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? sifts.filter((s) => {
+          const hay = [
+            s.name,
+            s.instructions ?? "",
+            s.description ?? "",
+            s.schema ?? "",
+          ]
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        })
+      : sifts;
+
+    const sorted = [...filtered];
+    switch (sort) {
+      case "alphabetical":
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "docs":
+        sorted.sort((a, b) => b.processed_documents - a.processed_documents);
+        break;
+      case "newest":
+        sorted.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        break;
+      case "activity":
+      default:
+        sorted.sort(
+          (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+        );
+    }
+    return sorted;
+  }, [sifts, query, sort]);
+
+  const noMatches = query.trim().length > 0 && visibleSifts.length === 0 && sifts.length > 0;
 
   return (
     <div className="relative min-h-full">
@@ -345,8 +315,15 @@ export function SiftsPage() {
           />
         </header>
 
-        {/* KPI strip — shown once data is loaded */}
-        {sifts && <StatsStrip sifts={sifts} />}
+        {/* Toolbar — only when there are sifts to navigate */}
+        {sifts.length > 0 && (
+          <SiftsToolbar
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={setSort}
+          />
+        )}
 
         {/* Loading */}
         {isLoading && (
@@ -392,10 +369,10 @@ export function SiftsPage() {
         )}
 
         {/* Sift grid */}
-        {sifts && sifts.length > 0 && (
+        {sifts.length > 0 && !noMatches && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {sifts.map((sift) => (
+              {visibleSifts.map((sift) => (
                 <SiftCard
                   key={sift.id}
                   sift={sift}
@@ -416,6 +393,20 @@ export function SiftsPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* No search matches */}
+        {noMatches && (
+          <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-muted-foreground">
+            <p>No sifts match <span className="font-mono text-foreground">{query.trim()}</span>.</p>
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-3 text-xs text-primary hover:underline"
+            >
+              Clear search
+            </button>
+          </div>
         )}
       </div>
     </div>
