@@ -40,8 +40,26 @@ function CellValue({ value }: { value: unknown }) {
     return <span className={value ? "text-emerald-600" : "text-slate-400"}>{value ? "true" : "false"}</span>;
   if (typeof value === "number")
     return <span className="tabular-nums text-right block">{value.toLocaleString()}</span>;
-  if (typeof value === "object")
-    return <span className="text-muted-foreground italic text-[11px]">{JSON.stringify(value)}</span>;
+  if (Array.isArray(value)) {
+    if (value.length === 0)
+      return <span className="text-muted-foreground/40 select-none">—</span>;
+    const allPrimitive = value.every((v) => typeof v !== "object" || v === null);
+    if (allPrimitive)
+      return <span title={value.join(", ")}>{value.join(", ")}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{value.length}</span>
+        {" item"}{value.length !== 1 ? "s" : ""}
+      </span>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined && typeof v !== "object")
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(" · ");
+    return <span className="text-xs text-muted-foreground" title={entries}>{entries || "{ }"}</span>;
+  }
   const str = String(value);
   return <span title={str}>{str}</span>;
 }

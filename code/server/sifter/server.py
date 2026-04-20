@@ -42,6 +42,11 @@ _worker_tasks = []
 async def lifespan(app: FastAPI):
     global _worker_tasks
     # Startup
+    if not config.llm_api_key:
+        raise RuntimeError(
+            "SIFTER_LLM_API_KEY is not set. Add your LLM provider API key to server/.env and restart."
+        )
+
     if config.api_key == "sk-dev":
         logger.warning(
             "using_default_api_key",
@@ -162,5 +167,9 @@ def run():
         "sifter.server:app",
         host=config.host,
         port=config.port,
-        reload=True,
+        reload=False,
     )
+
+
+if __name__ == "__main__":
+    run()

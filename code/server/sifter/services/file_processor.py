@@ -99,8 +99,8 @@ class FileProcessor:
         return ProcessedFile(
             text_content="",
             images=[{
-                "type": "image_url",
-                "image_url": {"url": f"data:application/pdf;base64,{b64}"},
+                "type": "file",
+                "file": {"file_data": f"data:application/pdf;base64,{b64}"},
             }],
             mime_type="application/pdf",
             file_name=filename,

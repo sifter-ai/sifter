@@ -133,7 +133,7 @@ function DriveFolderPickerDialog({
             </div>
           ) : (
             <div className="divide-y max-h-[280px] overflow-y-auto">
-              {items.map((f) => (
+              {items.map((f: { id: string; name: string; is_folder: boolean }) => (
                 <button
                   key={f.id}
                   className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors group"

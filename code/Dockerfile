@@ -10,16 +10,17 @@ RUN apt-get update && apt-get install -y \
     libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies with uv (uses lockfile if present)
-COPY pyproject.toml uv.lock* ./
+# Copy local packages (sdk + mcp) so uv path sources resolve
+COPY sdk/ ../sdk/
+COPY mcp/ ../mcp/
+
+# Install Python dependencies
+COPY server/pyproject.toml server/uv.lock* server/README.md ./
 RUN uv sync --no-dev --frozen || uv sync --no-dev
 
-# Copy source
-COPY sifter_server/ ./sifter_server/
-
-# Copy frontend build if exists
-COPY frontend/dist/ ./frontend/dist/ 2>/dev/null || true
+# Copy server source
+COPY server/sifter/ ./sifter/
 
 EXPOSE 8000
 
-CMD ["uv", "run", "python", "-m", "sifter_server.server"]
+CMD ["uv", "run", "python", "-m", "sifter.server"]

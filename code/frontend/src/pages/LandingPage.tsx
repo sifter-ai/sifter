@@ -15,7 +15,7 @@ import {
 import logo from "@/assets/logo.svg";
 
 const DOCS_URL = "https://sifterai.mintlify.app";
-const GITHUB_URL = "https://github.com/bfortunato/sifter";
+const GITHUB_URL = "https://github.com/sifter-ai/sifter";
 
 export default function LandingPage() {
   return (

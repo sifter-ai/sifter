@@ -1,5 +1,7 @@
 version: '3.8'
 
+name: sifter
+
 services:
   mongodb:
     image: mongo:7
@@ -21,13 +23,12 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - server/.env
     environment:
       - SIFTER_MONGODB_URI=mongodb://mongodb:27017
-      - SIFTER_LLM_MODEL=${SIFTER_LLM_MODEL:-openai/gpt-4o}
-      - SIFTER_LLM_API_KEY=${SIFTER_LLM_API_KEY}
-      - SIFTER_PIPELINE_MODEL=${SIFTER_PIPELINE_MODEL:-openai/gpt-4o-mini}
     volumes:
-      - ./uploads:/app/uploads
+      - ./server/uploads:/app/uploads
     depends_on:
       mongodb:
         condition: service_healthy
