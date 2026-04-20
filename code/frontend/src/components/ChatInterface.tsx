@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { ChevronDown, ChevronRight, CheckCircle2, CornerDownLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -140,13 +141,51 @@ function TraceList({ traces }: { traces: ToolCallTrace[] }) {
   );
 }
 
+function Markdown({ children, className }: { children: string; className?: string }) {
+  return (
+    <div className={className}>
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-0.5">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-0.5">{children}</ol>,
+        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+        h1: ({ children }) => <h1 className="mb-1 text-base font-bold">{children}</h1>,
+        h2: ({ children }) => <h2 className="mb-1 text-sm font-bold">{children}</h2>,
+        h3: ({ children }) => <h3 className="mb-1 text-sm font-semibold">{children}</h3>,
+        code: ({ children, className }) =>
+          className ? (
+            <pre className="my-2 overflow-x-auto rounded-lg border border-border/50 bg-muted/50 p-3 font-mono text-xs">
+              <code>{children}</code>
+            </pre>
+          ) : (
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8em]">{children}</code>
+          ),
+        blockquote: ({ children }) => (
+          <blockquote className="my-2 border-l-2 border-border pl-3 text-muted-foreground">{children}</blockquote>
+        ),
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-80">
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+    </div>
+  );
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   if (isUser) {
     return (
       <div className="flex justify-end">
         <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground shadow-sm">
-          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          <Markdown className="prose-invert">{message.content}</Markdown>
         </div>
       </div>
     );
@@ -157,9 +196,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div className="flex-1 min-w-0 space-y-3 pt-0.5">
         {message.trace && message.trace.length > 0 && <TraceList traces={message.trace} />}
         {message.content && (
-          <p className="text-[14px] leading-[1.65] whitespace-pre-wrap text-foreground/95">
-            {message.content}
-          </p>
+          <div className="text-[14px] text-foreground/95">
+            <Markdown>{message.content}</Markdown>
+          </div>
         )}
         {message.data && message.data.length > 0 && (
           <DataTable data={message.data as Record<string, unknown>[]} />
