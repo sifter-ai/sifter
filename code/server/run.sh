@@ -84,7 +84,7 @@ fi
 
 # ---- Start API ----
 info "Starting API server on http://localhost:${SIFTER_PORT:-8000} ..."
-uv run uvicorn sifter.server:app --host 0.0.0.0 --port "${SIFTER_PORT:-8000}" --reload &
+uv run uvicorn sifter.server:app --host 0.0.0.0 --port "${SIFTER_PORT:-8000}" &
 PIDS+=($!)
 
 # Wait for API to be ready
