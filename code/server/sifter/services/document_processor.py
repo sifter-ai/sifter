@@ -89,6 +89,15 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
         attempts = task_doc.get("attempts", 1)
         max_attempts = task_doc.get("max_attempts", 3)
 
+        if attempts > 1:
+            logger.warning(
+                "task_reclaimed",
+                document_id=document_id,
+                sift_id=sift_id,
+                attempt=attempts,
+                prev_status=task_doc.get("status", "unknown"),
+            )
+
         # Schema gate: if this sift has no schema yet, don't start in parallel.
         # Put the task back as pending and let whoever is already processing
         # this sift finish first (they will write the schema). Once the schema
