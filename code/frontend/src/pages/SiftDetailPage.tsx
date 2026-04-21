@@ -992,7 +992,7 @@ export function SiftDetailPage() {
               </TabsList>
 
               <TabsContent value="records" className="mt-6 space-y-3">
-                <RecordsTable records={records} isLoading={recordsLoading} />
+                <RecordsTable records={records} isLoading={recordsLoading} siftId={id!} />
                 {recordsPage && recordsPage.total > RECORDS_PAGE_SIZE && (
                   <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
                     <span>

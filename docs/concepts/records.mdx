@@ -66,6 +66,25 @@ Example for an invoice sift:
 }
 ```
 
+## Verifying extractions
+
+Every record carries a **citations** map — one entry per extracted field with the exact source snippet and a confidence score. The record detail modal in the UI shows this inline: a confidence badge (High / Medium / Low / Unverified) and the source text snippet alongside each value.
+
+```json
+"citations": {
+  "supplier": { "document_id": "doc_...", "source_text": "OpenAI Ireland Ltd", "page": 1, "confidence": 0.98 },
+  "total":    { "document_id": "doc_...", "source_text": "Total amount: 1500 EUR", "page": 2, "confidence": 0.92 }
+}
+```
+
+Badge levels:
+- **High** — `confidence ≥ 0.85`
+- **Medium** — `0.60 ≤ confidence < 0.85`
+- **Low** — `confidence < 0.60` or `inferred: true` (fuzzy match)
+- **Unverified** — no citation entry for the field
+
+Records extracted before citations were added show an empty map. Use `POST /api/sifts/{id}/reindex` to backfill them. See [Citations](/concepts/citations) for the full data shape and pipeline details.
+
 ## Exporting
 
 <Tabs>

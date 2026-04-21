@@ -54,9 +54,9 @@ export interface SiftRecord {
 
 export interface Citation {
   document_id: string;
-  page: number;
-  bbox: [number, number, number, number];
   source_text: string;
+  page?: number;
+  confidence?: number;
   inferred?: boolean;
 }
 

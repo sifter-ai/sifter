@@ -83,3 +83,63 @@ async def test_extract_invalid_json(tmp_path):
                 filename="doc.txt",
                 instructions="Extract: client",
             )
+
+
+@pytest.mark.asyncio
+async def test_extract_parses_citations(tmp_path):
+    test_file = tmp_path / "invoice.txt"
+    test_file.write_text("Supplier: Acme Corp\nTotal: 1500 EUR")
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.92,
+        "extractedData": {"supplier": "Acme Corp", "total": 1500},
+        "citations": {
+            "supplier": {"source_text": "Acme Corp", "confidence": 0.98},
+            "total": {"source_text": "Total: 1500 EUR", "confidence": 0.95},
+        },
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=test_file.read_bytes(),
+            filename="invoice.txt",
+            instructions="Extract: supplier, total",
+        )
+
+    assert result.llm_citations is not None
+    assert "supplier" in result.llm_citations
+    assert result.llm_citations["supplier"]["source_text"] == "Acme Corp"
+    assert result.llm_citations["supplier"]["confidence"] == pytest.approx(0.98)
+    assert "total" in result.llm_citations
+
+
+@pytest.mark.asyncio
+async def test_extract_no_citations_key(tmp_path):
+    test_file = tmp_path / "doc.txt"
+    test_file.write_text("some document without citations")
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "other",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.5,
+        "extractedData": {"field": "value"},
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=test_file.read_bytes(),
+            filename="doc.txt",
+            instructions="Extract: field",
+        )
+
+    assert result.llm_citations == {}

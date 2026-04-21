@@ -26,6 +26,7 @@ class ExtractionAgentResult:
     confidence: float
     extracted_data: list[dict[str, Any]]
     page_blocks: list[dict] = None
+    llm_citations: dict[str, dict] | None = None
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -137,4 +138,5 @@ async def extract(
         confidence=float(data_parsed.get("confidence", 0.0)),
         extracted_data=extracted_list,
         page_blocks=processed.page_blocks,
+        llm_citations=data_parsed.get("citations") or {},
     )

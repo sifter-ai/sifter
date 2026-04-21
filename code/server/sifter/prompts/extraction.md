@@ -77,3 +77,21 @@ If a field value is a list or table in the document (e.g., line items on an invo
 
 - Convert all date formats to ISO 8601: `15/12/2024` → `2024-12-15`, `Dec 15, 2024` → `2024-12-15`
 - For partial dates (month/year only), use the first of the month: `December 2024` → `2024-12-01`
+
+## Per-Field Citations
+
+Alongside `extractedData`, return a `citations` map with one entry per non-null extracted field:
+
+```json
+"citations": {
+  "supplier": { "source_text": "OpenAI Ireland Ltd", "confidence": 0.98 },
+  "total":    { "source_text": "Total amount: 1500 EUR", "confidence": 0.92 },
+  "date":     { "source_text": "Invoice date: 14/03/2026", "confidence": 0.88 }
+}
+```
+
+Rules for `citations`:
+- `source_text`: the exact short snippet as it appears in the document (not the whole sentence or paragraph)
+- `confidence`: 1.0 = value copied verbatim and unambiguous; ≥0.85 = found clearly; 0.5–0.85 = partial match or inferred; <0.5 = uncertain or computed
+- Omit fields you cannot cite (e.g. computed values, fields not found)
+- Do NOT include coordinates, page numbers, or bounding boxes — text only

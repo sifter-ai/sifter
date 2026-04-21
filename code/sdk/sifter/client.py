@@ -455,7 +455,12 @@ class RecordHandle:
         self._client = client
 
     def citations(self) -> dict[str, Any]:
-        """Return per-field citation map for this record."""
+        """Return per-field citation map for this record.
+
+        Each key is a field name; each value has shape:
+        { document_id, source_text, page?, confidence?, inferred? }.
+        bbox is reserved and not populated in the current version.
+        """
         import httpx
         with httpx.Client() as http:
             r = http.get(

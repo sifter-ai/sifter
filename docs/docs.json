@@ -27,6 +27,7 @@
           "concepts/sifts",
           "concepts/folders",
           "concepts/records",
+          "concepts/citations",
           "concepts/dashboards",
           "concepts/queries-and-chat",
           "concepts/webhooks",

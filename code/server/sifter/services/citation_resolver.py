@@ -1,70 +1,86 @@
 """
-Citation resolver — maps extracted field values to source locations in the document.
+Citation resolver — maps LLM-provided source spans to verified page locations.
 
-Given the raw text blocks returned by the file processor and a field value, finds
-the page number and bounding box where the value appears.  Falls back to fuzzy
-matching when the verbatim string is not found.
+For PDFs, page_blocks (extracted via pymupdf) are searched verbatim then fuzzy.
+For other formats, the LLM's source_text + confidence pass through unchanged.
 
-Citation shape (matches system/entities.md):
+Citation shape:
 {
     "document_id": str,
-    "page": int,          # 1-indexed
-    "bbox": [x1, y1, x2, y2],  # normalised [0..1]
     "source_text": str,
-    "inferred": bool | None   # present and True when value was not directly quoted
+    "page": int,       # 1-indexed; present for PDFs only
+    "confidence": float,  # [0.0, 1.0]; absent when provider cannot supply it
+    "inferred": bool,  # True when fuzzy match was used; absent for non-PDF
 }
 """
 from __future__ import annotations
 
 import re
+import structlog
 from typing import Any
+
+logger = structlog.get_logger()
 
 
 def resolve_citations(
     document_id: str,
     extracted_data: dict[str, Any],
-    page_blocks: list[dict],  # [{page, text, bbox, width, height}, ...]
+    llm_citations: dict[str, dict],
+    page_blocks: list[dict],  # [{page, text}, ...] — empty for non-PDF formats
 ) -> dict[str, dict]:
     """
     Returns a citation map: { field_name: citation_dict }.
-    Fields that cannot be resolved are omitted.
+    Fields absent from llm_citations are omitted.
     """
     citations: dict[str, dict] = {}
-    for field, value in extracted_data.items():
-        if value is None:
+    for field in extracted_data:
+        if field not in llm_citations:
             continue
-        text = str(value).strip()
-        if not text:
+        llm_entry = llm_citations[field]
+        if not isinstance(llm_entry, dict):
             continue
+        source_text = llm_entry.get("source_text", "")
+        if not source_text:
+            continue
+        confidence = llm_entry.get("confidence")
+        if confidence is not None:
+            try:
+                confidence = float(confidence)
+            except (TypeError, ValueError):
+                confidence = None
 
-        citation = _find_verbatim(document_id, text, page_blocks)
-        if citation is None:
-            citation = _find_fuzzy(document_id, text, page_blocks)
-        if citation is not None:
-            citations[field] = citation
+        if confidence is not None and confidence < 0.6:
+            logger.debug("low_confidence_field", field=field, confidence=confidence)
+
+        if page_blocks:
+            page, inferred = _find_verbatim(source_text, page_blocks)
+            if page is None:
+                page, inferred = _find_fuzzy(source_text, page_blocks)
+                if page is not None and confidence is not None:
+                    confidence = min(confidence, 0.7)
+            if page is None:
+                logger.warning("citation_unresolved", field=field, source_text=source_text[:80])
+            citations[field] = _make_citation(document_id, source_text, page, inferred, confidence)
+        else:
+            citations[field] = _make_citation(document_id, source_text, None, None, confidence)
 
     return citations
 
 
-def _find_verbatim(
-    document_id: str, text: str, blocks: list[dict]
-) -> dict | None:
+def _find_verbatim(text: str, blocks: list[dict]) -> tuple[int | None, bool]:
     for block in blocks:
-        block_text: str = block.get("text", "")
-        if text.lower() in block_text.lower():
-            return _make_citation(document_id, block, text, inferred=False)
-    return None
+        if text.lower() in block.get("text", "").lower():
+            return block.get("page", 1), False
+    return None, False
 
 
-def _find_fuzzy(
-    document_id: str, text: str, blocks: list[dict]
-) -> dict | None:
+def _find_fuzzy(text: str, blocks: list[dict]) -> tuple[int | None, bool]:
     text_tokens = set(_tokenize(text))
     if not text_tokens:
-        return None
+        return None, False
 
     best_score = 0.0
-    best_block = None
+    best_page = None
 
     for block in blocks:
         block_tokens = set(_tokenize(block.get("text", "")))
@@ -74,34 +90,25 @@ def _find_fuzzy(
         score = overlap / max(len(text_tokens), 1)
         if score > best_score:
             best_score = score
-            best_block = block
+            best_page = block.get("page", 1)
 
-    if best_score >= 0.6 and best_block is not None:
-        return _make_citation(document_id, best_block, text, inferred=True)
-    return None
+    if best_score >= 0.6 and best_page is not None:
+        return best_page, True
+    return None, False
 
 
 def _make_citation(
-    document_id: str, block: dict, source_text: str, inferred: bool
+    document_id: str,
+    source_text: str,
+    page: int | None,
+    inferred: bool | None,
+    confidence: float | None,
 ) -> dict:
-    page = block.get("page", 1)
-    raw_bbox = block.get("bbox", [0, 0, 0, 0])
-    width = block.get("width", 1) or 1
-    height = block.get("height", 1) or 1
-
-    # Normalise bbox to [0..1]
-    if len(raw_bbox) == 4:
-        x1, y1, x2, y2 = raw_bbox
-        norm_bbox = [x1 / width, y1 / height, x2 / width, y2 / height]
-    else:
-        norm_bbox = [0.0, 0.0, 1.0, 1.0]
-
-    result: dict = {
-        "document_id": document_id,
-        "page": page,
-        "bbox": norm_bbox,
-        "source_text": source_text,
-    }
+    result: dict = {"document_id": document_id, "source_text": source_text}
+    if page is not None:
+        result["page"] = page
+    if confidence is not None:
+        result["confidence"] = confidence
     if inferred:
         result["inferred"] = True
     return result

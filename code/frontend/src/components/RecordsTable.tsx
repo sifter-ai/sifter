@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
-import type { SiftRecord } from "@/api/types";
+import type { Citation, SiftRecord } from "@/api/types";
+import { reindexSift } from "@/api/extractions";
 
 interface RecordsTableProps {
   records: SiftRecord[];
   isLoading?: boolean;
+  siftId?: string;
 }
 
 type SortDir = "asc" | "desc" | null;
@@ -84,13 +86,108 @@ function DetailValue({ value }: { value: unknown }) {
   return <span className="break-words">{String(value)}</span>;
 }
 
+function CitationBadge({ citation }: { citation?: Citation }) {
+  if (!citation) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/60 shrink-0"
+        title="Source not located in document"
+      >
+        <Info className="h-3 w-3" />
+        Unverified
+      </span>
+    );
+  }
+  const conf = citation.confidence ?? 1;
+  const isLow = citation.inferred || conf < 0.6;
+  const isMed = !isLow && conf < 0.85;
+  const dot = isLow
+    ? "bg-red-500"
+    : isMed
+    ? "bg-amber-400"
+    : "bg-emerald-500";
+  const label = isLow ? "Low" : isMed ? "Medium" : "High";
+  const textColor = isLow
+    ? "text-red-600"
+    : isMed
+    ? "text-amber-700"
+    : "text-emerald-700";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-medium shrink-0 ${textColor}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  );
+}
+
+function SnippetBlock({ citation }: { citation: Citation }) {
+  const [expanded, setExpanded] = useState(false);
+  const snippet = citation.source_text;
+  const truncated = snippet.length > 120;
+  return (
+    <div className="mt-1.5 text-[11px] font-mono text-muted-foreground bg-muted/40 border border-border/40 rounded px-2 py-1.5">
+      <span className="whitespace-pre-wrap break-words">
+        {truncated && !expanded ? snippet.slice(0, 120) + "…" : snippet}
+      </span>
+      {truncated && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="ml-1 text-primary hover:underline text-[10px]"
+        >
+          {expanded ? "less" : "more"}
+        </button>
+      )}
+      {citation.page != null && (
+        <div className="mt-0.5 text-[10px] opacity-60">page {citation.page}</div>
+      )}
+    </div>
+  );
+}
+
+function ReindexBanner({ siftId }: { siftId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleReindex = async () => {
+    setLoading(true);
+    try {
+      await reindexSift(siftId);
+      setDone(true);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) return null;
+
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+      <span>Reindex this sift to populate citations</span>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 text-[11px] gap-1"
+        onClick={handleReindex}
+        disabled={loading}
+      >
+        <RotateCcw className="h-3 w-3" />
+        {loading ? "Reindexing…" : "Reindex"}
+      </Button>
+    </div>
+  );
+}
+
 function RecordDetailModal({
   record,
   columns,
+  siftId,
   onClose,
 }: {
   record: SiftRecord | null;
   columns: string[];
+  siftId?: string;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -103,6 +200,8 @@ function RecordDetailModal({
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  const hasCitations = record.citations && Object.keys(record.citations).length > 0;
 
   return (
     <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
@@ -121,18 +220,28 @@ function RecordDetailModal({
           </div>
         </DialogHeader>
 
+        {/* Reindex banner — shown when citations map is entirely empty */}
+        {!hasCitations && siftId && <ReindexBanner siftId={siftId} />}
+
         {/* Extracted fields */}
         <div className="space-y-0 divide-y divide-border/50">
-          {columns.map((col) => (
-            <div key={col} className="py-3 grid grid-cols-[160px_1fr] gap-4 items-start">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
-                {col.replace(/_/g, " ")}
-              </span>
-              <div className="text-sm min-w-0">
-                <DetailValue value={record.extracted_data[col]} />
+          {columns.map((col) => {
+            const citation = record.citations?.[col];
+            return (
+              <div key={col} className="py-3 grid grid-cols-[160px_1fr] gap-4 items-start">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
+                  {col.replace(/_/g, " ")}
+                </span>
+                <div className="text-sm min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <DetailValue value={record.extracted_data[col]} />
+                    <CitationBadge citation={citation} />
+                  </div>
+                  {citation?.source_text && <SnippetBlock citation={citation} />}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Metadata */}
@@ -201,7 +310,7 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
-export function RecordsTable({ records, isLoading }: RecordsTableProps) {
+export function RecordsTable({ records, isLoading, siftId }: RecordsTableProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "", dir: null });
@@ -370,6 +479,7 @@ export function RecordsTable({ records, isLoading }: RecordsTableProps) {
       <RecordDetailModal
         record={selected}
         columns={columns}
+        siftId={siftId}
         onClose={() => setSelected(null)}
       />
     </div>

@@ -1,0 +1,121 @@
+---
+title: Citations
+description: Per-field source evidence for every extracted value — where each field came from and how confident the extraction is.
+---
+
+# Citations
+
+Every extracted field in a Sifter record carries **citation evidence**: the exact text snippet the model relied on, a confidence score, and (for PDFs) the page number where it was found. This is a first-class API primitive, not a UI feature — any client can verify extraction quality programmatically.
+
+## Citation shape
+
+```json
+{
+  "document_id": "doc_abc123",
+  "source_text": "OpenAI Ireland Ltd",
+  "page": 1,
+  "confidence": 0.98,
+  "inferred": false
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `document_id` | yes | Always the source document |
+| `source_text` | yes | The exact snippet as it appears in the document |
+| `page` | optional | 1-indexed page number. Present for PDFs; absent for other formats |
+| `confidence` | optional | LLM self-assessment `[0.0, 1.0]`. Capped at `0.7` when fuzzy matching was needed |
+| `inferred` | optional | `true` when source_text didn't verbatim-match any text block and fuzzy matching was used. Absent for non-PDF formats |
+
+Fields with no resolvable citation are absent from the map. A missing field means "unknown source", not "no source".
+
+<Note>
+`bbox` (bounding box coordinates) is reserved in the contract for a future click-to-highlight feature but **not populated** in the current version. Never appears in API responses.
+</Note>
+
+## Accessing citations
+
+Citations are embedded inline on every record from `GET /api/sifts/{id}/records`:
+
+```json
+{
+  "id": "rec_...",
+  "extracted_data": { "supplier": "OpenAI Ireland Ltd", "total": 1500 },
+  "citations": {
+    "supplier": { "document_id": "doc_...", "source_text": "OpenAI Ireland Ltd", "page": 1, "confidence": 0.98 },
+    "total":    { "document_id": "doc_...", "source_text": "Total amount: 1500 EUR", "page": 2, "confidence": 0.92 }
+  }
+}
+```
+
+The dedicated endpoint is for drill-down when the record is already loaded:
+
+```bash
+GET /api/sifts/{sift_id}/records/{record_id}/citations
+```
+
+Response:
+```json
+{
+  "record_id": "rec_...",
+  "document_id": "doc_...",
+  "citations": { "<field>": { ... } }
+}
+```
+
+## Extraction pipeline
+
+1. **PDF parsing** — pymupdf extracts per-block text with page numbers: `[{ page, text }, ...]`. No geometry is extracted.
+2. **LLM extraction** — the extraction prompt asks the model to return a `citations` map alongside `extractedData`, with `source_text` and `confidence` per field.
+3. **Citation resolution** — `citation_resolver` maps each LLM span to a page number by searching the parsed text blocks:
+   - Verbatim match → `inferred: false`
+   - Fuzzy token-overlap ≥ 60% → `inferred: true`, `confidence` capped at `0.7`
+   - No match → no `page`/`inferred` (citation still included with `source_text`)
+4. **Non-PDF passthrough** — for images, docx, html, md, txt, csv there are no parsed text blocks. The LLM's `source_text` + `confidence` pass through directly; `page` and `inferred` are absent.
+
+## Format support
+
+| Format | `source_text` | `page` | `inferred` | Notes |
+|--------|--------------|--------|------------|-------|
+| PDF | ✓ | ✓ | ✓ | Full verbatim/fuzzy verification |
+| Image (PNG, JPG, TIFF, WebP) | ✓ | — | — | LLM passthrough; no text layer |
+| DOCX | ✓ | — | — | LLM passthrough |
+| HTML, MD, TXT | ✓ | — | — | LLM passthrough |
+| CSV | ✓ | — | — | LLM passthrough |
+
+Scan-only PDFs (no text layer) behave like images — `source_text` from LLM only, no page verification.
+
+## Backfill
+
+Records extracted before citations were available have an empty `citations` map. Reindex the sift to populate them:
+
+```bash
+POST /api/sifts/{id}/reindex
+```
+
+The UI shows a "Reindex to populate citations" banner in the record detail modal when the citations map is empty.
+
+## SDK
+
+<Tabs>
+  <Tab title="Python">
+```python
+record = sift.record("rec_abc123")
+citations = record.citations()
+# { "supplier": { "document_id": "...", "source_text": "OpenAI Ireland Ltd", "page": 1, "confidence": 0.98 } }
+```
+  </Tab>
+  <Tab title="TypeScript">
+```ts
+const citations = await sift.recordCitations("rec_abc123");
+// Record<string, Citation>
+```
+  </Tab>
+  <Tab title="MCP">
+The `get_record_citations` MCP tool lets LLM agents fetch citations to justify their answers:
+
+```
+get_record_citations(sift_id="sift_...", record_id="rec_...")
+```
+  </Tab>
+</Tabs>

@@ -61,7 +61,7 @@ class ProcessedFile(NamedTuple):
     images: list[dict]  # list of {"type": "image_url", "image_url": {"url": "data:..."}}
     mime_type: str
     file_name: str
-    page_blocks: list[dict] = []  # kept for API compatibility; always empty now
+    page_blocks: list[dict] = []
 
 
 class FileProcessor:
@@ -94,6 +94,21 @@ class FileProcessor:
         else:
             raise UnsupportedFileType(ext)
 
+    def _extract_pdf_blocks(self, data: bytes) -> list[dict]:
+        try:
+            import fitz  # pymupdf
+            blocks = []
+            with fitz.open(stream=data, filetype="pdf") as doc:
+                for page_num, page in enumerate(doc, start=1):
+                    for b in page.get_text("blocks"):
+                        x0, y0, x1, y1, text, block_no, block_type = b[:7]
+                        if block_type == 0 and text.strip():
+                            blocks.append({"page": page_num, "text": text.strip()})
+            return blocks
+        except Exception as exc:
+            logger.warning("pdf_block_extraction_failed", error=str(exc))
+            return []
+
     def _process_pdf(self, data: bytes, filename: str) -> ProcessedFile:
         b64 = base64.b64encode(data).decode("utf-8")
         return ProcessedFile(
@@ -104,6 +119,7 @@ class FileProcessor:
             }],
             mime_type="application/pdf",
             file_name=filename,
+            page_blocks=self._extract_pdf_blocks(data),
         )
 
     def _process_image(self, data: bytes, filename: str) -> ProcessedFile:

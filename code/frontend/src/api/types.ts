@@ -63,6 +63,14 @@ export interface Sift {
   updated_at: string;
 }
 
+export interface Citation {
+  document_id: string;
+  source_text: string;
+  page?: number;
+  confidence?: number;
+  inferred?: boolean;
+}
+
 export interface SiftRecord {
   id: string;
   document_id: string;
@@ -70,6 +78,7 @@ export interface SiftRecord {
   document_type: string;
   confidence: number;
   extracted_data: Record<string, unknown>;
+  citations?: Record<string, Citation>;
   record_index: number;
   created_at: string;
 }
