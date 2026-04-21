@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
 import type { Citation, SiftRecord } from "@/api/types";
-import { reindexSift } from "@/api/extractions";
+import { fetchRecordsCount, reindexSift } from "@/api/extractions";
 
 interface RecordsTableProps {
   records: SiftRecord[];
   isLoading?: boolean;
   siftId?: string;
+  showUncertainOnly?: boolean;
+  onFilterChange?: (value: boolean) => void;
 }
 
 type SortDir = "asc" | "desc" | null;
@@ -310,11 +312,19 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
-export function RecordsTable({ records, isLoading, siftId }: RecordsTableProps) {
+export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, onFilterChange }: RecordsTableProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "", dir: null });
   const [selected, setSelected] = useState<SiftRecord | null>(null);
+  const [uncertainCount, setUncertainCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!siftId) return;
+    fetchRecordsCount(siftId, { hasUncertainFields: true })
+      .then((r) => setUncertainCount(r.count))
+      .catch(() => {});
+  }, [siftId]);
 
   const columns = useMemo(() => {
     if (!records.length) return [];
@@ -390,23 +400,43 @@ export function RecordsTable({ records, isLoading, siftId }: RecordsTableProps) 
 
   return (
     <div className="space-y-3">
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search records…"
-          className="pl-8 h-8 text-sm pr-8"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+      {/* Toolbar: search + uncertain filter */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search records…"
+            className="pl-8 h-8 text-sm pr-8"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {uncertainCount != null && uncertainCount > 0 && (
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              {uncertainCount} uncertain
+            </span>
+          )}
+          {onFilterChange && (
+            <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground cursor-pointer select-none whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showUncertainOnly ?? false}
+                onChange={(e) => onFilterChange(e.target.checked)}
+                className="h-3.5 w-3.5 accent-amber-500"
+              />
+              Show uncertain only
+            </label>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -453,7 +483,17 @@ export function RecordsTable({ records, isLoading, siftId }: RecordsTableProps) 
                     {record.document_type || "—"}
                   </td>
                   <td className="px-3 py-2">
-                    <ConfidencePill value={record.confidence} />
+                    <div className="flex items-center gap-1.5">
+                      <ConfidencePill value={record.confidence} />
+                      {record.has_uncertain_fields && (
+                        <span
+                          title="One or more fields have low confidence — click to review"
+                          className="text-amber-500 shrink-0"
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {columns.map((col) => (
                     <td key={col} className="px-3 py-2 font-mono text-[11px] text-foreground/80 max-w-[200px] truncate">

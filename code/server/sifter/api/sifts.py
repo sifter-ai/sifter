@@ -453,6 +453,8 @@ async def count_records(
     sift_id: str,
     filter: Optional[str] = None,
     q: Optional[str] = None,
+    min_confidence: Optional[float] = None,
+    has_uncertain_fields: Optional[bool] = None,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
@@ -460,7 +462,10 @@ async def count_records(
     if not await svc.get(sift_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
-    mongo_filter = _build_records_filter(sift_id, filter, q)
+    if min_confidence is not None and not (0.0 <= min_confidence <= 1.0):
+        raise HTTPException(status_code=422, detail="min_confidence must be between 0.0 and 1.0")
+
+    mongo_filter = _build_records_filter(sift_id, filter, q, min_confidence, has_uncertain_fields)
     count = await db["sift_results"].count_documents(mongo_filter)
     return {"count": count}
 
@@ -498,6 +503,8 @@ async def get_records(
     sort: Optional[str] = None,
     project: Optional[str] = None,
     q: Optional[str] = None,
+    min_confidence: Optional[float] = None,
+    has_uncertain_fields: Optional[bool] = None,
     _: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
@@ -505,7 +512,10 @@ async def get_records(
     if not await svc.get(sift_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
-    mongo_filter = _build_records_filter(sift_id, filter, q)
+    if min_confidence is not None and not (0.0 <= min_confidence <= 1.0):
+        raise HTTPException(status_code=422, detail="min_confidence must be between 0.0 and 1.0")
+
+    mongo_filter = _build_records_filter(sift_id, filter, q, min_confidence, has_uncertain_fields)
 
     # Cursor-based pagination takes precedence over offset
     if cursor is not None:
@@ -857,7 +867,13 @@ async def get_schema_json(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _build_records_filter(sift_id: str, filter_str: Optional[str], q: Optional[str]) -> dict:
+def _build_records_filter(
+    sift_id: str,
+    filter_str: Optional[str],
+    q: Optional[str],
+    min_confidence: Optional[float] = None,
+    has_uncertain_fields: Optional[bool] = None,
+) -> dict:
     mongo_filter: dict = {"sift_id": sift_id}
     if filter_str:
         try:
@@ -867,6 +883,26 @@ def _build_records_filter(sift_id: str, filter_str: Optional[str], q: Optional[s
         mongo_filter.update(_translate_filter(user_filter))
     if q:
         mongo_filter["$text"] = {"$search": q}
+    if min_confidence is not None:
+        mongo_filter["confidence"] = {"$gte": min_confidence}
+    if has_uncertain_fields:
+        # Match records where any citation entry has confidence < 0.6 OR inferred: true.
+        # Citations are a nested map; $objectToArray lets us iterate over map values.
+        # Full-scan over citations is acceptable at typical dataset sizes (no index on citations values).
+        mongo_filter["$expr"] = {
+            "$anyElementTrue": {
+                "$map": {
+                    "input": {"$objectToArray": {"$ifNull": ["$citations", {}]}},
+                    "as": "c",
+                    "in": {
+                        "$or": [
+                            {"$lt": [{"$ifNull": ["$$c.v.confidence", 1.0]}, 0.6]},
+                            {"$eq": [{"$ifNull": ["$$c.v.inferred", False]}, True]},
+                        ]
+                    },
+                }
+            }
+        }
     return mongo_filter
 
 
@@ -881,6 +917,11 @@ def _result_to_dict(doc: dict) -> dict:
             d[k] = v
     if "created_at" in d and hasattr(d["created_at"], "isoformat"):
         d["created_at"] = d["created_at"].isoformat()
+    citations = d.get("citations") or {}
+    d["has_uncertain_fields"] = any(
+        isinstance(c, dict) and (c.get("confidence", 1.0) < 0.6 or c.get("inferred", False))
+        for c in citations.values()
+    )
     return d
 
 

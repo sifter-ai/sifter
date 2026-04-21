@@ -81,6 +81,7 @@ export interface SiftRecord {
   citations?: Record<string, Citation>;
   record_index: number;
   created_at: string;
+  has_uncertain_fields: boolean;
 }
 
 // Legacy alias

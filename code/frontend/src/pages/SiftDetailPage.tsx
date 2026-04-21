@@ -522,10 +522,12 @@ export function SiftDetailPage() {
   const { data: extraction, isLoading, error } = useSift(id!);
 
   const [recordsOffset, setRecordsOffset] = useState(0);
+  const [recordsUncertainOnly, setRecordsUncertainOnly] = useState(false);
   const RECORDS_PAGE_SIZE = 50;
   const { data: recordsPage, isLoading: recordsLoading } = useSiftRecords(id!, {
     limit: RECORDS_PAGE_SIZE,
     offset: recordsOffset,
+    hasUncertainFields: recordsUncertainOnly || undefined,
   });
   const records = recordsPage?.items ?? [];
 
@@ -992,7 +994,13 @@ export function SiftDetailPage() {
               </TabsList>
 
               <TabsContent value="records" className="mt-6 space-y-3">
-                <RecordsTable records={records} isLoading={recordsLoading} siftId={id!} />
+                <RecordsTable
+                  records={records}
+                  isLoading={recordsLoading}
+                  siftId={id!}
+                  showUncertainOnly={recordsUncertainOnly}
+                  onFilterChange={setRecordsUncertainOnly}
+                />
                 {recordsPage && recordsPage.total > RECORDS_PAGE_SIZE && (
                   <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
                     <span>

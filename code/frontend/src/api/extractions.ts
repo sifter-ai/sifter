@@ -49,8 +49,27 @@ export const reindexSift = (id: string): Promise<unknown> =>
 export const resetSift = (id: string): Promise<Sift> =>
   apiFetchJson<Sift>(`${BASE}/${id}/reset`, { method: "POST" });
 
-export const fetchSiftRecords = (id: string, limit = 50, offset = 0): Promise<PaginatedResponse<SiftRecord>> =>
-  apiFetchJson<PaginatedResponse<SiftRecord>>(`${BASE}/${id}/records?limit=${limit}&offset=${offset}`);
+export const fetchSiftRecords = (
+  id: string,
+  limit = 50,
+  offset = 0,
+  opts?: { hasUncertainFields?: boolean }
+): Promise<PaginatedResponse<SiftRecord>> => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (opts?.hasUncertainFields) params.set("has_uncertain_fields", "true");
+  return apiFetchJson<PaginatedResponse<SiftRecord>>(`${BASE}/${id}/records?${params}`);
+};
+
+export const fetchRecordsCount = (
+  id: string,
+  opts?: { hasUncertainFields?: boolean; minConfidence?: number }
+): Promise<{ count: number }> => {
+  const params = new URLSearchParams();
+  if (opts?.hasUncertainFields) params.set("has_uncertain_fields", "true");
+  if (opts?.minConfidence != null) params.set("min_confidence", String(opts.minConfidence));
+  const qs = params.toString();
+  return apiFetchJson<{ count: number }>(`${BASE}/${id}/records/count${qs ? `?${qs}` : ""}`);
+};
 
 export const fetchSiftDocuments = (id: string, limit = 50, offset = 0): Promise<PaginatedResponse<SiftDocument>> =>
   apiFetchJson<PaginatedResponse<SiftDocument>>(`${BASE}/${id}/documents?limit=${limit}&offset=${offset}`);

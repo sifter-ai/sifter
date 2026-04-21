@@ -70,11 +70,11 @@ const RECORDS_PAGE_SIZE = 50;
 
 export const useSiftRecords = (
   id: string,
-  options?: { refetchInterval?: RefetchInterval; limit?: number; offset?: number }
+  options?: { refetchInterval?: RefetchInterval; limit?: number; offset?: number; hasUncertainFields?: boolean }
 ) =>
   useQuery({
-    queryKey: ["sift-records", id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0],
-    queryFn: () => fetchSiftRecords(id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0),
+    queryKey: ["sift-records", id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0, options?.hasUncertainFields ?? false],
+    queryFn: () => fetchSiftRecords(id, options?.limit ?? RECORDS_PAGE_SIZE, options?.offset ?? 0, { hasUncertainFields: options?.hasUncertainFields }),
     refetchInterval: options?.refetchInterval,
     refetchOnMount: "always",
   });
