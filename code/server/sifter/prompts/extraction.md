@@ -92,6 +92,11 @@ Alongside `extractedData`, return a `citations` map with one entry per non-null 
 
 Rules for `citations`:
 - `source_text`: the exact short snippet as it appears in the document (not the whole sentence or paragraph)
-- `confidence`: 1.0 = value copied verbatim and unambiguous; ≥0.85 = found clearly; 0.5–0.85 = partial match or inferred; <0.5 = uncertain or computed
-- Omit fields you cannot cite (e.g. computed values, fields not found)
+- `confidence` reflects whether the value was **clearly present** in the document, not whether normalization was applied:
+  - `≥0.90` — value found clearly and unambiguously; standard normalizations (date format, currency symbol removal, number formatting) do NOT reduce confidence
+  - `0.70–0.89` — value present but with minor ambiguity (e.g. multiple candidate values, unit unclear)
+  - `0.50–0.69` — value partially inferred or ambiguous (e.g. derived from context, not stated explicitly)
+  - `<0.50` — value uncertain, genuinely computed from multiple sources, or not clearly present
+- Examples of HIGH confidence (`≥0.90`): `$20.00` → `20`, `March 18, 2026` → `2026-03-18`, `1.500,00 EUR` → `1500.00` — these are expected normalizations, not ambiguities
+- Omit fields you cannot cite (e.g. computed totals with no single source, fields not found)
 - Do NOT include coordinates, page numbers, or bounding boxes — text only
