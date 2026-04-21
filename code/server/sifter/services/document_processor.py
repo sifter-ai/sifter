@@ -75,9 +75,25 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
     from .document_service import DocumentService
     from .sift_service import SiftService
 
-    logger.info("document_processor_worker_started")
+    # On startup, reset any stale "processing" tasks back to "pending" so they
+    # are retried — they were left in-flight by a previous server instance.
+    reset = await db[COLLECTION].update_many(
+        {"status": "processing"},
+        {"$set": {"status": "pending", "claimed_at": None}},
+    )
+    if reset.modified_count:
+        logger.warning("stale_tasks_reset", count=reset.modified_count)
+
+    pending = await db[COLLECTION].count_documents({"status": "pending"})
+    logger.info("document_processor_worker_started", pending=pending)
+
     while True:
-        task_doc = await _claim_task(db)
+        try:
+            task_doc = await _claim_task(db)
+        except Exception as e:
+            logger.error("claim_task_error", error=str(e))
+            await asyncio.sleep(5)
+            continue
 
         if task_doc is None:
             await asyncio.sleep(2)
