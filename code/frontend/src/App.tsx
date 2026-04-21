@@ -463,7 +463,6 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
         {/* Public share viewer — no auth required */}
         <Route
           path="/s/:slug"
