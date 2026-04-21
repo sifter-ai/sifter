@@ -70,6 +70,10 @@ Create response: `{ "key": {...metadata}, "plaintext": "sk-..." }`
 | GET | `/api/sifts/{id}/records/count` | Count records matching filter + `q` without shipping records |
 | POST | `/api/sifts/{id}/records/batch` | Fetch records by a list of IDs. Body: `{ "ids": list[str] }` |
 | GET | `/api/sifts/{id}/records/csv` | Stream records as CSV (honors `filter`, `sort`, `project`, `q`) |
+| PATCH | `/api/sifts/{id}/records/{record_id}` | Correct one or more fields. Body: `{ "corrections": { field: { value, scope: "local"\|"rule"\|"reset" } } }`. Returns merged record. 422 on unknown field or type mismatch. |
+| GET | `/api/sifts/{id}/correction-rules` | List correction rules (`?active_only=true` default). |
+| DELETE | `/api/sifts/{id}/correction-rules/{rule_id}` | Soft-delete rule (`active = false`). Existing overrides on records are unchanged. |
+| POST | `/api/sifts/{id}/correction-rules/{rule_id}/backfill` | Apply rule to all matching existing records. Returns `{ applied_count }`. Sync ≤500 records, async above. |
 | GET | `/api/sifts/{id}/documents` | List all documents processed by this sift with per-document status (`?limit=50&offset=0`) |
 | POST | `/api/sifts/{id}/query` | NL query → `{ pipeline, results, generated_at }`; `execute: false` returns only the pipeline |
 | POST | `/api/sifts/{id}/aggregate` | Ad-hoc aggregation pipeline (no save). Body: `{ "pipeline": list, "limit": int = 1000 }` |

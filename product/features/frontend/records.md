@@ -69,6 +69,60 @@ A filter control above the table (right side, near the search input) surfaces re
 
 No change to the record detail modal — per-field trust view is already handled there.
 
+## Correction Flow
+
+The `RecordDetailModal` supports an **edit mode** for correcting wrong extracted values.
+
+### Edit mode toggle
+
+A pencil icon button ("Edit record") appears in the modal header. Clicking it switches each scalar field row from read-only to editable. `array` and `object` fields stay read-only in v1 — no edit control is shown for them.
+
+### Field inputs per type
+
+| Field type | Input |
+|------------|-------|
+| `string` | `<input type="text">` |
+| `number` / `integer` | `<input type="number">` |
+| `boolean` | `<select>` with true / false options |
+| `date` | `<input type="date">` (ISO yyyy-mm-dd) |
+| `datetime` | `<input type="datetime-local">` |
+| `array` / `object` | read-only, no edit control |
+
+Dirty fields (value changed from current) show a light amber background on the input row.
+
+### Save dialog
+
+Clicking "Save corrections" opens a compact overlay **before** the PATCH is sent. The dialog shows the list of changed field names and two scope options:
+
+```
+Apply corrections to:
+  ◉ Only this record
+  ○ This record + all future matching values in this sift
+      (Creates a correction rule for each changed field)
+
+[Cancel]  [Save]
+```
+
+Both options always write the local override. The second option additionally creates a `CorrectionRule` for each changed field. After save, the modal returns to read-only mode.
+
+### `edited` pill
+
+Corrected fields show a small `edited` pill (dark, muted) **replacing** the confidence badge — visually distinct from the LLM confidence colours. Hovering the pill shows a tooltip:
+
+> "Corrected by \<user\> on \<date\> · [Reset to original]"
+
+**Reset to original**: clicking "Reset to original" removes the field from `user_overrides` and `corrected_fields` (sends `PATCH` with `value: null, scope: "reset"`). The LLM-extracted value and original confidence badge are restored.
+
+### Correction rules tab
+
+A new **Correction rules** tab is added inside the Sift Detail page (alongside Records, Documents, Dashboard, Chat). It is only shown when the sift has at least one rule.
+
+Table columns: Field, Match value → Replace value, Created by, Created at, Applied count, Actions.
+
+**Actions:**
+- **Backfill** — calls `POST /correction-rules/{id}/backfill`; shows a toast "Applied to N records".
+- **Delete** — soft-deletes the rule (`active: false`). Existing record overrides from that rule are untouched.
+
 ## Empty State
 
 When no records exist: centered icon with "No records yet" message.

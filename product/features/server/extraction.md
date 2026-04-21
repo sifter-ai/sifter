@@ -151,3 +151,84 @@ Each sift has a `schema_version` integer that increments whenever the inferred s
 - Progress tracked via `processed_documents` / `total_documents` counters (per document, not per record)
 - Schema inference: after first document processed, generate a schema string like "client (string), date (string), amount (number)"; `schema_version` starts at 1 and bumps on each change
 - A sift can have multiple folders linked to it (many-to-many via `folder_extractors`); `default_folder_id` identifies the one created automatically at sift creation
+
+## Manual Corrections
+
+Users can correct wrong extracted values via a dedicated correction layer that sits on top of `extracted_data`. Corrections survive re-extraction.
+
+### SiftResult — new fields
+
+```python
+user_overrides: dict[str, Any] = {}
+# key = field name, value = corrected value (same type as extracted_data value)
+
+corrected_fields: dict[str, dict] = {}
+# key = field name
+# value = { value, scope: "local"|"rule", corrected_by: user_id, corrected_at: ISO timestamp }
+```
+
+`user_overrides` is the merge layer. `corrected_fields` is the audit trail — who changed what, when, and with what scope.
+
+### Merge-on-read
+
+The server returns `{**extracted_data, **user_overrides}` in all consumers. `user_overrides` always wins. `GET /records/{id}?show_original=true` returns raw `extracted_data` without overrides (useful for debugging).
+
+All existing consumers (records list, CSV export, record detail) automatically see the corrected values — the merge happens in `SiftResultsService.to_response_dict` before any serialisation.
+
+**Note:** MongoDB aggregation pipelines used by chat and dashboard run against raw `extracted_data`, not the merged view. This is a known v1 limitation documented in CR-035.
+
+### Re-extraction durability
+
+`POST /api/sifts/{id}/reindex` updates `extracted_data` and `citations` but **never touches** `user_overrides` or `corrected_fields`. Human corrections are immutable to re-extraction; only an explicit user action (reset to original) can remove them.
+
+### CorrectionRule entity (new collection)
+
+```python
+class CorrectionRule(BaseModel):
+    id: Optional[str]          # MongoDB _id
+    sift_id: str
+    field_name: str            # which field this rule targets
+    match_value: str           # exact match (case-insensitive, trimmed)
+    replace_value: Any         # replacement (same type as field)
+    created_by: str            # user_id
+    created_at: datetime
+    applied_count: int = 0     # incremented on each apply (backfill or new extraction)
+    active: bool = True        # soft-delete
+```
+
+**Match semantics v1**: exact match after `str(value).strip().lower()` on both sides. No regex, no fuzzy.
+
+**Ordering**: when multiple rules match the same field, applied in `created_at` ascending order. Conflicts are visible in the rules list UI; user must deactivate one.
+
+**Application timing**: `DocumentProcessor` applies active rules immediately before writing `extracted_data` for new documents, so new documents are normalised at extraction time. Backfill is explicit.
+
+### PATCH /api/sifts/{id}/records/{record_id}
+
+Corrects one or more fields on a record.
+
+Request body:
+```json
+{
+  "corrections": {
+    "vendor_name": { "value": "OpenAI", "scope": "local" },
+    "total":       { "value": 1500,     "scope": "rule"  }
+  }
+}
+```
+
+Each field is processed independently:
+- `scope: "local"` — writes to `user_overrides[field]` and `corrected_fields[field]`.
+- `scope: "rule"` — same as local, plus creates a `CorrectionRule` for `(sift_id, field_name, old_value → new_value)` where `old_value` is the current merged value before the correction.
+- `scope: "reset"` with `value: null` — removes the field from `user_overrides` and `corrected_fields`, restoring the LLM-extracted value.
+
+Returns the updated record (merged view). HTTP 422 for unknown field name or type-incompatible value.
+
+### Correction rules endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/sifts/{id}/correction-rules` | List rules (`?active_only=true` default) |
+| DELETE | `/api/sifts/{id}/correction-rules/{rule_id}` | Soft-delete (`active = false`). Existing record overrides are unchanged. |
+| POST | `/api/sifts/{id}/correction-rules/{rule_id}/backfill` | Apply rule to all existing records where field value matches. Returns `{ applied_count }`. |
+
+**Backfill** runs synchronously for datasets ≤500 records, async (background task) for larger ones. Backfill writes to `user_overrides` + `corrected_fields` on each matching record (scope stays `"rule"` in the audit trail).

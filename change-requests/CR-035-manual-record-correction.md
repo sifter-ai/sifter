@@ -1,6 +1,6 @@
 ---
 title: "Records: manual correction with scope control"
-status: pending
+status: applied
 author: "Bruno Fortunato"
 created-at: "2026-04-21T00:00:00.000Z"
 ---
