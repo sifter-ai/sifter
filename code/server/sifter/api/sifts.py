@@ -356,6 +356,7 @@ async def reindex_sift(
         raise HTTPException(status_code=400, detail="No documents found to reindex")
 
     await svc.results_service.delete_by_sift_id(sift_id)
+    await db["processing_queue"].delete_many({"sift_id": sift_id})
     await svc.update(
         sift_id,
         {
