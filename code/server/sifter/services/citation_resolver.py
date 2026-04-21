@@ -56,8 +56,6 @@ def resolve_citations(
             page, inferred = _find_verbatim(source_text, page_blocks)
             if page is None:
                 page, inferred = _find_fuzzy(source_text, page_blocks)
-                if page is not None and confidence is not None:
-                    confidence = min(confidence, 0.7)
             if page is None:
                 logger.warning("citation_unresolved", field=field, source_text=source_text[:80])
             citations[field] = _make_citation(document_id, source_text, page, inferred, confidence)

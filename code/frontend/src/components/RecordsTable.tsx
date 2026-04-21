@@ -21,21 +21,6 @@ interface RecordsTableProps {
 type SortDir = "asc" | "desc" | null;
 interface SortState { key: string; dir: SortDir }
 
-function ConfidencePill({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
-  const color =
-    value >= 0.85 ? "bg-emerald-500" : value >= 0.6 ? "bg-amber-400" : "bg-red-400";
-  const textColor =
-    value >= 0.85 ? "text-emerald-700" : value >= 0.6 ? "text-amber-700" : "text-red-600";
-  return (
-    <div className="flex items-center gap-1.5 min-w-[52px]">
-      <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className={`font-mono text-[11px] tabular-nums ${textColor}`}>{pct}%</span>
-    </div>
-  );
-}
 
 function CellValue({ value }: { value: unknown }) {
   if (value === null || value === undefined)
@@ -101,7 +86,7 @@ function CitationBadge({ citation }: { citation?: Citation }) {
     );
   }
   const conf = citation.confidence ?? 1;
-  const isLow = citation.inferred || conf < 0.6;
+  const isLow = conf < 0.6;
   const isMed = !isLow && conf < 0.85;
   const dot = isLow
     ? "bg-red-500"
@@ -212,14 +197,13 @@ function RecordDetailModal({
           <DialogTitle className="flex items-start gap-3 text-base pr-6">
             <span className="truncate">{record.filename || record.document_id}</span>
           </DialogTitle>
-          <div className="flex items-center gap-2 flex-wrap pt-1">
-            {record.document_type && (
+          {record.document_type && (
+            <div className="flex items-center gap-2 flex-wrap pt-1">
               <Badge variant="secondary" className="text-[11px] font-mono">
                 {record.document_type}
               </Badge>
-            )}
-            <ConfidencePill value={record.confidence} />
-          </div>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Reindex banner — shown when citations map is entirely empty */}
@@ -301,7 +285,6 @@ function nextDir(current: SortDir): SortDir {
 function getColValue(record: SiftRecord, col: string): unknown {
   if (col === "__filename") return record.filename ?? record.document_id;
   if (col === "__type") return record.document_type ?? "";
-  if (col === "__conf") return record.confidence;
   return record.extracted_data[col];
 }
 
@@ -446,7 +429,6 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
             <tr className="border-b bg-muted/60">
               {sortableTh("__filename", "Document")}
               {sortableTh("__type", "Type")}
-              {sortableTh("__conf", "Conf")}
               {columns.map((col) => sortableTh(col, col.replace(/_/g, " ")))}
             </tr>
           </thead>
@@ -468,23 +450,17 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
                   onClick={() => setSelected(record)}
                 >
                   <td className="px-3 py-2 max-w-[160px]">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/documents/${record.document_id}`);
-                      }}
-                      title={`Open document — ${record.filename || record.document_id}`}
-                      className="font-mono text-[11px] text-foreground/80 hover:text-primary hover:underline truncate block w-full text-left transition-colors"
-                    >
-                      {record.filename || record.document_id}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground font-mono text-[11px] whitespace-nowrap">
-                    {record.document_type || "—"}
-                  </td>
-                  <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">
-                      <ConfidencePill value={record.confidence} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/documents/${record.document_id}`);
+                        }}
+                        title={`Open document — ${record.filename || record.document_id}`}
+                        className="font-mono text-[11px] text-foreground/80 hover:text-primary hover:underline truncate text-left transition-colors"
+                      >
+                        {record.filename || record.document_id}
+                      </button>
                       {record.has_uncertain_fields && (
                         <span
                           title="One or more fields have low confidence — click to review"
@@ -494,6 +470,9 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground font-mono text-[11px] whitespace-nowrap">
+                    {record.document_type || "—"}
                   </td>
                   {columns.map((col) => (
                     <td key={col} className="px-3 py-2 font-mono text-[11px] text-foreground/80 max-w-[200px] truncate">

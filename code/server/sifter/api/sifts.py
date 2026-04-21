@@ -919,7 +919,7 @@ def _result_to_dict(doc: dict) -> dict:
         d["created_at"] = d["created_at"].isoformat()
     citations = d.get("citations") or {}
     d["has_uncertain_fields"] = any(
-        isinstance(c, dict) and (c.get("confidence", 1.0) < 0.6 or c.get("inferred", False))
+        isinstance(c, dict) and c.get("confidence", 1.0) < 0.6
         for c in citations.values()
     )
     return d
