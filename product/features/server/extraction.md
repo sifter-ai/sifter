@@ -1,7 +1,7 @@
 ---
 title: "Server: Document Extraction (Sifts)"
-status: synced
-version: "1.5"
+status: changed
+version: "1.6"
 last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
