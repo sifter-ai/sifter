@@ -57,7 +57,7 @@ async def _claim_task(db: AsyncIOMotorDatabase) -> Optional[dict]:
             "$or": [
                 {"status": "pending"},
                 {"status": "error", "attempts": {"$lt": 3}},
-                {"status": "processing", "claimed_at": {"$lt": stale_cutoff}},
+                {"status": "processing", "claimed_at": {"$lt": stale_cutoff}, "attempts": {"$lt": 10}},
             ]
         },
         {
