@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -94,12 +95,14 @@ async def extract(
     ]
 
     logger.info(
-        "extraction_agent_call",
+        "llm_extraction_start",
         filename=filename,
         model=config.llm_model,
         num_images=len(processed.images),
+        text_chars=len(processed.text_content),
     )
 
+    t0 = time.monotonic()
     try:
         response = await litellm.acompletion(
             model=config.llm_model,
@@ -110,6 +113,7 @@ async def extract(
     except Exception as llm_err:
         logger.error("extraction_llm_error", filename=filename, model=config.llm_model, error=str(llm_err))
         raise
+    logger.info("llm_extraction_done", filename=filename, elapsed_s=round(time.monotonic() - t0, 2))
 
     raw = response.choices[0].message.content
     cleaned = _strip_markdown_fences(raw)
