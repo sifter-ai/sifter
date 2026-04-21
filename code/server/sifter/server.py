@@ -2,8 +2,11 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import litellm
 import structlog
 import uvicorn
+
+litellm.suppress_debug_info = True
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

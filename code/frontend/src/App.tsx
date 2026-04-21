@@ -49,7 +49,6 @@ import LandingPage from "@/pages/LandingPage";
 import EnterprisePage from "@/pages/EnterprisePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
-import GitHubCallbackPage from "@/pages/GitHubCallbackPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthProvider, useAuthContext } from "@/context/AuthContext";
 import { ConfigProvider, useConfig } from "@/context/ConfigContext";
@@ -444,7 +443,6 @@ function AppRoutes() {
               {/* Public / auth callbacks */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/auth/github/callback" element={<GitHubCallbackPage />} />
               <Route path="/s/:slug" element={<PublicViewerPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsOfServicePage />} />

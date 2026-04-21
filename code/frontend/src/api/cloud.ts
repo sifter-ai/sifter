@@ -448,6 +448,15 @@ export const reorderDashboardTiles = (
 
 // ---- Standalone Dashboards ----
 
+export interface TileLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
+
 export interface DashboardTile {
   id: string;
   sift_id: string;
@@ -458,6 +467,8 @@ export interface DashboardTile {
   chart_y: string | null;
   is_auto_generated: boolean;
   created_at: string;
+  layout?: TileLayout | null;
+  description?: string | null;
 }
 
 export interface DashboardSnapshot {
@@ -546,6 +557,16 @@ export const reorderStandaloneDashboardTiles = (
     body: JSON.stringify({ tile_ids: tileIds }),
   });
 
+export const updateDashboardLayout = (
+  dashboardId: string,
+  layouts: Array<{ tile_id: string; x: number; y: number; w: number; h: number }>
+): Promise<StandaloneDashboard> =>
+  apiFetchJson(`/api/dashboards/${dashboardId}/layout`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ layouts }),
+  });
+
 export interface GenerateTilesResult {
   dashboard: StandaloneDashboard;
   added: number;
@@ -579,11 +600,3 @@ export const regenerateDashboard = (
     body: JSON.stringify({ spec }),
   });
 
-// ---- GitHub Auth ----
-
-export const githubCallback = (code: string): Promise<{ access_token: string }> =>
-  apiFetchJson("/api/auth/github", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });

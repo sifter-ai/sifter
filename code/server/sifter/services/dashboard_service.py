@@ -1,4 +1,5 @@
 """Dashboard CRUD + tile execution + AI generation."""
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Optional
@@ -78,7 +79,35 @@ class DashboardService:
             doc = await self.col.find_one({"_id": ObjectId(dashboard_id)})
         except Exception:
             return None
-        return _serialize(doc) if doc else None
+        if not doc:
+            return None
+        serialized = _serialize(doc)
+        await self._hydrate_snapshots(serialized)
+        return serialized
+
+    async def _hydrate_snapshots(self, dashboard: dict) -> None:
+        """Run every tile's pipeline concurrently and replace stored snapshots with live results."""
+        tiles = dashboard.get("tiles") or []
+        if not tiles:
+            return
+
+        async def _run(tile: dict) -> tuple[str, dict]:
+            tile_id = tile["id"]
+            try:
+                results = await self.results_svc.execute_aggregation(tile["sift_id"], tile["pipeline"])
+                return tile_id, {
+                    "tile_id": tile_id,
+                    "sift_id": tile["sift_id"],
+                    "result": results,
+                    "ran_at": _now().isoformat(),
+                }
+            except Exception as e:
+                logger.warning("tile_live_query_failed", tile_id=tile_id, error=str(e))
+                existing = (dashboard.get("snapshots") or {}).get(tile_id)
+                return tile_id, existing or {}
+
+        results = await asyncio.gather(*[_run(t) for t in tiles])
+        dashboard["snapshots"] = {tile_id: snap for tile_id, snap in results}
 
     async def update(
         self,
@@ -168,6 +197,36 @@ class DashboardService:
         await self.col.update_one(
             {"_id": ObjectId(dashboard_id)},
             {"$set": {"tiles": ordered, "updated_at": _now()}},
+        )
+        return await self.get(dashboard_id)
+
+    async def update_layout(self, dashboard_id: str, layouts: list[dict]) -> Optional[dict]:
+        """Batch-update the layout (x, y, w, h) for a list of tiles."""
+        try:
+            doc = await self.col.find_one({"_id": ObjectId(dashboard_id)})
+        except Exception:
+            return None
+        if not doc:
+            return None
+
+        layout_by_id = {item["tile_id"]: item for item in layouts}
+        tiles = doc.get("tiles", [])
+        updated_tiles = []
+        for tile in tiles:
+            if tile["id"] in layout_by_id:
+                lay = layout_by_id[tile["id"]]
+                tile = dict(tile)
+                tile["layout"] = {
+                    "x": lay.get("x", 0),
+                    "y": lay.get("y", 0),
+                    "w": lay.get("w", 4),
+                    "h": lay.get("h", 4),
+                }
+            updated_tiles.append(tile)
+
+        await self.col.update_one(
+            {"_id": ObjectId(dashboard_id)},
+            {"$set": {"tiles": updated_tiles, "updated_at": _now()}},
         )
         return await self.get(dashboard_id)
 

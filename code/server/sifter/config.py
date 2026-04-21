@@ -75,6 +75,9 @@ class SifterConfig(BaseSettings):
     # CORS
     cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
 
+    # Debug
+    debug_llm: bool = False  # set SIFTER_DEBUG_LLM=true to log full LLM exchanges
+
     model_config = {"env_prefix": "SIFTER_"}
 
 

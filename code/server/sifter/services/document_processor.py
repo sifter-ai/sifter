@@ -111,17 +111,18 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                 document_id=document_id,
                 sift_id=sift_id,
                 attempt=attempts,
-                prev_status=task_doc.get("status", "unknown"),
             )
 
         # Schema gate: if this sift has no schema yet, don't start in parallel.
         # Put the task back as pending and let whoever is already processing
         # this sift finish first (they will write the schema). Once the schema
         # exists every subsequent document can run in parallel.
+        # Only apply on the first attempt — retries skip the gate to avoid
+        # infinite loops when all documents cycle simultaneously.
         from bson import ObjectId as _ObjId
         stale_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         sift_doc = await db["sifts"].find_one({"_id": _ObjId(sift_id)}, {"schema": 1, "org_id": 1})
-        if sift_doc and not sift_doc.get("schema"):
+        if attempts == 1 and sift_doc and not sift_doc.get("schema"):
             other_running = await db[COLLECTION].count_documents({
                 "sift_id": sift_id,
                 "status": "processing",
@@ -129,6 +130,12 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                 "claimed_at": {"$gt": stale_cutoff},
             })
             if other_running > 0:
+                logger.info(
+                    "schema_gate_deferred",
+                    document_id=document_id,
+                    sift_id=sift_id,
+                    other_running=other_running,
+                )
                 await db[COLLECTION].update_one(
                     {"_id": task_doc["_id"]},
                     {"$set": {"status": "pending", "claimed_at": None}},
@@ -154,6 +161,7 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                 isinstance(backend, GCSBackend)
                 and oss_config.llm_model.startswith("vertex_ai/")
             )
+            logger.info("loading_document", document_id=document_id, storage_path=storage_path)
             if _use_gcs_uri:
                 source = f"gs://{backend.bucket_name}/{storage_path}"
             else:

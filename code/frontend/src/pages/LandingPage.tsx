@@ -325,7 +325,8 @@ export default function LandingPage() {
           </p>
           <h2 className="text-2xl font-bold text-center mb-3">Simple, volume-based plans</h2>
           <p className="text-sm text-muted-foreground text-center max-w-xl mx-auto mb-12">
-            All paid plans include API access, advanced chat, live dashboards, and Google connectors.
+            All paid plans include the same features — API access, MCP remote, Google Drive connector, advanced chat, live dashboards, and webhooks.
+            The only difference is the number of documents per month.
             1 document = 1 file up to 10 pages.
           </p>
 
@@ -339,16 +340,14 @@ export default function LandingPage() {
             <PricingCard name="Starter" price="$19" period="per month" docs="500 docs/mo" sifts="5 sifts" features={[
               "Full REST API",
               "MCP remote endpoint",
-              "Google Drive (1×)",
+              "Google Drive connector",
               "Mail-to-upload",
               "CSV export",
               "Unlimited retention",
             ]} cta="Start Starter" highlighted={false} />
             <PricingCard name="Pro" price="$49" period="per month" docs="3,000 docs/mo" sifts="∞ sifts" features={[
               "Everything in Starter",
-              "Unlimited connectors",
-              "SSO (Google + GitHub)",
-              "300 RPM",
+              "SSO (Google)",
             ]} cta="Start Pro" highlighted={true} />
             <PricingCard name="Business" price="$149" period="per month" docs="15,000 docs/mo" sifts="∞ sifts" features={[
               "Everything in Pro",
@@ -359,7 +358,6 @@ export default function LandingPage() {
             <PricingCard name="Scale" price="$399" period="per month" docs="50,000 docs/mo" sifts="∞ sifts" features={[
               "Everything in Business",
               "Share via email + PDF",
-              "Highest rate limits",
               "Priority support",
             ]} cta="Start Scale" highlighted={false} />
           </div>

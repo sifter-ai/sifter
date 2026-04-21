@@ -1,7 +1,7 @@
 ---
 title: "Server: Document Extraction (Sifts)"
 status: synced
-version: "1.4"
+version: "1.5"
 last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
@@ -19,7 +19,8 @@ last-modified: "2026-04-21T00:00:00.000Z"
 | POST | `/api/sifts/{id}/upload` | Upload documents directly to sift (routed to default folder) |
 | POST | `/api/sifts/{id}/reindex` | Reindex all documents |
 | POST | `/api/sifts/{id}/reset` | Reset error state |
-| GET | `/api/sifts/{id}/records` | Get extracted records (`?limit=100&offset=0`) |
+| GET | `/api/sifts/{id}/records` | Get extracted records (`?limit=100&offset=0&min_confidence=&has_uncertain_fields=`) |
+| GET | `/api/sifts/{id}/records/count` | Count extracted records (accepts same filter params as list) |
 | GET | `/api/sifts/{id}/records/csv` | Export records as CSV |
 | GET | `/api/sifts/{id}/documents` | List all documents processed by this sift with per-document status (`?limit=50&offset=0`) |
 
@@ -104,6 +105,29 @@ When `multi_record: true` on a Sift, the extraction agent is prompted to return 
 - The unique index on sift results is `(sift_id, filename, record_index)` — reprocessing a document replaces its rows for that file
 - `sift_record_id` in `DocumentSiftStatus` points to the first record's ID (`record_index=0`)
 - Schema inference uses the first record's keys
+
+## Records Filter Params
+
+`GET /api/sifts/{id}/records` and `GET /api/sifts/{id}/records/count` accept two optional filter query params:
+
+| Param | Type | Semantics |
+|-------|------|-----------|
+| `min_confidence` | float `[0.0, 1.0]` | Return only records with `confidence >= min_confidence`. Applied as a MongoDB `$gte` filter. Values outside `[0.0, 1.0]` return HTTP 422. |
+| `has_uncertain_fields` | bool | When `true`, return only records where at least one citation entry has `confidence < 0.6` OR `inferred: true`. |
+
+Both params are independent and composable. Both are ignored (no-op) when absent, preserving existing behaviour.
+
+Each record response item includes a derived boolean field `has_uncertain_fields` (computed server-side from the `citations` map; never stored in MongoDB):
+
+```json
+{
+  "id": "…",
+  "confidence": 0.91,
+  "has_uncertain_fields": true,
+  "extracted_data": { … },
+  "citations": { … }
+}
+```
 
 ## Per-Field Citations
 

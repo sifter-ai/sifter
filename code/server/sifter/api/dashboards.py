@@ -54,6 +54,18 @@ class ReorderTilesRequest(BaseModel):
     tile_ids: list[str]
 
 
+class TileLayoutItem(BaseModel):
+    tile_id: str
+    x: int
+    y: int
+    w: int
+    h: int
+
+
+class UpdateLayoutRequest(BaseModel):
+    layouts: list[TileLayoutItem]
+
+
 def _svc(db) -> DashboardService:
     return DashboardService(db)
 
@@ -90,9 +102,11 @@ async def create_dashboard(
             result = await svc.regenerate_from_spec(str(dashboard["_id"]), body.spec)
             return result["dashboard"]
         except ValueError as e:
+            await svc.delete(str(dashboard["_id"]))
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logger.error("create_dashboard_generate_error", error=str(e))
+            await svc.delete(str(dashboard["_id"]))
             raise HTTPException(status_code=500, detail=str(e))
     return dashboard
 
@@ -179,6 +193,20 @@ async def add_tile(
         chart_x=body.chart_x,
         chart_y=body.chart_y,
     )
+    if not dashboard:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    return dashboard
+
+
+@router.patch("/{dashboard_id}/layout")
+async def update_layout(
+    dashboard_id: str,
+    body: UpdateLayoutRequest,
+    _: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    svc = _svc(db)
+    dashboard = await svc.update_layout(dashboard_id, [item.model_dump() for item in body.layouts])
     if not dashboard:
         raise HTTPException(status_code=404, detail="Dashboard not found")
     return dashboard

@@ -1,7 +1,7 @@
 ---
 title: "Frontend: Records Table"
 status: synced
-version: "1.1"
+version: "1.2"
 last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
@@ -56,6 +56,18 @@ LABEL         VALUE                              [CONF BADGE]
 **Reindex banner**: when the citations map is entirely empty (pre-CR records, or LLM returned no spans), a one-line banner appears at the top of the modal: "Reindex this sift to populate citations" with an action button that calls `POST /api/sifts/{id}/reindex`. The banner is dismissed once the record is reindexed.
 
 The records table (non-detail view) is unchanged — confidence stays a document-level column there.
+
+## Uncertain Filter
+
+A filter control above the table (right side, near the search input) surfaces records that need human review.
+
+**Toggle:** `☐ Show uncertain only`. When enabled, calls `GET /records?has_uncertain_fields=true` (replacing the current unfiltered fetch). When disabled, restores the unfiltered list. State is local — not persisted in the URL or user preferences.
+
+**Count badge:** On tab mount, a separate `GET /records/count?has_uncertain_fields=true` call populates an amber badge (`bg-amber-50 text-amber-700`) next to the toggle showing "N uncertain". The badge is hidden when the count is 0.
+
+**Row-level indicator:** In the `Conf` column, an amber warning dot (⚠) appears next to the confidence bar when `record.has_uncertain_fields === true`. Tooltip on hover: "One or more fields have low confidence — click to review".
+
+No change to the record detail modal — per-field trust view is already handled there.
 
 ## Empty State
 

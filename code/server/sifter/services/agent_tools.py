@@ -181,7 +181,10 @@ class AgentToolRunner:
             return {"results": results, "pipeline": pipeline, "count": len(results)}
 
         if name == "aggregate_sift":
-            results = await self.results_svc.execute_aggregation(args["sift_id"], args["pipeline"])
+            pipeline = args.get("pipeline")
+            if pipeline is None:
+                return {"error": "Missing required argument: pipeline. Provide a list of MongoDB aggregation stages."}
+            results = await self.results_svc.execute_aggregation(args["sift_id"], pipeline)
             return {"results": results, "count": len(results)}
 
         if name == "find_records":
