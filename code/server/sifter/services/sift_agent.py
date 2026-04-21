@@ -100,12 +100,16 @@ async def extract(
         num_images=len(processed.images),
     )
 
-    response = await litellm.acompletion(
-        model=config.llm_model,
-        messages=messages,
-        temperature=config.extraction_temperature,
-        api_key=config.llm_api_key or None,
-    )
+    try:
+        response = await litellm.acompletion(
+            model=config.llm_model,
+            messages=messages,
+            temperature=config.extraction_temperature,
+            api_key=config.llm_api_key or None,
+        )
+    except Exception as llm_err:
+        logger.error("extraction_llm_error", filename=filename, model=config.llm_model, error=str(llm_err))
+        raise
 
     raw = response.choices[0].message.content
     cleaned = _strip_markdown_fences(raw)
