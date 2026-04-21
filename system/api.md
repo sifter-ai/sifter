@@ -1,8 +1,8 @@
 ---
 title: REST API Endpoints
 status: synced
-version: "1.1"
-last-modified: "2026-04-17T00:00:00.000Z"
+version: "1.2"
+last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
 # REST API Endpoints
@@ -147,7 +147,7 @@ Event types: `sift.document.processed`, `sift.document.discarded`, `sift.complet
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/sifts/{sift_id}/records/{record_id}/citations` | Per-field citation map `{ field: { document_id, page, bbox, source_text, inferred? } }` |
+| GET | `/api/sifts/{sift_id}/records/{record_id}/citations` | Per-field citation map `{ field: { document_id, source_text, page?, confidence?, inferred? } }`. `bbox` is reserved and not populated in the current version. |
 
 See `product/features/server/citations.md` for the full shape and the extraction pipeline that populates it.
 

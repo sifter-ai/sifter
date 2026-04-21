@@ -1,8 +1,8 @@
 ---
 title: "Server: Document Extraction (Sifts)"
 status: synced
-version: "1.3"
-last-modified: "2026-04-17T00:00:00.000Z"
+version: "1.4"
+last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
 # Document Extraction — Server
@@ -107,9 +107,9 @@ When `multi_record: true` on a Sift, the extraction agent is prompted to return 
 
 ## Per-Field Citations
 
-Every extracted field is anchored to its source: document, page (1-indexed), bounding box (normalized `[0..1]`), and the source-text snippet. Citations live on each record under a `citations` map keyed by field name — see `product/features/server/citations.md` for the shape, endpoints, and rendering rules.
+Every extracted field is anchored to its source: the exact `source_text` snippet the LLM relied on, a per-field `confidence` score, and (for PDFs) the page number. Citations live on each record under a `citations` map keyed by field name — see `product/features/server/citations.md` for the full shape, endpoints, and pipeline details.
 
-The extraction agent returns, alongside each field value, the source-text span. `citation_resolver.py` maps each span to `(page, bbox)` using the parsed document's per-block coordinates. When the mapping cannot resolve verbatim, fuzzy match is used; when it still cannot resolve, the field appears in `extracted_data` without an entry in `citations`.
+The extraction agent prompt asks the LLM to return a `citations` map alongside `extractedData`, with `source_text` and `confidence` per field. For PDFs, `citation_resolver.py` verifies each `source_text` against pymupdf-extracted text blocks to determine `page` and the `inferred` flag (verbatim vs fuzzy match). For non-PDF formats the LLM's span is passed through directly. `bbox` is reserved and not populated in the current version.
 
 Records produced before this feature landed have an empty `citations` map until re-extracted via `POST /api/sifts/{id}/reindex`.
 

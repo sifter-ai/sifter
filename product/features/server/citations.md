@@ -1,13 +1,13 @@
 ---
 title: "Server: Citations"
 status: synced
-version: "1.0"
-last-modified: "2026-04-17T00:00:00.000Z"
+version: "2.0"
+last-modified: "2026-04-21T00:00:00.000Z"
 ---
 
 # Citations — Server
 
-Every extracted field is anchored to its source: document, page, bounding box on that page, and the exact source-text snippet. Trust is a public API primitive in Sifter OSS, not a UI feature — any client (developer integration, admin UI, `sifter-cloud` drill-down, AI agent) can answer "where does this value come from?" using only public endpoints.
+Every extracted field is anchored to its source: the exact source-text snippet the LLM relied on, a per-field confidence score, and (for PDFs) the page number. Trust is a public API primitive in Sifter OSS, not a UI feature — any client (developer integration, admin UI, `sifter-cloud` drill-down, AI agent) can answer "where does this value come from?" using only public endpoints.
 
 ## Citation shape
 
@@ -16,22 +16,28 @@ Stored alongside `extracted_data` on each `SiftResult`, keyed by field name:
 ```json
 {
   "document_id": "doc_…",
-  "page": 1,
-  "bbox": [0.12, 0.08, 0.44, 0.11],
   "source_text": "Acme Ltd.",
+  "page": 1,
+  "confidence": 0.95,
   "inferred": false
 }
 ```
 
-| Field | Meaning |
-|-------|---------|
-| `document_id` | Always the source document — set even when multi-document extraction spans several files. |
-| `page` | 1-indexed page within the document. |
-| `bbox` | Normalized `[x1, y1, x2, y2]` in `[0..1]`, relative to page width/height. |
-| `source_text` | The raw snippet as it appears on the page. |
-| `inferred` | `true` when the value was computed or inferred rather than directly quoted; `source_text` then holds the closest supporting text. Absent when `false`. |
+| Field | Required? | Meaning |
+|-------|-----------|---------|
+| `document_id` | yes | Always the source document — set even when multi-document extraction spans several files. |
+| `source_text` | yes | The raw snippet as it appears in the document, as returned by the extraction agent. |
+| `page` | optional | 1-indexed page within the document. Present for PDFs; absent for flat-text formats (docx, html, md, txt, csv). For images, always `1` when present. |
+| `confidence` | optional | LLM self-assessment of extraction reliability, `[0.0, 1.0]`. Absent when the provider cannot supply it. The resolver caps this at `0.7` when fuzzy matching was needed. |
+| `inferred` | optional | `true` when `source_text` did not verbatim-match any parsed text block and fuzzy match was used instead. `false` for verbatim matches. Absent when no text-layer verification was possible (non-PDF formats). |
 
 Fields with no resolvable citation are absent from the `citations` map. Consumers must treat missing fields as "unknown", never as "no source".
+
+### Reserved fields
+
+`bbox` (`[x1, y1, x2, y2]` normalised to `[0..1]`) is reserved in the contract for a future click-to-highlight feature on PDFs. It is **not populated** in the current version and will never appear in API responses until an explicit CR ships it. Consumers should not rely on its presence.
+
+The `page_count()` / `page_image()` endpoints from CR-027 remain in the API for future use; they are not consumed by the v1 trust UI.
 
 ## Endpoints
 
@@ -67,18 +73,21 @@ Records returned by `GET /api/sifts/{sift_id}/records` also embed their `citatio
 
 ## Extraction pipeline
 
-1. Parsing enriches the parsed document representation with per-block/line `(page, bbox)` metadata. Backed by `pymupdf`.
-2. The extraction agent prompt asks the LLM to return, alongside each extracted field, the source-text span it relied on.
-3. `citation_resolver.py` maps each span → `(page, bbox)` by looking up the block/line coordinates from step 1. Verbatim match first; case-insensitive, whitespace-normalized fuzzy match as fallback.
-4. Unresolvable spans drop from the citation map and log a structured warning. The field still appears in `extracted_data`.
+1. For PDFs, parsing extracts per-block text with page numbers via `pymupdf`. The blocks contain only `{page, text}` — geometry is not extracted in v1.
+2. The extraction agent prompt asks the LLM to return, alongside each extracted field value, the `source_text` span it relied on and a per-field `confidence` score. The LLM never produces coordinates.
+3. `citation_resolver.py` maps each LLM-provided span → `page` + `inferred` flag by searching the parsed text blocks: verbatim match → `inferred: false`; fuzzy token-overlap match → `inferred: true`, `confidence` capped at 0.7; no match → no `page`/`inferred`, log `citation_unresolved` warning.
+4. For non-PDF formats (images, docx, html, md, txt, csv) there are no parsed text blocks. The LLM's `source_text` + `confidence` are passed through directly; `page` and `inferred` are absent.
+5. Fields whose LLM citation is entirely missing are omitted from the `citations` map. The field still appears in `extracted_data`.
 
-The pipeline is LLM-provider agnostic — providers with structured-span outputs skip the fuzzy-match step; others rely on it.
+The pipeline is LLM-provider agnostic.
 
 ## Page rendering
 
 `GET /api/documents/{document_id}/pages/{n}/image` renders the page on first request and caches the result in blob storage keyed by `{document_id}/pages/{n}@{dpi}.png`. Subsequent requests serve from cache. Default DPI is 150; clients may request up to 300.
 
 For non-PDF documents (JPEG, PNG, single-page TIFF), the endpoint returns the image itself with `page=1` only.
+
+These endpoints exist for future use (click-to-highlight on PDF pages). The v1 trust UI does not call them.
 
 ## Backfill
 
@@ -102,17 +111,13 @@ TypeScript (mirrors shape, camelCased).
 
 ## Client rendering
 
-Consumers draw an overlay on top of the page image using normalized `bbox`:
+The v1 trust UI renders the `source_text` snippet inline in the record detail modal, with a confidence badge and an optional `page N` footer for PDFs. No bbox overlay is shown. See `product/features/frontend/records.md` for the full UI spec.
 
-```ts
-const url = `/api/documents/${doc}/pages/${c.page}/image`;
-// position a div at bbox * pageSize as a highlight
-```
-
-A runnable vanilla-JS example ships with `docs/concepts/citations.mdx`. `sifter-cloud` ships a production React component; OSS does not bundle one.
+Future: when click-to-highlight ships, consumers will draw a `bbox` overlay on top of the page image. The page image endpoints are already in place for this.
 
 ## Limits (v1)
 
 - One primary span per field. Multi-span citations (a value drawn from several page regions) defer to a future CR.
-- OCR is not performed. Scan-only pages with no text layer yield no citations.
+- OCR is not performed. Images and scan-only PDFs (no text layer) yield no verbatim/fuzzy verification; citations have `source_text` + `confidence` from the LLM only.
+- `bbox` is reserved — not populated.
 - No redaction of rendered page images.
