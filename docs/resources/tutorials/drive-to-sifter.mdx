@@ -70,12 +70,12 @@ Every document that Sifter picks up:
 Open the Sifter folder to see incoming documents, or subscribe to your sift's records feed via the [SDK](/integrations/python-sdk):
 
 ```python
-from sifter_sdk import Sifter
+from sifter import Sifter
 
 s = Sifter(api_key="sk-...")
-records = s.list_records("invoices")
-for r in records:
-    print(r.extracted_data["client"], r.extracted_data["total"])
+sift = s.get_sift("your-sift-id")
+for r in sift.iter_records():
+    print(r["extracted_data"]["client"], r["extracted_data"]["total"])
 ```
 
 ## 4. Revoke access

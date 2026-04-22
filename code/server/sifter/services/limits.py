@@ -9,12 +9,16 @@ from typing import Callable, Optional, Protocol, runtime_checkable
 
 @runtime_checkable
 class UsageLimiter(Protocol):
-    async def check_upload(self, org_id: str, file_size_bytes: int) -> None:
-        """Called before document upload. Raise HTTPException(402) to block."""
+    async def check_extraction(self, org_id: str) -> None:
+        """Called before extraction. Raise HTTPException(402) to block."""
         ...
 
     async def check_sift_create(self, org_id: str) -> None:
         """Called before sift creation. Raise HTTPException(402) to block."""
+        ...
+
+    async def check_org_create(self, user_id: str) -> None:
+        """Called before additional org creation. Raise HTTPException(402) to block."""
         ...
 
     async def record_processed(self, org_id: str, doc_count: int) -> None:
@@ -25,10 +29,13 @@ class UsageLimiter(Protocol):
 class NoopLimiter:
     """Default OSS implementation — allows everything, records nothing."""
 
-    async def check_upload(self, org_id: str, file_size_bytes: int) -> None:
+    async def check_extraction(self, org_id: str) -> None:
         pass
 
     async def check_sift_create(self, org_id: str) -> None:
+        pass
+
+    async def check_org_create(self, user_id: str) -> None:
         pass
 
     async def record_processed(self, org_id: str, doc_count: int) -> None:

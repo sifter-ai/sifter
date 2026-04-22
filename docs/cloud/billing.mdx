@@ -5,7 +5,7 @@ description: Plans, quotas, Stripe portal, and the PlanLimitError flow.
 
 # Billing & Usage
 
-Sifter Cloud billing is Stripe-backed. All usage is metered per org: documents processed, sifts created, connector count, storage. Plans are self-service — upgrade, downgrade, or cancel anytime from the Stripe customer portal.
+Sifter Cloud billing is Stripe-backed. All usage is metered per org: extractions (documents processed by a sift), sifts created, connector count, storage. Plans are self-service — upgrade, downgrade, or cancel anytime from the Stripe customer portal.
 
 <Info>
 See [Pricing](/overview/pricing) for the full plan matrix. This page covers the mechanics of how billing works — how to upgrade, what triggers a `402`, and how to read your usage.
@@ -13,14 +13,14 @@ See [Pricing](/overview/pricing) for the full plan matrix. This page covers the 
 
 ## Plans at a glance
 
-| Plan | Monthly docs | Sifts | Connectors | MCP remote | SSO | Audit |
-|------|--------------|-------|------------|------------|-----|-------|
-| Free | 10 | 1 | — | — | — | — |
-| Starter ($19) | 500 | 10 | 1 Drive + mail | ✓ | — | — |
-| Pro ($49) | 3,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
-| Business ($149) | 15,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
-| Scale ($399) | 50,000 | ∞ | ∞ | ✓ | ✓ | ✓ |
-| Enterprise | Custom | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Plan | Monthly extractions | Sifts | Workspaces | Connectors | MCP remote | SSO | Audit |
+|------|---------------------|-------|------------|------------|------------|-----|-------|
+| Free | 10 | 3 | 1 (default only) | — | — | — | — |
+| Starter ($19) | 500 | 10 | ∞ | 1 Drive + mail | ✓ | — | — |
+| Pro ($49) | 3,000 | ∞ | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Business ($149) | 15,000 | ∞ | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Scale ($399) | 50,000 | ∞ | ∞ | ∞ | ✓ | ✓ | ✓ |
+| Enterprise | Custom | ∞ | ∞ | ∞ | ✓ | ✓ | ✓ |
 
 ## Upgrading
 
@@ -45,9 +45,13 @@ See [Pricing](/overview/pricing) for the full plan matrix. This page covers the 
 
 | Metric | Color thresholds |
 |--------|------------------|
-| Documents processed | green < 80% • amber < 100% • red ≥ 100% |
+| Extractions (docs processed) | green < 80% • amber < 100% • red ≥ 100% |
 | Storage | same |
 | Sifts | hidden if plan is unlimited |
+
+<Note>
+**Free plan — workspaces**: the Free tier includes a single default workspace. Creating additional workspaces requires upgrading to Starter or above. Attempting to create an org on Free returns `402` with `code: orgs_max`.
+</Note>
 
 Alert emails fire at **50%**, **80%**, and **100%** of each quota.
 

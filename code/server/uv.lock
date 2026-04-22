@@ -2560,7 +2560,7 @@ wheels = [
 [[package]]
 name = "sifter-ai"
 version = "0.1.0"
-source = { editable = "../sdk" }
+source = { editable = "../sdk-python" }
 dependencies = [
     { name = "httpx" },
 ]
@@ -2587,7 +2587,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = ">=1.0.0" },
-    { name = "sifter-ai", editable = "../sdk" },
+    { name = "sifter-ai", editable = "../sdk-python" },
 ]
 
 [package.metadata.requires-dev]
@@ -2679,7 +2679,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "respx", specifier = ">=0.21.0" },
-    { name = "sifter-ai", editable = "../sdk" },
+    { name = "sifter-ai", editable = "../sdk-python" },
 ]
 
 [[package]]

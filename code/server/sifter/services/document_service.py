@@ -3,7 +3,7 @@ Document management service: Folders, Documents, FolderSift links,
 DocumentSiftStatus tracking. Single-tenant — no org_id.
 """
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import structlog
 from bson import ObjectId
@@ -263,24 +263,59 @@ class DocumentService:
         folder_id: str,
         size_bytes: int,
         storage_path: str,
+        on_conflict: Literal["fail", "replace"] = "fail",
     ) -> Document:
         """Persist document metadata. The caller is responsible for saving
-        the file bytes to the storage backend before calling this method."""
-        doc = Document(
-            folder_id=folder_id,
-            filename=filename,
-            original_filename=filename,
-            content_type=content_type,
-            size_bytes=size_bytes,
-            storage_path=storage_path,
-        )
-        result = await self.db["documents"].insert_one(doc.to_mongo())
-        doc.id = str(result.inserted_id)
+        the file bytes to the storage backend before calling this method.
 
-        await self.db["folders"].update_one(
-            {"_id": ObjectId(folder_id)},
-            {"$inc": {"document_count": 1}},
-        )
+        on_conflict="replace" (default): if a document with the same filename
+            already exists in the folder, update it in place and re-trigger extraction.
+        on_conflict="fail": raise DuplicateKeyError if the document already exists;
+            the caller should convert this to a 409 response.
+        """
+        now = datetime.now(timezone.utc)
+
+        if on_conflict == "replace":
+            result = await self.db["documents"].update_one(
+                {"folder_id": folder_id, "filename": filename},
+                {
+                    "$set": {
+                        "content_type": content_type,
+                        "size_bytes": size_bytes,
+                        "storage_path": storage_path,
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": {
+                        "original_filename": filename,
+                        "created_at": now,
+                    },
+                },
+                upsert=True,
+            )
+            was_inserted = result.upserted_id is not None
+            raw = await self.db["documents"].find_one({"folder_id": folder_id, "filename": filename})
+            doc = Document.from_mongo(raw)
+            if was_inserted:
+                await self.db["folders"].update_one(
+                    {"_id": ObjectId(folder_id)},
+                    {"$inc": {"document_count": 1}},
+                )
+        else:
+            doc_obj = Document(
+                folder_id=folder_id,
+                filename=filename,
+                original_filename=filename,
+                content_type=content_type,
+                size_bytes=size_bytes,
+                storage_path=storage_path,
+            )
+            insert_result = await self.db["documents"].insert_one(doc_obj.to_mongo())
+            doc_obj.id = str(insert_result.inserted_id)
+            await self.db["folders"].update_one(
+                {"_id": ObjectId(folder_id)},
+                {"$inc": {"document_count": 1}},
+            )
+            doc = doc_obj
 
         logger.info("document_saved", doc_id=doc.id, folder_id=folder_id, filename=filename)
         return doc

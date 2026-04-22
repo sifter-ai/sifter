@@ -255,7 +255,7 @@ async def test_list_api_keys(client):
 
     r = await client.get("/api/keys", headers=headers)
     assert r.status_code == 200
-    names = {k["name"] for k in r.json()}
+    names = {k["name"] for k in r.json()["items"]}
     assert "Key A" in names
     assert "Key B" in names
 
@@ -298,7 +298,7 @@ async def test_revoked_key_not_in_list(client):
 
     r2 = await client.get("/api/keys", headers=headers)
     assert r2.status_code == 200
-    assert all(k["id"] != key_id for k in r2.json())
+    assert all(k["id"] != key_id for k in r2.json()["items"])
 
 
 # ─────────────────────────────────────────────────────────────

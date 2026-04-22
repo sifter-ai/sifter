@@ -3,7 +3,7 @@ import { FolderHandle } from "./folder.js";
 import { SiftHandle } from "./sift.js";
 import type { FolderData, PageInfo, SiftData, SifterOptions } from "./types.js";
 
-export class SifterClient {
+export class Sifter {
   private readonly _apiUrl: string;
   private readonly _headers: Record<string, string>;
   private readonly _fetch: typeof globalThis.fetch;
@@ -53,6 +53,21 @@ export class SifterClient {
     await assertOk(res);
     const data = await res.json() as { items: SiftData[] };
     return data.items;
+  }
+
+  // ---- One-liner ----
+
+  async sift(path: string, instructions: string): Promise<unknown[]> {
+    const s = await this.createSift(`sift-temp-${Date.now()}`, instructions);
+    try {
+      await s.upload(path, { onConflict: "replace" });
+      await s.wait();
+      const records: unknown[] = [];
+      for await (const r of s.iterRecords()) records.push(r);
+      return records;
+    } finally {
+      await s.delete().catch(() => { /* ignore */ });
+    }
   }
 
   // ---- Folder CRUD ----
@@ -113,5 +128,39 @@ export class SifterClient {
     await assertOk(res);
     const data = await res.json() as { items: PageInfo[] };
     return data.items;
+  }
+
+  // ---- Webhooks ----
+
+  async registerHook(events: string | string[], url: string, siftId?: string): Promise<{ id: string }> {
+    const payload: Record<string, unknown> = {
+      events: Array.isArray(events) ? events : [events],
+      url,
+    };
+    if (siftId) payload["sift_id"] = siftId;
+    const res = await this._fetch(`${this._apiUrl}/api/webhooks`, {
+      method: "POST",
+      headers: { ...this._headers, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await assertOk(res);
+    return res.json();
+  }
+
+  async listHooks(): Promise<unknown[]> {
+    const res = await this._fetch(`${this._apiUrl}/api/webhooks`, {
+      headers: this._headers,
+    });
+    await assertOk(res);
+    const data = await res.json() as { items?: unknown[] };
+    return data.items ?? (data as unknown as unknown[]);
+  }
+
+  async deleteHook(hookId: string): Promise<void> {
+    const res = await this._fetch(`${this._apiUrl}/api/webhooks/${hookId}`, {
+      method: "DELETE",
+      headers: this._headers,
+    });
+    await assertOk(res);
   }
 }

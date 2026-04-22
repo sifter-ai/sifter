@@ -96,11 +96,38 @@ const totals = await sift.aggregate([
 const csv = await sift.exportCsv();
 ```
 
+## Upload
+
+`upload()` works on both `SiftHandle` and `FolderHandle`. Pass a file path (Node.js), raw bytes with a filename, or a browser `File` object.
+
+```ts
+// Node.js path
+await sift.upload("./invoices/invoice.pdf");
+
+// Raw bytes — filename required
+import { readFileSync } from "fs";
+const bytes = readFileSync("./invoice.pdf");
+await sift.upload(bytes, { filename: "invoice.pdf" });
+
+// Browser File object
+await folder.upload(fileInput.files[0]);
+
+// onConflict: "fail" (default) raises a 409 error if the file already exists
+// onConflict: "replace" replaces the existing document and re-triggers extraction
+await sift.upload("./invoices/", { onConflict: "fail" });
+await sift.upload("./invoices/", { onConflict: "replace" });
+```
+
+When uploading bytes or a `File`, `filename` is inferred from `File.name` or must be provided in the options object.
+
 ## Folders
 
 ```ts
-const folder = await sifter.createFolder("/Q1 Contracts");
+const folder = await sifter.createFolder("/q1-contracts");
 await folder.addSift(sift);
+await folder.upload("./contracts/q1/");                          // Node.js path
+await folder.upload(pdfBytes, { filename: "nda.pdf" });          // bytes
+await folder.upload("./contracts/", { onConflict: "fail" });     // strict mode
 const docs = await folder.documents();
 const sifts = await folder.sifts();
 await folder.update({ name: "Q1 2024 Contracts" });

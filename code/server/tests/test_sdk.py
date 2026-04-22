@@ -80,12 +80,12 @@ def test_get_sift():
 
 @respx.mock
 def test_list_sifts():
-    payload = [{"id": "1"}, {"id": "2"}]
+    payload = {"items": [{"id": "1"}, {"id": "2"}], "total": 2, "limit": 100, "offset": 0}
     respx.get(f"{BASE}/api/sifts").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     sifts = s.list_sifts()
-    assert len(sifts) == 2
+    assert len(sifts.items) == 2
 
 
 @respx.mock
@@ -111,12 +111,13 @@ def test_sift_delete():
 @respx.mock
 def test_sift_records():
     records = [{"client": "Acme"}, {"client": "Globex"}]
-    respx.get(f"{BASE}/api/sifts/x1/records").mock(return_value=httpx.Response(200, json=records))
+    payload = {"items": records, "total": 2, "limit": 100, "offset": 0}
+    respx.get(f"{BASE}/api/sifts/x1/records").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     handle = SiftHandle({"id": "x1"}, s)
     result = handle.records()
-    assert len(result) == 2
+    assert len(result.items) == 2
 
 
 @respx.mock
@@ -235,12 +236,12 @@ def test_get_folder():
 
 @respx.mock
 def test_list_folders():
-    payload = [{"id": "f1"}, {"id": "f2"}]
+    payload = {"items": [{"id": "f1"}, {"id": "f2"}], "total": 2, "limit": 100, "offset": 0}
     respx.get(f"{BASE}/api/folders").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     folders = s.list_folders()
-    assert len(folders) == 2
+    assert len(folders.items) == 2
 
 
 @respx.mock
@@ -266,11 +267,12 @@ def test_folder_delete():
 @respx.mock
 def test_folder_documents():
     docs = [{"id": "d1", "filename": "a.pdf"}, {"id": "d2", "filename": "b.pdf"}]
-    respx.get(f"{BASE}/api/folders/f1/documents").mock(return_value=httpx.Response(200, json=docs))
+    payload = {"items": docs, "total": 2, "limit": 100, "offset": 0}
+    respx.get(f"{BASE}/api/folders/f1/documents").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     folder = FolderHandle({"id": "f1", "name": "F"}, s)
-    assert len(folder.documents()) == 2
+    assert len(folder.documents().items) == 2
 
 
 @respx.mock
@@ -297,14 +299,14 @@ def test_folder_remove_sift():
 
 @respx.mock
 def test_folder_sifts():
-    payload = [{"id": "link1", "extraction_id": "s1"}]
+    payload = {"items": [{"id": "link1", "extraction_id": "s1"}], "total": 1, "limit": 100, "offset": 0}
     respx.get(f"{BASE}/api/folders/f1/extractors").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     folder = FolderHandle({"id": "f1", "name": "F"}, s)
     links = folder.sifts()
-    assert len(links) == 1
-    assert links[0]["extraction_id"] == "s1"
+    assert len(links.items) == 1
+    assert links.items[0]["extraction_id"] == "s1"
 
 
 @respx.mock
@@ -353,12 +355,12 @@ def test_register_hook_list_of_events():
 
 @respx.mock
 def test_list_hooks():
-    payload = [{"id": "h1"}, {"id": "h2"}]
+    payload = {"items": [{"id": "h1"}, {"id": "h2"}], "total": 2, "limit": 100, "offset": 0}
     respx.get(f"{BASE}/api/webhooks").mock(return_value=httpx.Response(200, json=payload))
 
     s = make_client()
     hooks = s.list_hooks()
-    assert len(hooks) == 2
+    assert len(hooks.items) == 2
 
 
 @respx.mock

@@ -194,7 +194,7 @@ async def test_link_extractor_idempotent(client):
     assert r2.status_code == 201  # returns existing link, no duplicate
 
     r3 = await client.get(f"/api/folders/{fid}/extractors")
-    assert len(r3.json()) == 1
+    assert len(r3.json()["items"]) == 1
 
 
 async def test_list_extractors(client):
@@ -207,8 +207,8 @@ async def test_list_extractors(client):
 
     r = await client.get(f"/api/folders/{fid}/extractors")
     assert r.status_code == 200
-    assert len(r.json()) == 2
-    ids = {e["extraction_id"] for e in r.json()}
+    assert len(r.json()["items"]) == 2
+    ids = {e["extraction_id"] for e in r.json()["items"]}
     assert ids == {e1, e2}
 
 
@@ -221,7 +221,7 @@ async def test_unlink_extractor(client):
     assert r.status_code == 204
 
     r2 = await client.get(f"/api/folders/{fid}/extractors")
-    assert r2.json() == []
+    assert r2.json()["items"] == []
 
 
 async def test_unlink_extractor_not_found(client):

@@ -166,6 +166,9 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
                 source = f"gs://{backend.bucket_name}/{storage_path}"
             else:
                 source = await backend.load(storage_path)
+            from .limits import get_usage_limiter
+            await get_usage_limiter().check_extraction(org_id=sift_org_id)
+
             results = await ext_svc.process_single_document(
                 sift_id, source, filename, document_id=document_id
             )

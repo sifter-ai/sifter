@@ -50,7 +50,7 @@ def resolve_citations(
                 confidence = None
 
         if confidence is not None and confidence < 0.6:
-            logger.debug("low_confidence_field", field=field, confidence=confidence)
+            logger.info("low_confidence_field", field=field, confidence=confidence)
 
         if page_blocks:
             page, inferred = _find_verbatim(source_text, page_blocks)
@@ -106,7 +106,7 @@ def _make_citation(
     if page is not None:
         result["page"] = page
     if confidence is not None:
-        result["confidence"] = confidence
+        result["confidence"] = min(confidence, 0.7) if inferred else confidence
     if inferred:
         result["inferred"] = True
     return result

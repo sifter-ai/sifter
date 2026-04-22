@@ -95,17 +95,6 @@ function ApiKeysCard() {
 
   const revokeMutation = useMutation({
     mutationFn: (keyId: string) => revokeApiKey(keyId),
-    onMutate: async (keyId) => {
-      await queryClient.cancelQueries({ queryKey: ["api-keys"] });
-      const previous = queryClient.getQueryData<APIKey[]>(["api-keys"]);
-      queryClient.setQueryData<APIKey[]>(["api-keys"], (old) =>
-        old?.filter((k) => k.id !== keyId) ?? []
-      );
-      return { previous };
-    },
-    onError: (_err, _keyId, context) => {
-      if (context?.previous) queryClient.setQueryData(["api-keys"], context.previous);
-    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
     },

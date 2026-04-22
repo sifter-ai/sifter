@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SifterClient } from "../client.js";
+import { Sifter } from "../client.js";
 
 function mockFetch(body: unknown, status = 200): typeof globalThis.fetch {
   return vi.fn().mockResolvedValue({
@@ -15,13 +15,13 @@ function mockFetch(body: unknown, status = 200): typeof globalThis.fetch {
 const API_URL = "http://test.local";
 const HEADERS = { "X-API-Key": "sk-test" };
 
-describe("SifterClient", () => {
+describe("Sifter", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
-  let client: SifterClient;
+  let client: Sifter;
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    client = new SifterClient({ apiUrl: API_URL, apiKey: "sk-test", fetch: fetchMock });
+    client = new Sifter({ apiUrl: API_URL, apiKey: "sk-test", fetch: fetchMock });
   });
 
   // ── createSift ──────────────────────────────────────────────────────────────
@@ -130,19 +130,19 @@ describe("SifterClient", () => {
   // ── createFolder ────────────────────────────────────────────────────────────
 
   describe("createFolder", () => {
-    it("POSTs to /api/folders and returns a FolderHandle", async () => {
+    it("GETs /api/folders/by-path?path=...&create=true and returns a FolderHandle", async () => {
       fetchMock.mockResolvedValue({
         ok: true, status: 200,
         json: async () => ({ id: "folder-1", name: "Inbox", description: "" }),
         text: async () => "",
       } as Response);
 
-      const folder = await client.createFolder("Inbox");
+      const folder = await client.createFolder("/inbox");
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${API_URL}/api/folders`,
-        expect.objectContaining({ method: "POST" }),
-      );
+      const url = fetchMock.mock.calls[0]![0] as string;
+      expect(url).toContain("/api/folders/by-path");
+      expect(url).toContain("path=%2Finbox");
+      expect(url).toContain("create=true");
       expect(folder.id).toBe("folder-1");
       expect(folder.name).toBe("Inbox");
     });
@@ -151,19 +151,18 @@ describe("SifterClient", () => {
   // ── getFolder ───────────────────────────────────────────────────────────────
 
   describe("getFolder", () => {
-    it("GETs /api/folders/:id", async () => {
+    it("GETs /api/folders/by-path?path=...", async () => {
       fetchMock.mockResolvedValue({
         ok: true, status: 200,
         json: async () => ({ id: "folder-7", name: "Contracts", description: "" }),
         text: async () => "",
       } as Response);
 
-      const folder = await client.getFolder("folder-7");
+      const folder = await client.getFolder("/contracts");
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${API_URL}/api/folders/folder-7`,
-        expect.objectContaining({ headers: HEADERS }),
-      );
+      const url = fetchMock.mock.calls[0]![0] as string;
+      expect(url).toContain("/api/folders/by-path");
+      expect(url).toContain("path=%2Fcontracts");
       expect(folder.id).toBe("folder-7");
     });
   });
@@ -229,7 +228,7 @@ describe("SifterClient", () => {
         text: async () => "",
       } as Response);
 
-      const c = new SifterClient({ apiUrl: "http://test.local/", apiKey: "k", fetch: fetchMock });
+      const c = new Sifter({ apiUrl: "http://test.local/", apiKey: "k", fetch: fetchMock });
       await c.listSifts();
 
       const url = fetchMock.mock.calls[0]![0] as string;
@@ -243,7 +242,7 @@ describe("SifterClient", () => {
         text: async () => "",
       } as Response);
 
-      const c = new SifterClient({ apiUrl: API_URL, apiKey: "", fetch: fetchMock });
+      const c = new Sifter({ apiUrl: API_URL, apiKey: "", fetch: fetchMock });
       await c.listSifts();
 
       const opts = fetchMock.mock.calls[0]![1] as RequestInit;

@@ -132,7 +132,8 @@ describe("FolderHandle", () => {
         `${API_URL}/api/folders/folder-1/extractors`,
         expect.objectContaining({ headers: HEADERS }),
       );
-      expect(result).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(result.items).toHaveLength(2);
     });
   });
 

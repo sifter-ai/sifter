@@ -12,16 +12,15 @@ export class SifterError extends Error {
 
 export async function assertOk(res: Response): Promise<void> {
   if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
     let body: unknown;
-    try {
-      body = await res.json();
-    } catch {
-      body = await res.text();
-    }
+    try { body = JSON.parse(text); } catch { body = text; }
     const detail =
       typeof body === "object" && body !== null && "detail" in body
         ? String((body as { detail: unknown }).detail)
-        : res.statusText;
+        : typeof body === "string" && body.length > 0
+          ? body
+          : res.statusText;
     throw new SifterError(detail, res.status, body);
   }
 }

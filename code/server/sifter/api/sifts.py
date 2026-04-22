@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 import structlog
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 import warnings
 from pydantic import BaseModel
@@ -120,7 +120,7 @@ async def create_sift(
     db=Depends(get_db),
     usage: NoopLimiter = Depends(get_usage_limiter),
 ):
-    await usage.check_sift_create(principal.key_id)
+    await usage.check_sift_create(principal.org_id)
     svc = SiftService(db)
     await svc.ensure_indexes()
 
@@ -235,6 +235,7 @@ async def upload_documents(
     db=Depends(get_db),
     usage: NoopLimiter = Depends(get_usage_limiter),
     files: list[UploadFile] = File(...),
+    on_conflict: str = Form("fail"),
 ):
     from ..services.document_service import DocumentService
     from ..services.document_processor import enqueue
@@ -248,7 +249,14 @@ async def upload_documents(
 
     folder_id = sift.default_folder_id
     if not folder_id:
-        folder = await doc_svc.create_folder(sift.name, "", org_id=principal.org_id)
+        try:
+            folder = await doc_svc.create_folder(sift.name, "", org_id=principal.org_id)
+        except Exception as e:
+            if "E11000" in str(e) or "DuplicateKeyError" in type(e).__name__:
+                # Folder with same name already exists — use a unique name based on sift_id
+                folder = await doc_svc.create_folder(f"{sift.name}-{sift_id[:8]}", "", org_id=principal.org_id)
+            else:
+                raise
         await doc_svc.link_extractor(folder.id, sift_id)
         await svc.update(sift_id, {"default_folder_id": folder.id})
         folder_id = folder.id
@@ -283,16 +291,22 @@ async def upload_documents(
                         f"{config.max_pdf_pages}. Split the document and retry."
                     ),
                 )
-        await usage.check_upload(principal.key_id, len(content))
 
         storage_path = await storage.save(folder_id, file.filename, content)
-        doc = await doc_svc.save_document(
-            filename=file.filename,
-            content_type=file.content_type or "application/octet-stream",
-            folder_id=folder_id,
-            size_bytes=len(content),
-            storage_path=storage_path,
-        )
+        conflict = on_conflict if on_conflict in ("fail", "replace") else "replace"
+        try:
+            doc = await doc_svc.save_document(
+                filename=file.filename,
+                content_type=file.content_type or "application/octet-stream",
+                folder_id=folder_id,
+                size_bytes=len(content),
+                storage_path=storage_path,
+                on_conflict=conflict,
+            )
+        except Exception as e:
+            if "DuplicateKeyError" in type(e).__name__ or "E11000" in str(e):
+                raise HTTPException(status_code=409, detail=f"Document '{file.filename}' already exists in this sift.")
+            raise
         await doc_svc.create_sift_status(doc.id, sift_id)
 
         # Atomically bump total_documents and flip to INDEXING *before* enqueue.

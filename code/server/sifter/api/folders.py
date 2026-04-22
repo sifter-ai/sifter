@@ -2,7 +2,7 @@ from typing import Optional
 
 import structlog
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel
 
 from ..auth import Principal, get_current_principal
@@ -383,6 +383,7 @@ async def upload_document(
     db=Depends(get_db),
     usage: NoopLimiter = Depends(get_usage_limiter),
     file: UploadFile = File(...),
+    on_conflict: str = Form("fail"),
 ):
     svc = DocumentService(db)
     folder = await svc.get_folder(folder_id)
@@ -416,18 +417,24 @@ async def upload_document(
                 ),
             )
 
-    await usage.check_upload(principal.key_id, len(content))
 
     storage = get_storage_backend()
     storage_path = await storage.save(folder_id, file.filename, content)
 
-    doc = await svc.save_document(
-        filename=file.filename,
-        content_type=file.content_type or "application/octet-stream",
-        folder_id=folder_id,
-        size_bytes=len(content),
-        storage_path=storage_path,
-    )
+    conflict = on_conflict if on_conflict in ("fail", "replace") else "replace"
+    try:
+        doc = await svc.save_document(
+            filename=file.filename,
+            content_type=file.content_type or "application/octet-stream",
+            folder_id=folder_id,
+            size_bytes=len(content),
+            storage_path=storage_path,
+            on_conflict=conflict,
+        )
+    except Exception as e:
+        if "DuplicateKeyError" in type(e).__name__ or "E11000" in str(e):
+            raise HTTPException(status_code=409, detail=f"Document '{file.filename}' already exists in this folder.")
+        raise
 
     sift_ids = await svc.collect_effective_sift_ids(folder_id)
 

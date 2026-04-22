@@ -57,7 +57,7 @@ def test_low_confidence_logged():
     with structlog.testing.capture_logs() as cap:
         result = resolve_citations("doc1", {"total": 1500}, llm, PAGE_BLOCKS)
     assert "total" in result
-    low_logs = [e for e in cap if e.get("log_level") == "debug" and "low_confidence" in e.get("event", "")]
+    low_logs = [e for e in cap if e.get("log_level") == "info" and "low_confidence" in e.get("event", "")]
     assert len(low_logs) > 0
 
 

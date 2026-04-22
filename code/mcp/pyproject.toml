@@ -32,7 +32,7 @@ dev = [
 package = true
 
 [tool.uv.sources]
-sifter-ai = { path = "../sdk", editable = true }
+sifter-ai = { path = "../sdk-python", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

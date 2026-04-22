@@ -56,18 +56,21 @@ folder.upload("./invoice.pdf")
 
 # Upload from bytes
 with open("./invoice.pdf", "rb") as f:
-    folder.upload_bytes(f.read(), filename="invoice.pdf")
+    folder.upload(f.read(), filename="invoice.pdf")
 ```
   </Tab>
   <Tab title="TypeScript SDK">
 ```ts
-// Single file (Node.js)
+// Single file (Node.js path)
+await folder.upload("./invoice.pdf");
+
+// From bytes
 import { readFileSync } from "fs";
 const bytes = readFileSync("./invoice.pdf");
-await folder.uploadBytes(bytes, "invoice.pdf");
+await folder.upload(bytes, "invoice.pdf");
 
 // From a browser File object
-await folder.uploadFile(fileInput.files[0]);
+await folder.upload(fileInput.files[0]);
 ```
   </Tab>
   <Tab title="REST API">

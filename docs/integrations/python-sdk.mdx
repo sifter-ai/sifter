@@ -59,6 +59,7 @@ Autocomplete surfaces every method on both OSS and Cloud. The runtime decides if
 ```python
 # Create
 sift = s.create_sift("Invoices", "client, date, total amount, VAT number")
+sift = s.create_sift("Invoices", "client, date, total amount, VAT number", description="AP invoices 2024")
 
 # Read — one page
 page = s.list_sifts(limit=50, offset=0)   # returns Page(items, total, limit, offset)
@@ -77,7 +78,10 @@ sift.delete()
 ## Documents and results
 
 ```python
-sift.upload("./invoices/")           # file or directory
+sift.upload("./invoices/")                                    # file or directory
+sift.upload(pdf_bytes, filename="invoice.pdf")                # raw bytes
+sift.upload("./invoices/", on_conflict="fail")                # default: raise 409 if file already exists
+sift.upload("./invoices/", on_conflict="replace")             # replace & re-extract if file already exists
 sift.wait(poll_interval=2, timeout=300)  # block until done
 
 # One page of records
@@ -87,16 +91,68 @@ page = sift.records(limit=100, offset=0)   # Page(items, total, limit, offset, n
 for record in sift.iter_records():
     print(record["extracted_data"])
 
-results = sift.query("Total by client")
+# Cursor-based filter query
+page = sift.find(
+    filter={"extracted_data.total": {"$gt": 1000}},
+    sort=[("extracted_data.date", -1)],
+    limit=50,
+)
+
+# Count records
+n = sift.records_count()
+n_filtered = sift.records_count(filter={"extracted_data.status": "unpaid"})
+
+# Natural-language query (generates + runs a MongoDB aggregation pipeline)
+results = sift.query("Total by client this month")
+
+# Raw MongoDB aggregation
+totals = sift.aggregate([
+    {"$group": {"_id": "$extracted_data.client", "total": {"$sum": "$extracted_data.total"}}},
+    {"$sort": {"total": -1}},
+])
+
 sift.export_csv("invoices.csv")
+```
+
+## Extraction control
+
+Trigger and poll extraction for a single document:
+
+```python
+sift.extract("doc-xyz")
+
+status = sift.extraction_status("doc-xyz")  # "queued" | "running" | "completed" | "failed"
+```
+
+## Citations
+
+Every extracted field is anchored to a source text, page, and confidence score:
+
+```python
+record_handle = sift.record("rec-abc123")
+citations = record_handle.citations()
+# {"vendor": {"source_text": "Acme Corp", "page": 1, "confidence": 0.98}, ...}
+```
+
+See [Citations](/concepts/citations) for the full shape.
+
+## Page images
+
+Render a document page as PNG bytes:
+
+```python
+doc = s.document("doc-xyz")
+total_pages = doc.page_count()
+png_bytes = doc.page_image(page=1, dpi=150)
 ```
 
 ## Folders
 
 ```python
-folder = s.create_folder("Q1 Contracts")
+folder = s.create_folder("/q1-contracts")
 folder.add_sift(sift)
-folder.upload("./contracts/q1/")
+folder.upload("./contracts/q1/")         # directory
+folder.upload(pdf_bytes, filename="nda.pdf")  # bytes
 
 # One page
 page = folder.documents(limit=50, offset=0)
@@ -116,7 +172,7 @@ folder.delete()
 parties = s.create_sift("Parties", "contracting parties, dates, signatories")
 clauses = s.create_sift("Clauses", "non-compete, termination conditions")
 
-folder = s.create_folder("Contracts 2024")
+folder = s.create_folder("/contracts-2024")
 folder.add_sift(parties)
 folder.add_sift(clauses)
 folder.upload("./contracts/")
@@ -127,10 +183,13 @@ print(parties.records())
 
 ## One-liner
 
+Creates a temporary sift, uploads, waits, returns records, then **deletes the sift**. Use this for fire-and-forget jobs where you don't need the sift to persist.
+
 ```python
-# Create temp sift, upload, wait, return records
 records = s.sift("./invoices/", "client, date, total")
 ```
+
+If you need to query the data later (via the API, MCP, or NL query), use `create_sift()` instead so the sift persists.
 
 ## Event callbacks
 
