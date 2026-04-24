@@ -205,10 +205,25 @@ async def _process_task(
         from .limits import get_usage_limiter
         await get_usage_limiter().record_processed(org_id=sift_org_id, doc_count=1)
 
+        records_payload = [
+            {
+                "id": r.id,
+                "document_type": r.document_type,
+                "confidence": r.confidence,
+                "fields": r.extracted_data,
+            }
+            for r in results
+        ]
         await _dispatch_webhook(
             db=db,
             event="sift.document.processed",
-            payload={"document_id": document_id, "sift_id": sift_id, "record_id": first_record_id, "record_count": len(results)},
+            payload={
+                "status": "processed",
+                "document_id": document_id,
+                "sift_id": sift_id,
+                "record_count": len(results),
+                "records": records_payload,
+            },
             sift_id=sift_id,
             org_id=sift_org_id,
         )
@@ -228,7 +243,12 @@ async def _process_task(
             await _dispatch_webhook(
                 db=db,
                 event="sift.document.discarded",
-                payload={"document_id": document_id, "sift_id": sift_id, "reason": e.reason},
+                payload={
+                    "status": "discarded",
+                    "document_id": document_id,
+                    "sift_id": sift_id,
+                    "reason": e.reason,
+                },
                 sift_id=sift_id,
                 org_id=sift_org_id,
             )
@@ -259,7 +279,12 @@ async def _process_task(
             await _dispatch_webhook(
                 db=db,
                 event="sift.error",
-                payload={"document_id": document_id, "sift_id": sift_id, "error": error_msg},
+                payload={
+                    "status": "error",
+                    "document_id": document_id,
+                    "sift_id": sift_id,
+                    "error": error_msg,
+                },
                 sift_id=sift_id,
                 org_id=sift_org_id,
             )

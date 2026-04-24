@@ -5,13 +5,15 @@ description: HTTP callbacks fired on extraction events. Wildcard patterns, autom
 
 # Webhooks
 
-Webhooks let you react to extraction events in real time — trigger a downstream pipeline, notify a Slack channel, or sync results to another system.
+Webhooks let you react to extraction events in real time — trigger a downstream pipeline,
+notify a Slack channel, or sync results to another system without polling.
 
 ## Events
 
 | Event | When |
 |-------|------|
 | `sift.document.processed` | A document was extracted successfully |
+| `sift.document.discarded` | A document was skipped by the filter instructions |
 | `sift.completed` | All documents in a sift finished processing |
 | `sift.error` | A document extraction failed |
 | `folder.document.uploaded` | A new document was added to a folder |
@@ -22,8 +24,8 @@ Sifter supports `*` (single segment) and `**` (any segments):
 
 | Pattern | Matches |
 |---------|---------|
-| `sift.*` | All sift events |
-| `sift.document.*` | `sift.document.processed` |
+| `sift.*` | `sift.completed`, `sift.error` |
+| `sift.document.*` | `sift.document.processed`, `sift.document.discarded` |
 | `**` | All events |
 
 ## Registering a webhook
@@ -32,7 +34,7 @@ Sifter supports `*` (single segment) and `**` (any segments):
   <Tab title="Python SDK">
 ```python
 s.register_hook(
-    events=["sift.document.processed", "sift.error"],
+    events=["sift.document.processed", "sift.document.discarded", "sift.error"],
     url="https://example.com/hooks/sifter",
     sift_id="sift-abc",  # optional: scope to one sift
 )
@@ -40,18 +42,18 @@ s.register_hook(
   </Tab>
   <Tab title="TypeScript SDK">
 ```ts
-await sifter.createWebhook({
-  events: ["sift.document.processed", "sift.error"],
-  url: "https://example.com/hooks/sifter",
-  sift_id: "sift-abc", // optional: scope to one sift
-});
+await s.registerHook(
+  ["sift.document.processed", "sift.document.discarded", "sift.error"],
+  "https://example.com/hooks/sifter",
+  { siftId: "sift-abc" }, // optional: scope to one sift
+);
 ```
   </Tab>
   <Tab title="REST API">
 ```bash
 POST /api/webhooks
 {
-  "events": ["sift.document.processed"],
+  "events": ["sift.document.processed", "sift.document.discarded", "sift.error"],
   "url": "https://example.com/hooks/sifter",
   "sift_id": "sift-abc"
 }
@@ -61,17 +63,34 @@ POST /api/webhooks
 
 ## Payload
 
+Every event arrives as a POST with this JSON body:
+
 ```json
 {
   "event": "sift.document.processed",
-  "timestamp": "2024-03-15T10:30:00Z",
-  "sift_id": "sift-abc",
-  "document_id": "doc-xyz",
-  "data": {
-    "document": { "id": "doc-xyz", "filename": "invoice.pdf" },
-    "record": { "extracted_data": { "client": "Acme", "total": 1500 } }
+  "payload": {
+    "status": "processed",
+    "document_id": "doc-xyz",
+    "sift_id": "sift-abc",
+    "record_count": 1,
+    "records": [
+      {
+        "id": "rec-123",
+        "document_type": "invoice",
+        "confidence": 0.97,
+        "fields": {
+          "client_name": "Acme Corp",
+          "invoice_date": "2024-03-15",
+          "total_amount": 1500.00
+        }
+      }
+    ]
   }
 }
 ```
 
-See [Webhooks Reference](/integrations/webhooks-reference) for the full payload schema and delivery details.
+The `status` field is present on every document event: `"processed"`, `"discarded"`, or `"error"`.
+For `sift.document.discarded` the payload includes a `reason` string instead of `records`.
+For `sift.error` it includes an `error` string.
+
+See [Webhooks Reference](/integrations/webhooks-reference) for all payload schemas and delivery details.

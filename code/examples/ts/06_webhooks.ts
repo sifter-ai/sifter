@@ -2,23 +2,44 @@
  * 06 — Webhooks
  *
  * Register a server-side webhook so Sifter POSTs to your endpoint
- * whenever a document is processed or a sift completes.
+ * whenever a document is processed, discarded, or a sift completes.
  *
- * This example registers the hook, uploads documents, then
- * simulates receiving events via a minimal HTTP server.
+ * Each event payload includes a `status` field and, for processed
+ * documents, the full `records` array with extracted fields.
  *
  * Requirements:
  *   npx tsx 06_webhooks.ts
  *   # Sifter server running on localhost:8000
- *   # Your webhook endpoint must be reachable from the Sifter server
- *   # SIFTER_API_KEY env var set
+ *   # SIFTER_API_KEY and SIFTER_API_URL env vars set
  */
 import http from "http";
 import { Sifter } from "@sifter-ai/sdk";
 
 // ── Minimal webhook receiver ──────────────────────────────────────────────────
 
-const receivedEvents: Array<Record<string, unknown>> = [];
+type WebhookRecord = {
+  id: string;
+  document_type: string;
+  confidence: number;
+  fields: Record<string, unknown>;
+};
+
+type WebhookPayload = {
+  status?: string;
+  document_id?: string;
+  sift_id?: string;
+  record_count?: number;
+  records?: WebhookRecord[];
+  reason?: string;
+  error?: string;
+};
+
+type WebhookEvent = {
+  event: string;
+  payload: WebhookPayload;
+};
+
+const receivedEvents: WebhookEvent[] = [];
 
 const server = http.createServer((req, res) => {
   if (req.method !== "POST") { res.end(); return; }
@@ -26,11 +47,24 @@ const server = http.createServer((req, res) => {
   req.on("data", (c: Buffer) => chunks.push(c));
   req.on("end", () => {
     try {
-      const event = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, unknown>;
+      const event = JSON.parse(Buffer.concat(chunks).toString()) as WebhookEvent;
       receivedEvents.push(event);
-      const payload = (event["payload"] as Record<string, unknown> | undefined) ?? {};
-      const docId = (payload["document_id"] as string) ?? "—";
-      console.log(`\n[webhook] event=${event["event"]} doc=${docId}`);
+
+      const { event: name, payload } = event;
+      console.log(`\n[webhook] ${name}  status=${payload.status ?? "—"}  doc=${payload.document_id ?? "—"}`);
+
+      if (name === "sift.document.processed") {
+        for (const rec of payload.records ?? []) {
+          console.log(`  record ${rec.id}  confidence=${(rec.confidence * 100).toFixed(0)}%`);
+          for (const [k, v] of Object.entries(rec.fields)) {
+            console.log(`    ${k}: ${v}`);
+          }
+        }
+      } else if (name === "sift.document.discarded") {
+        console.log(`  reason: ${payload.reason}`);
+      } else if (name === "sift.error") {
+        console.log(`  error: ${payload.error}`);
+      }
     } catch { /* ignore malformed */ }
     res.writeHead(200).end();
   });
@@ -44,10 +78,10 @@ console.log("Webhook receiver listening on http://localhost:9000");
 const s = new Sifter();
 
 const hook = await s.registerHook(
-  ["sift.document.processed", "sift.completed", "sift.error"],
+  ["sift.document.processed", "sift.document.discarded", "sift.completed", "sift.error"],
   "http://localhost:9000",
-);
-console.log(`Webhook registered: ${(hook as { id: string }).id}`);
+) as { id: string };
+console.log(`Webhook registered: ${hook.id}`);
 
 // ── Upload and process ────────────────────────────────────────────────────────
 
@@ -62,10 +96,10 @@ await sift.wait();
 
 console.log(`\nTotal webhook events received: ${receivedEvents.length}`);
 for (const ev of receivedEvents) {
-  console.log(`  ${ev["event"]}`);
+  console.log(`  ${ev.event}  status=${ev.payload.status ?? "—"}`);
 }
 
 // Cleanup
-await s.deleteHook((hook as { id: string }).id);
+await s.deleteHook(hook.id);
 await sift.delete();
 server.close();

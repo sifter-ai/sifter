@@ -9,7 +9,8 @@ description: Full event list, payload schemas, wildcard patterns, and delivery b
 
 | Event | Trigger |
 |-------|---------|
-| `sift.document.processed` | A document was extracted successfully by a sift |
+| `sift.document.processed` | A document was extracted successfully |
+| `sift.document.discarded` | A document was skipped by the filter instructions |
 | `sift.completed` | All documents in a sift finished processing |
 | `sift.error` | A document extraction failed |
 | `folder.document.uploaded` | A new document was added to a folder |
@@ -18,9 +19,8 @@ description: Full event list, payload schemas, wildcard patterns, and delivery b
 
 | Pattern | Matches |
 |---------|---------|
-| `sift.*` | `sift.document.processed`, `sift.completed`, `sift.error` |
-| `sift.document.*` | `sift.document.processed` |
-| `folder.*` | `folder.document.uploaded` |
+| `sift.*` | `sift.completed`, `sift.error` |
+| `sift.document.*` | `sift.document.processed`, `sift.document.discarded` |
 | `**` | All events |
 
 ## Payload schema
@@ -30,32 +30,54 @@ All events share this envelope:
 ```json
 {
   "event": "sift.document.processed",
-  "timestamp": "2024-03-15T10:30:00Z",
-  "sift_id": "sift-abc",
-  "document_id": "doc-xyz",
-  "data": { ... }
+  "payload": { ... }
 }
 ```
 
+Every `payload` includes `status`, `document_id`, and `sift_id`.
+
 ### `sift.document.processed`
+
+Fired when a document is extracted successfully. The `records` array contains
+all records extracted from that document — typically one per document.
 
 ```json
 {
-  "data": {
-    "document": {
-      "id": "doc-xyz",
-      "filename": "invoice_march.pdf",
-      "status": "done"
-    },
-    "record": {
-      "id": "rec-123",
-      "extracted_data": {
-        "client_name": "Acme Corp",
-        "invoice_date": "2024-03-15",
-        "total_amount": 1500.00
-      },
-      "confidence": 0.97
-    }
+  "event": "sift.document.processed",
+  "payload": {
+    "status": "processed",
+    "document_id": "doc-xyz",
+    "sift_id": "sift-abc",
+    "record_count": 1,
+    "records": [
+      {
+        "id": "rec-123",
+        "document_type": "invoice",
+        "confidence": 0.97,
+        "fields": {
+          "client_name": "Acme Corp",
+          "invoice_date": "2024-03-15",
+          "total_amount": 1500.00
+        }
+      }
+    ]
+  }
+}
+```
+
+### `sift.document.discarded`
+
+Fired when the sift's filter instructions determined the document does not
+belong in this sift (e.g. a non-invoice uploaded to an invoice sift).
+
+```json
+{
+  "event": "sift.document.discarded",
+  "payload": {
+    "status": "discarded",
+    "document_id": "doc-xyz",
+    "sift_id": "sift-abc",
+    "reason": "Document is a bank statement, not an invoice."
   }
 }
 ```
@@ -64,7 +86,8 @@ All events share this envelope:
 
 ```json
 {
-  "data": {
+  "event": "sift.completed",
+  "payload": {
     "sift_id": "sift-abc",
     "document_count": 42,
     "record_count": 42
@@ -76,9 +99,12 @@ All events share this envelope:
 
 ```json
 {
-  "data": {
-    "document": { "id": "doc-xyz", "filename": "corrupt.pdf" },
-    "error": "PDF could not be parsed"
+  "event": "sift.error",
+  "payload": {
+    "status": "error",
+    "document_id": "doc-xyz",
+    "sift_id": "sift-abc",
+    "error": "PDF could not be parsed: encrypted file"
   }
 }
 ```
@@ -87,12 +113,11 @@ All events share this envelope:
 
 ```json
 {
-  "data": {
-    "document": {
-      "id": "doc-xyz",
-      "filename": "contract.pdf",
-      "folder_id": "folder-abc"
-    }
+  "event": "folder.document.uploaded",
+  "payload": {
+    "document_id": "doc-xyz",
+    "filename": "contract.pdf",
+    "folder_id": "folder-abc"
   }
 }
 ```
@@ -109,7 +134,7 @@ All events share this envelope:
 ```bash
 POST /api/webhooks
 {
-  "events": ["sift.document.processed", "sift.error"],
+  "events": ["sift.document.processed", "sift.document.discarded", "sift.error"],
   "url": "https://example.com/hooks/sifter",
   "sift_id": "sift-abc"   # optional — omit to receive events from all sifts
 }

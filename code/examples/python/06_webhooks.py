@@ -2,15 +2,16 @@
 06 — Webhooks
 
 Register a server-side webhook so Sifter POSTs to your endpoint
-whenever a document is processed or a sift completes.
+whenever a document is processed, discarded, or a sift completes.
 
-This example registers the hook, uploads documents, then
-simulates receiving events via a minimal HTTP server.
+Each event payload includes a `status` field and, for processed
+documents, the full `records` array with extracted fields.
 
 Requirements:
-    pip install sifter-ai httpx
-    # Sifter server running on localhost:8000 (./run.sh)
+    uv run --project ../../sdk-python python 06_webhooks.py
+    # Sifter server running on localhost:8000
     # Your webhook endpoint must be reachable from the Sifter server
+    # SIFTER_API_KEY and SIFTER_API_URL env vars set
 """
 import json
 import threading
@@ -28,9 +29,26 @@ class WebhookHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(length)
         event = json.loads(body)
         received_events.append(event)
-        payload = event.get('payload', {})
-        doc_id = payload.get('document_id', '—')
-        print(f"\n[webhook] event={event.get('event')} doc={doc_id}")
+
+        payload = event.get("payload", {})
+        status  = payload.get("status", "—")
+        doc_id  = payload.get("document_id", "—")
+        name    = event.get("event", "—")
+
+        print(f"\n[webhook] {name}  status={status}  doc={doc_id}")
+
+        if name == "sift.document.processed":
+            for rec in payload.get("records", []):
+                print(f"  record {rec['id']}  confidence={rec['confidence']:.0%}")
+                for k, v in rec.get("fields", {}).items():
+                    print(f"    {k}: {v}")
+
+        elif name == "sift.document.discarded":
+            print(f"  reason: {payload.get('reason')}")
+
+        elif name == "sift.error":
+            print(f"  error: {payload.get('error')}")
+
         self.send_response(200)
         self.end_headers()
 
@@ -47,7 +65,7 @@ print("Webhook receiver listening on http://localhost:9000")
 s = Sifter()
 
 hook = s.register_hook(
-    events=["sift.document.processed", "sift.completed", "sift.error"],
+    events=["sift.document.processed", "sift.document.discarded", "sift.completed", "sift.error"],
     url="http://localhost:9000",  # must be reachable from the Sifter server
 )
 print(f"Webhook registered: {hook['id']}")
@@ -65,7 +83,8 @@ sift.wait()
 
 print(f"\nTotal webhook events received: {len(received_events)}")
 for ev in received_events:
-    print(f"  {ev.get('event')}")
+    p = ev.get("payload", {})
+    print(f"  {ev.get('event')}  status={p.get('status', '—')}")
 
 # Cleanup
 s.delete_hook(hook["id"])
