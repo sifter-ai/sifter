@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Mail, Trash2, UserPlus, Clock } from "lucide-react";
-import { getMyOrg, listMembers, removeMember, type OrgMember } from "@/api/orgs";
+import { Building2, Mail, Trash2, UserPlus, Clock, LogOut } from "lucide-react";
+import { getMyOrg, listMembers, removeMember, leaveOrg, listOrgs, switchOrg, type OrgMember } from "@/api/orgs";
 import { listInvites, sendInvite, revokeInvite, type Invite } from "@/api/invites";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthContext } from "@/context/AuthContext";
+import { setToken } from "@/lib/apiFetch";
 
 const ROLE_BADGE: Record<string, string> = {
   owner:  "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
@@ -35,14 +36,13 @@ function Avatar({ name, email }: { name: string; email: string }) {
 }
 
 export default function OrganizationSettingsPage() {
-  const { user } = useAuthContext();
+  const { user, logout } = useAuthContext();
   const qc = useQueryClient();
 
   const { data: org } = useQuery({ queryKey: ["org"], queryFn: getMyOrg });
   const { data: membersData } = useQuery({ queryKey: ["org-members"], queryFn: listMembers });
   const { data: invitesData } = useQuery({ queryKey: ["org-invites"], queryFn: listInvites });
 
-  const members = membersData?.members ?? [];
   const invites = invitesData?.invites ?? [];
 
   const [email, setEmail] = useState("");
@@ -69,6 +69,34 @@ export default function OrganizationSettingsPage() {
     mutationFn: revokeInvite,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["org-invites"] }),
   });
+
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+
+  const leaveMutation = useMutation({
+    mutationFn: leaveOrg,
+    onSuccess: async () => {
+      // Switch to another org if available, otherwise logout
+      try {
+        const { orgs } = await listOrgs();
+        const other = orgs.find(o => o.org_id !== org?.org_id);
+        if (other) {
+          const { access_token } = await switchOrg(other.org_id);
+          setToken(access_token);
+          window.location.href = "/";
+        } else {
+          logout();
+        }
+      } catch {
+        logout();
+      }
+    },
+    onError: (err: Error) => setLeaveError(err.message || "Failed to leave organization."),
+  });
+
+  const members = membersData?.members ?? [];
+  const currentMember = members.find(m => m.user_id === user?.id);
+  const isOwner = currentMember?.role === "owner";
 
   return (
     <div className="space-y-8">
@@ -142,6 +170,7 @@ export default function OrganizationSettingsPage() {
         )}
       </section>
 
+      {/* Invite — only owners can invite */}
       {/* Pending invites */}
       {invites.length > 0 && (
         <section className="space-y-3">
@@ -174,6 +203,48 @@ export default function OrganizationSettingsPage() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Leave org — non-owners only */}
+      {!isOwner && (
+        <section className="space-y-3 pt-4 border-t">
+          <h3 className="text-sm font-semibold text-destructive">Leave organization</h3>
+          <p className="text-xs text-muted-foreground">
+            You will lose access to all sifts, documents, and data in <span className="font-medium">{org?.name ?? "this organization"}</span>.
+          </p>
+          {!leaveConfirm ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/5"
+              onClick={() => setLeaveConfirm(true)}
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Leave organization
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Are you sure?</span>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => leaveMutation.mutate()}
+                disabled={leaveMutation.isPending}
+              >
+                {leaveMutation.isPending ? "Leaving…" : "Yes, leave"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setLeaveConfirm(false); setLeaveError(null); }}
+                disabled={leaveMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+          {leaveError && <p className="text-xs text-destructive">{leaveError}</p>}
         </section>
       )}
     </div>

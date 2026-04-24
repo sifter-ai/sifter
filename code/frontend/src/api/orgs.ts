@@ -35,6 +35,9 @@ export const listMembers = (): Promise<{ members: OrgMember[] }> =>
 export const removeMember = (userId: string): Promise<{ status: string }> =>
   apiFetchJson(`/api/orgs/me/members/${userId}`, { method: "DELETE" });
 
+export const leaveOrg = (): Promise<{ status: string }> =>
+  apiFetchJson("/api/orgs/me/leave", { method: "POST" });
+
 export const createOrg = (name: string): Promise<{ access_token: string; org_id: string }> =>
   apiFetchJson("/api/orgs", {
     method: "POST",
