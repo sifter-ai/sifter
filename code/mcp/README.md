@@ -1,6 +1,6 @@
 # sifter-mcp
 
-MCP server for [Sifter](https://github.com/bfortunato/sifter) — gives Claude Desktop, Cursor, and AI agents read access to your extracted records.
+MCP server for [Sifter](https://github.com/sifter-ai/sifter) — gives Claude Desktop, Cursor, and AI agents read access to your extracted records.
 
 ## Usage
 
@@ -44,4 +44,4 @@ Configure Claude Desktop to connect to your Sifter Cloud instance:
 
 ## License
 
-MIT. By [Bruno Fortunato](https://github.com/bfortunato).
+MIT. [sifter-ai](https://github.com/sifter-ai).
