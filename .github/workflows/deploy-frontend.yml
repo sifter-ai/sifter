@@ -1,7 +1,8 @@
 name: Deploy Frontend to Cloudflare Pages
 
 on:
-  workflow_dispatch:  # manual only until Cloudflare Pages project is configured
+  push:
+    branches: [main]
 
 jobs:
   deploy:
