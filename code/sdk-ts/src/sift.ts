@@ -378,7 +378,7 @@ export class RecordHandle {
     private readonly _fetch: typeof fetch,
   ) {}
 
-  async citations(): Promise<{ record_id: string; document_id: string; citations: Record<string, Citation> }> {
+  async citations(): Promise<Record<string, Citation>> {
     const res = await this._fetch(
       `${this._apiUrl}/api/sifts/${this._siftId}/records/${this._recordId}/citations`,
       { headers: this._headers },

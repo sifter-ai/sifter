@@ -22,13 +22,14 @@ sift = s.create_sift(
     name="Citations demo",
     instructions="Extract supplier, invoice_date, total_amount and currency.",
 )
-sift.upload("../documents/invoices/INV-2025-001.pdf", on_conflict="replace")
+sift.upload("../documents/invoices/invoice_001.pdf", on_conflict="replace")
 sift.wait()
 
 # ── 1. Inline citations ───────────────────────────────────────────────────────
 # Every record returned by .records() already includes a `citations` dict.
 
-records = sift.records()
+page = sift.records()
+records = page.items
 print(f"Extracted {len(records)} record(s)\n")
 
 for rec in records:
@@ -51,12 +52,12 @@ for rec in records:
 # Useful when you already have a record_id and don't want to re-fetch all records.
 
 if records:
-    record_id = records[0]["id"]
+    record_id = records[0].get("id") or records[0].get("_id")
     handle = sift.record(record_id)
     cit_response = handle.citations()
 
     print(f"── Drill-down citations for {record_id} ──")
-    for field, cit in (cit_response.get("citations") or {}).items():
+    for field, cit in cit_response.items():
         page_info = f"  page {cit['page']}" if cit.get("page") else ""
         print(f"  {field}: \"{cit['source_text']}\"{page_info}")
     print()

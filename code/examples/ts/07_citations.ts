@@ -22,7 +22,7 @@ const sift = await s.createSift(
   "Citations demo TS",
   "Extract supplier, invoice_date, total_amount and currency.",
 );
-await sift.upload("../documents/invoices/INV-2025-001.pdf", { onConflict: "replace" });
+await sift.upload("../documents/invoices/invoice_001.pdf", { onConflict: "replace" });
 await sift.wait();
 
 // ── Read inline citations ─────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ if (records.length > 0) {
   const citResponse = await handle.citations();
 
   console.log(`── Drill-down citations for ${recordId} ──`);
-  for (const [field, cit] of Object.entries(citResponse.citations ?? {})) {
+  for (const [field, cit] of Object.entries(citResponse)) {
     const pageInfo = cit.page != null ? `  page ${cit.page}` : "";
     console.log(`  ${field}: "${cit.source_text}"${pageInfo}`);
   }
