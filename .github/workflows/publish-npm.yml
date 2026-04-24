@@ -49,8 +49,10 @@ jobs:
           jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
         working-directory: code/cli
 
-      - run: npm ci && npm run build
+      - run: npm install && npm run build
         working-directory: code/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - run: npm publish --access public
         working-directory: code/cli
