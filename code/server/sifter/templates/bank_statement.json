@@ -1,18 +1,15 @@
 {
   "id": "bank_statement",
   "name": "Bank Statement",
-  "description": "Bank account statements — transactions, balances, period.",
+  "description": "Extract transactions, balances, and period from any bank format.",
   "icon": "landmark",
-  "instructions": "Extract: bank name, account holder name, account number (last 4 digits only), IBAN (if present), statement period start, statement period end, opening balance, closing balance, currency, transactions as an array (each item: date, description, debit amount, credit amount, balance after transaction). Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- bank_name (string)\n- account_holder_name (string)\n- account_number_last_four (string)\n- iban (string)\n- statement_period_start (date)\n- statement_period_end (date)\n- currency (string)\n- opening_balance (number)\n- closing_balance (number)\n- transactions (array): each item has date, description, debit_amount, credit_amount, balance_after\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "bank_name", "type": "string", "nullable": true},
     {"name": "account_holder_name", "type": "string", "nullable": true},
-    {"name": "account_number_last4", "type": "string", "nullable": true},
-    {"name": "iban", "type": "string", "nullable": true},
     {"name": "statement_period_start", "type": "date", "nullable": true},
     {"name": "statement_period_end", "type": "date", "nullable": true},
     {"name": "opening_balance", "type": "number", "nullable": true},
-    {"name": "closing_balance", "type": "number", "nullable": true},
-    {"name": "currency", "type": "string", "nullable": true}
+    {"name": "closing_balance", "type": "number", "nullable": true}
   ]
 }

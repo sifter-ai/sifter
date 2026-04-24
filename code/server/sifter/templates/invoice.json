@@ -3,7 +3,7 @@
   "name": "Invoice",
   "description": "Standard B2B invoices — supplier, amounts, line items, tax, payment terms.",
   "icon": "file-text",
-  "instructions": "Extract: supplier name, supplier VAT number, invoice number, invoice date, due date, subtotal, VAT amount, total amount, currency, line items (description + quantity + unit price), payment status. Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- supplier_name (string)\n- supplier_vat_number (string)\n- invoice_number (string)\n- invoice_date (date)\n- due_date (date)\n- currency (string)\n- subtotal (number)\n- vat_amount (number)\n- total_amount (number)\n- payment_status (string)\n- line_items (array): each item has description, quantity, unit_price\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "supplier_name", "type": "string", "nullable": true},
     {"name": "supplier_vat_number", "type": "string", "nullable": true},

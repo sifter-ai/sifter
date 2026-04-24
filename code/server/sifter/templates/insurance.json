@@ -1,21 +1,16 @@
 {
   "id": "insurance",
   "name": "Insurance Certificate",
-  "description": "Insurance policies and certificates — coverage, premium, validity.",
+  "description": "Extract policy details, coverage, and dates from insurance documents.",
   "icon": "shield",
-  "instructions": "Extract: policy number, insurer name, insured name, insured address, coverage type, insured object or risk (e.g. property address, vehicle plate, activity), coverage amount or limit, deductible, annual premium, payment frequency, policy start date, policy end date, exclusions (as an array of short descriptions). Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- policy_number (string)\n- insurer_name (string)\n- insured_name (string)\n- insured_address (string)\n- coverage_type (string)\n- insured_object_or_risk (string, e.g. property address, vehicle plate)\n- coverage_amount (number)\n- deductible (number)\n- annual_premium (number)\n- payment_frequency (string)\n- policy_start_date (date)\n- policy_end_date (date)\n- exclusions (array of strings)\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "policy_number", "type": "string", "nullable": true},
     {"name": "insurer_name", "type": "string", "nullable": true},
     {"name": "insured_name", "type": "string", "nullable": true},
-    {"name": "insured_address", "type": "string", "nullable": true},
     {"name": "coverage_type", "type": "string", "nullable": true},
-    {"name": "insured_object_or_risk", "type": "string", "nullable": true},
-    {"name": "coverage_limit", "type": "number", "nullable": true},
-    {"name": "deductible", "type": "number", "nullable": true},
-    {"name": "annual_premium", "type": "number", "nullable": true},
-    {"name": "payment_frequency", "type": "string", "nullable": true},
     {"name": "policy_start_date", "type": "date", "nullable": true},
-    {"name": "policy_end_date", "type": "date", "nullable": true}
+    {"name": "policy_end_date", "type": "date", "nullable": true},
+    {"name": "annual_premium", "type": "number", "nullable": true}
   ]
 }

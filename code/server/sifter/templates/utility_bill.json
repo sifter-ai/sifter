@@ -3,19 +3,15 @@
   "name": "Utility Bill",
   "description": "Electricity, gas, water, and phone bills from any provider.",
   "icon": "zap",
-  "instructions": "Extract: provider name, customer name, customer account number, service address, billing period start, billing period end, meter reading previous, meter reading current, consumption (with unit, e.g. kWh or m³), unit price, fixed charges, total amount due, due date, payment method. Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- provider_name (string)\n- customer_name (string)\n- customer_account_number (string)\n- service_address (string)\n- billing_period_start (date)\n- billing_period_end (date)\n- due_date (date)\n- meter_reading_previous (number)\n- meter_reading_current (number)\n- consumption (number)\n- consumption_unit (string, e.g. kWh, m³)\n- unit_price (number)\n- fixed_charges (number)\n- total_amount_due (number)\n- payment_method (string)\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "provider_name", "type": "string", "nullable": true},
     {"name": "customer_name", "type": "string", "nullable": true},
-    {"name": "account_number", "type": "string", "nullable": true},
+    {"name": "customer_account_number", "type": "string", "nullable": true},
     {"name": "service_address", "type": "string", "nullable": true},
     {"name": "billing_period_start", "type": "date", "nullable": true},
     {"name": "billing_period_end", "type": "date", "nullable": true},
-    {"name": "consumption", "type": "number", "nullable": true},
-    {"name": "consumption_unit", "type": "string", "nullable": true},
-    {"name": "unit_price", "type": "number", "nullable": true},
-    {"name": "fixed_charges", "type": "number", "nullable": true},
-    {"name": "total_amount_due", "type": "number", "nullable": true},
-    {"name": "due_date", "type": "date", "nullable": true}
+    {"name": "due_date", "type": "date", "nullable": true},
+    {"name": "total_amount_due", "type": "number", "nullable": true}
   ]
 }

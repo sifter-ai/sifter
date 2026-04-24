@@ -1,18 +1,18 @@
 {
   "id": "receipt",
   "name": "Receipt",
-  "description": "Retail receipts — merchant, items purchased, totals, payment method.",
+  "description": "Point-of-sale and digital receipts — merchant, items, totals, payment.",
   "icon": "receipt",
-  "instructions": "Extract: merchant name, merchant address, receipt date, receipt time, items (description + quantity + unit price), subtotal, tax amount, total amount, payment method, last 4 digits of card (if present). Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- merchant_name (string)\n- merchant_address (string)\n- receipt_date (date)\n- receipt_time (string)\n- payment_method (string)\n- card_last_four (string)\n- subtotal (number)\n- tax_amount (number)\n- total_amount (number)\n- items (array): each item has description, quantity, unit_price\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "merchant_name", "type": "string", "nullable": true},
     {"name": "merchant_address", "type": "string", "nullable": true},
     {"name": "receipt_date", "type": "date", "nullable": true},
     {"name": "receipt_time", "type": "string", "nullable": true},
+    {"name": "payment_method", "type": "string", "nullable": true},
+    {"name": "card_last_four", "type": "string", "nullable": true},
     {"name": "subtotal", "type": "number", "nullable": true},
     {"name": "tax_amount", "type": "number", "nullable": true},
-    {"name": "total_amount", "type": "number", "nullable": true},
-    {"name": "payment_method", "type": "string", "nullable": true},
-    {"name": "card_last_four", "type": "string", "nullable": true}
+    {"name": "total_amount", "type": "number", "nullable": true}
   ]
 }

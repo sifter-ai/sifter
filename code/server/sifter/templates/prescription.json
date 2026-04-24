@@ -1,18 +1,13 @@
 {
   "id": "prescription",
   "name": "Medical Prescription",
-  "description": "Medical prescriptions — patient, doctor, medications, dosage.",
+  "description": "Extract patient, doctor, and medication details from prescriptions.",
   "icon": "pill",
-  "instructions": "Extract: patient full name, patient date of birth, doctor full name, doctor license number, clinic or hospital name, prescription date, validity date, medications as an array (each item: name + dosage + form (tablet/capsule/etc.) + frequency + duration + quantity), diagnosis code (if present), notes or special instructions. Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- patient_full_name (string)\n- patient_date_of_birth (date)\n- doctor_full_name (string)\n- doctor_license_number (string)\n- clinic_or_hospital_name (string)\n- prescription_date (date)\n- validity_date (date)\n- diagnosis_code (string)\n- notes (string)\n- medications (array): each item has name, dosage, form (tablet/capsule/etc.), frequency, duration, quantity\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "patient_full_name", "type": "string", "nullable": true},
-    {"name": "patient_date_of_birth", "type": "date", "nullable": true},
     {"name": "doctor_full_name", "type": "string", "nullable": true},
-    {"name": "doctor_license_number", "type": "string", "nullable": true},
-    {"name": "clinic_name", "type": "string", "nullable": true},
     {"name": "prescription_date", "type": "date", "nullable": true},
-    {"name": "validity_date", "type": "date", "nullable": true},
-    {"name": "diagnosis_code", "type": "string", "nullable": true},
-    {"name": "notes", "type": "string", "nullable": true}
+    {"name": "validity_date", "type": "date", "nullable": true}
   ]
 }

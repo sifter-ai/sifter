@@ -1,21 +1,14 @@
 {
   "id": "delivery_note",
   "name": "Delivery Note",
-  "description": "Shipping and delivery notes — sender, recipient, items, tracking.",
+  "description": "Extract sender, recipient, carrier, and item details from delivery notes.",
   "icon": "package",
-  "instructions": "Extract: delivery note number, date, sender company, sender address, recipient company, recipient address, carrier name, tracking number, estimated delivery date, items as an array (each item: description + quantity + weight + unit), total weight, total number of packages, special handling instructions. Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- delivery_note_number (string)\n- delivery_date (date)\n- sender_company (string)\n- sender_address (string)\n- recipient_company (string)\n- recipient_address (string)\n- carrier_name (string)\n- tracking_number (string)\n- estimated_delivery_date (date)\n- total_weight (number)\n- total_packages (number)\n- special_handling_instructions (string)\n- items (array): each item has description, quantity, weight, unit\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "delivery_note_number", "type": "string", "nullable": true},
-    {"name": "date", "type": "date", "nullable": true},
+    {"name": "delivery_date", "type": "date", "nullable": true},
     {"name": "sender_company", "type": "string", "nullable": true},
-    {"name": "sender_address", "type": "string", "nullable": true},
     {"name": "recipient_company", "type": "string", "nullable": true},
-    {"name": "recipient_address", "type": "string", "nullable": true},
-    {"name": "carrier_name", "type": "string", "nullable": true},
-    {"name": "tracking_number", "type": "string", "nullable": true},
-    {"name": "estimated_delivery_date", "type": "date", "nullable": true},
-    {"name": "total_weight", "type": "number", "nullable": true},
-    {"name": "total_packages", "type": "number", "nullable": true},
-    {"name": "special_handling_instructions", "type": "string", "nullable": true}
+    {"name": "tracking_number", "type": "string", "nullable": true}
   ]
 }

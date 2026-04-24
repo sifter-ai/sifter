@@ -1,22 +1,15 @@
 {
   "id": "purchase_order",
   "name": "Purchase Order",
-  "description": "Purchase orders from any buyer — items, quantities, pricing.",
+  "description": "Extract PO details, line items, and terms from purchase orders.",
   "icon": "shopping-cart",
-  "instructions": "Extract: PO number, PO date, buyer company, buyer address, supplier company, supplier address, delivery date requested, line items as an array (each item: description + quantity + unit price + total), subtotal, tax amount, total amount, currency, payment terms, delivery terms, notes. Mark fields not present in the document as null.",
+  "instructions": "Extract the following fields:\n\n- po_number (string)\n- po_date (date)\n- buyer_company (string)\n- buyer_address (string)\n- supplier_company (string)\n- supplier_address (string)\n- delivery_date_requested (date)\n- currency (string)\n- subtotal (number)\n- tax_amount (number)\n- total_amount (number)\n- payment_terms (string)\n- delivery_terms (string)\n- notes (string)\n- line_items (array): each item has description, quantity, unit_price, total\n\nMark fields not present in the document as null.",
   "schema_fields": [
     {"name": "po_number", "type": "string", "nullable": true},
     {"name": "po_date", "type": "date", "nullable": true},
     {"name": "buyer_company", "type": "string", "nullable": true},
-    {"name": "buyer_address", "type": "string", "nullable": true},
     {"name": "supplier_company", "type": "string", "nullable": true},
-    {"name": "supplier_address", "type": "string", "nullable": true},
-    {"name": "delivery_date_requested", "type": "date", "nullable": true},
-    {"name": "subtotal", "type": "number", "nullable": true},
-    {"name": "tax_amount", "type": "number", "nullable": true},
     {"name": "total_amount", "type": "number", "nullable": true},
-    {"name": "currency", "type": "string", "nullable": true},
-    {"name": "payment_terms", "type": "string", "nullable": true},
-    {"name": "delivery_terms", "type": "string", "nullable": true}
+    {"name": "currency", "type": "string", "nullable": true}
   ]
 }
