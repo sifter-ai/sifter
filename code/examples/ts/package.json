@@ -1,0 +1,19 @@
+{
+  "name": "sifter-examples-ts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "quickstart": "tsx 01_quickstart.ts",
+    "invoices": "tsx 02_invoices.ts",
+    "contracts": "tsx 03_contracts.ts",
+    "folder-pipeline": "tsx 04_folder_pipeline.ts",
+    "query-and-chat": "tsx 05_query_and_chat.ts",
+    "webhooks": "tsx 06_webhooks.ts"
+  },
+  "dependencies": {
+    "@sifter-ai/sdk": "file:../../sdk-ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}
