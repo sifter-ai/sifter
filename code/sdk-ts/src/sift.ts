@@ -71,7 +71,7 @@ export class SiftHandle {
   }
 
   async upload(
-    source: string | Uint8Array | ArrayBuffer | File,
+    source: string | Uint8Array<ArrayBuffer> | ArrayBuffer | File,
     options?: { filename?: string; onConflict?: "fail" | "replace" },
   ): Promise<this> {
     const filename = options?.filename;
