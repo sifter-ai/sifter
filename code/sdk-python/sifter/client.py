@@ -734,10 +734,10 @@ class Sifter:
 
     def __init__(
         self,
-        api_url: str = "http://localhost:8000",
+        api_url: str = "",
         api_key: str = "",
     ):
-        self.api_url = api_url.rstrip("/")
+        self.api_url = (api_url or os.environ.get("SIFTER_API_URL", "http://localhost:8000")).rstrip("/")
         self.api_key = api_key or os.environ.get("SIFTER_API_KEY", "")
 
     def _auth_headers(self) -> dict:

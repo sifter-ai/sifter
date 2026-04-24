@@ -9,10 +9,11 @@ export class Sifter {
   private readonly _fetch: typeof globalThis.fetch;
 
   constructor(options: SifterOptions = {}) {
-    this._apiUrl = (options.apiUrl ?? "http://localhost:8000").replace(/\/$/, "");
-    const apiKey = options.apiKey ?? (typeof globalThis !== "undefined" && "process" in globalThis
-      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env["SIFTER_API_KEY"]
-      : undefined) ?? "";
+    const _env = typeof globalThis !== "undefined" && "process" in globalThis
+      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env
+      : {} as Record<string, string | undefined>;
+    this._apiUrl = (options.apiUrl ?? _env["SIFTER_API_URL"] ?? "http://localhost:8000").replace(/\/$/, "");
+    const apiKey = options.apiKey ?? _env["SIFTER_API_KEY"] ?? "";
     this._headers = apiKey ? { "X-API-Key": apiKey } : {};
     this._fetch = options.fetch ?? globalThis.fetch;
   }
