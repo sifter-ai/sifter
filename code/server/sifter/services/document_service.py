@@ -157,15 +157,22 @@ class DocumentService:
 
         return folder  # type: ignore[return-value]
 
-    async def update_folder(self, folder_id: str, updates: dict) -> Optional[Folder]:
+    async def update_folder(self, folder_id: str, updates: dict, org_id: Optional[str] = None) -> Optional[Folder]:
+        query: dict = {"_id": ObjectId(folder_id)}
+        if org_id is not None:
+            query["org_id"] = org_id
         result = await self.db["folders"].find_one_and_update(
-            {"_id": ObjectId(folder_id)},
+            query,
             {"$set": updates},
             return_document=True,
         )
         return Folder.from_mongo(result) if result else None
 
-    async def delete_folder(self, folder_id: str) -> bool:
+    async def delete_folder(self, folder_id: str, org_id: Optional[str] = None) -> bool:
+        if org_id is not None:
+            folder = await self.get_folder(folder_id, org_id=org_id)
+            if not folder:
+                return False
         # Recursively delete children first
         children = await self.db["folders"].find({"parent_id": folder_id}).to_list(length=None)
         for child in children:
@@ -366,8 +373,11 @@ class DocumentService:
         doc = await self.db["documents"].find_one(query)
         return Document.from_mongo(doc) if doc else None
 
-    async def delete_document(self, document_id: str) -> bool:
-        doc = await self.db["documents"].find_one({"_id": ObjectId(document_id)})
+    async def delete_document(self, document_id: str, org_id: Optional[str] = None) -> bool:
+        query: dict = {"_id": ObjectId(document_id)}
+        if org_id is not None:
+            query["org_id"] = org_id
+        doc = await self.db["documents"].find_one(query)
         if not doc:
             return False
         await self._delete_document_files(doc)

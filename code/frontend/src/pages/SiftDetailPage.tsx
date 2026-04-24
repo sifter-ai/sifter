@@ -20,6 +20,7 @@ import {
   Upload,
   XCircle,
 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +64,12 @@ import {
   useUpdateSift,
   useUploadDocuments,
 } from "@/hooks/useExtractions";
+import {
+  fetchCorrectionRules,
+  deleteCorrectionRule,
+  backfillCorrectionRule,
+  type CorrectionRule,
+} from "@/api/extractions";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
 import type { Folder } from "@/api/types";
@@ -501,6 +508,106 @@ function FieldQualityPanel({
   );
 }
 
+function CorrectionRulesPanel({ siftId }: { siftId: string }) {
+  const qc = useQueryClient();
+  const [backfillMsg, setBackfillMsg] = useState<{ ruleId: string; count: number } | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["correction-rules", siftId],
+    queryFn: () => fetchCorrectionRules(siftId),
+  });
+  const rules = data?.rules ?? [];
+
+  const deleteMutation = useMutation({
+    mutationFn: (ruleId: string) => deleteCorrectionRule(siftId, ruleId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["correction-rules", siftId] }),
+  });
+
+  const backfillMutation = useMutation({
+    mutationFn: (ruleId: string) => backfillCorrectionRule(siftId, ruleId),
+    onSuccess: (result, ruleId) => {
+      setBackfillMsg({ ruleId, count: result.applied_count });
+      qc.invalidateQueries({ queryKey: ["correction-rules", siftId] });
+      setTimeout(() => setBackfillMsg(null), 4000);
+    },
+  });
+
+  if (isLoading) {
+    return <div className="space-y-2"><div className="h-8 bg-muted animate-pulse rounded" /><div className="h-8 bg-muted animate-pulse rounded" /></div>;
+  }
+
+  if (!rules.length) {
+    return (
+      <p className="text-sm text-muted-foreground italic">No correction rules yet.</p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-md border text-sm">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b bg-muted/50">
+            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Field</th>
+            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Match → Replace</th>
+            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Created by</th>
+            <th className="px-3 py-2 text-left font-medium text-muted-foreground">Created at</th>
+            <th className="px-3 py-2 text-right font-medium text-muted-foreground">Applied</th>
+            <th className="px-3 py-2 text-right font-medium text-muted-foreground">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rules.map((rule: CorrectionRule) => (
+            <tr key={rule.id} className="border-b last:border-0 hover:bg-muted/30">
+              <td className="px-3 py-2 font-mono text-xs">{rule.field_name}</td>
+              <td className="px-3 py-2 text-xs">
+                <span className="font-mono text-muted-foreground">{String(rule.match_value)}</span>
+                <span className="mx-1.5 text-muted-foreground/50">→</span>
+                <span className="font-mono">{String(rule.replace_value)}</span>
+              </td>
+              <td className="px-3 py-2 text-muted-foreground text-xs">{rule.created_by ?? "—"}</td>
+              <td className="px-3 py-2 text-muted-foreground text-xs">
+                {new Date(rule.created_at).toLocaleString()}
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">
+                {rule.applied_count}
+                {backfillMsg?.ruleId === rule.id && (
+                  <span className="ml-1.5 text-emerald-600">+{backfillMsg.count}</span>
+                )}
+              </td>
+              <td className="px-3 py-2">
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={backfillMutation.isPending}
+                    onClick={() => backfillMutation.mutate(rule.id)}
+                  >
+                    {backfillMutation.isPending && backfillMutation.variables === rule.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      "Backfill"
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-destructive hover:text-destructive"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate(rule.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ---------- main component ----------
 
 export function SiftDetailPage() {
@@ -530,6 +637,13 @@ export function SiftDetailPage() {
     hasUncertainFields: recordsUncertainOnly || undefined,
   });
   const records = recordsPage?.items ?? [];
+
+  const { data: correctionRulesData } = useQuery({
+    queryKey: ["correction-rules", id],
+    queryFn: () => fetchCorrectionRules(id!),
+    enabled: !!id,
+  });
+  const correctionRulesCount = correctionRulesData?.rules?.length ?? 0;
 
   const uploadMutation = useUploadDocuments(id!);
 
@@ -991,6 +1105,14 @@ export function SiftDetailPage() {
                 <TabsTrigger value="quality" className={tabTriggerClass}>
                   Quality
                 </TabsTrigger>
+                {correctionRulesCount > 0 && (
+                  <TabsTrigger value="correction-rules" className={tabTriggerClass}>
+                    Correction rules
+                    <span className="ml-1.5 font-mono text-[10px] tabular-nums text-muted-foreground/60">
+                      {correctionRulesCount}
+                    </span>
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="records" className="mt-6 space-y-3">
@@ -1032,6 +1154,9 @@ export function SiftDetailPage() {
               </TabsContent>
               <TabsContent value="quality" className="mt-6">
                 <FieldQualityPanel fields={schemaFields} records={records ?? []} />
+              </TabsContent>
+              <TabsContent value="correction-rules" className="mt-6">
+                <CorrectionRulesPanel siftId={id!} />
               </TabsContent>
             </Tabs>
           </section>

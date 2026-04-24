@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw, AlertTriangle, Wand2, Pencil, Check as CheckIcon, X as XIcon } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw, AlertTriangle, Wand2, Pencil, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
 import type { Citation, SiftRecord } from "@/api/types";
-import { fetchRecordsCount, patchRecord, reindexSift } from "@/api/extractions";
+import { fetchRecordsCount, reindexSift, patchRecord } from "@/api/extractions";
+import type { CorrectionItem } from "@/api/extractions";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface RecordsTableProps {
   records: SiftRecord[];
@@ -73,7 +75,33 @@ function DetailValue({ value }: { value: unknown }) {
   return <span className="break-words">{String(value)}</span>;
 }
 
-function CitationBadge({ citation }: { citation?: Citation }) {
+function CitationBadge({
+  citation,
+  isEdited,
+  onReset,
+}: {
+  citation?: Citation;
+  isEdited?: boolean;
+  onReset?: () => void;
+}) {
+  if (isEdited) {
+    return (
+      <span className="inline-flex items-center gap-1 shrink-0">
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-foreground/10 text-foreground px-1.5 py-0.5 rounded">
+          edited
+        </span>
+        {onReset && (
+          <button
+            onClick={onReset}
+            title="Reset to original"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" />
+          </button>
+        )}
+      </span>
+    );
+  }
   if (!citation) {
     return (
       <span
@@ -88,17 +116,9 @@ function CitationBadge({ citation }: { citation?: Citation }) {
   const conf = citation.confidence ?? 1;
   const isLow = conf < 0.6;
   const isMed = !isLow && conf < 0.85;
-  const dot = isLow
-    ? "bg-red-500"
-    : isMed
-    ? "bg-amber-400"
-    : "bg-emerald-500";
+  const dot = isLow ? "bg-red-500" : isMed ? "bg-amber-400" : "bg-emerald-500";
   const label = isLow ? "Low" : isMed ? "Medium" : "High";
-  const textColor = isLow
-    ? "text-red-600"
-    : isMed
-    ? "text-amber-700"
-    : "text-emerald-700";
+  const textColor = isLow ? "text-red-600" : isMed ? "text-amber-700" : "text-emerald-700";
   return (
     <span className="inline-flex items-center gap-1.5 shrink-0">
       <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${textColor}`}>
@@ -173,33 +193,132 @@ function ReindexBanner({ siftId }: { siftId: string }) {
   );
 }
 
-type EditState = {
-  fieldName: string;
-  draftValue: string;
-  saving: boolean;
-  scopeDialogOpen: boolean;
-};
+type FieldType = "string" | "number" | "boolean" | "date" | "array" | "object" | "unknown";
 
-function fieldInputValue(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
+function inferType(value: unknown): FieldType {
+  if (value === null || value === undefined) return "unknown";
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "number") return "number";
+  if (Array.isArray(value)) return "array";
+  if (typeof value === "object") return "object";
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return "date";
+  return "string";
 }
 
-function parseFieldValue(draft: string, original: unknown): unknown {
-  if (typeof original === "number") {
-    const n = Number(draft);
-    return Number.isNaN(n) ? draft : n;
+function EditableField({
+  fieldName,
+  value,
+  onChange,
+}: {
+  fieldName: string;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  const type = inferType(value);
+  const strVal = value === null || value === undefined ? "" : String(value);
+
+  if (type === "array" || type === "object") {
+    return <DetailValue value={value} />;
   }
-  if (typeof original === "boolean") {
-    if (draft === "true") return true;
-    if (draft === "false") return false;
-    return draft;
+  if (type === "boolean") {
+    return (
+      <select
+        className="text-xs border border-input rounded px-2 py-1 bg-background"
+        value={strVal}
+        onChange={(e) => onChange(e.target.value === "true")}
+      >
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    );
   }
-  if (typeof original === "object" && original !== null) {
-    try { return JSON.parse(draft); } catch { return draft; }
+  if (type === "number") {
+    return (
+      <input
+        type="number"
+        className="text-xs border border-input rounded px-2 py-1 bg-background w-32 font-mono"
+        value={strVal}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      />
+    );
   }
-  return draft;
+  if (type === "date") {
+    return (
+      <input
+        type="date"
+        className="text-xs border border-input rounded px-2 py-1 bg-background font-mono"
+        value={strVal}
+        onChange={(e) => onChange(e.target.value || null)}
+      />
+    );
+  }
+  return (
+    <input
+      type="text"
+      className="text-xs border border-input rounded px-2 py-1 bg-background w-full"
+      value={strVal}
+      placeholder={`Edit ${fieldName}`}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+type ScopeOption = "local" | "rule";
+
+function SaveDialog({
+  dirtyFields,
+  onCancel,
+  onSave,
+  saving,
+}: {
+  dirtyFields: string[];
+  onCancel: () => void;
+  onSave: (scope: ScopeOption) => void;
+  saving: boolean;
+}) {
+  const [scope, setScope] = useState<ScopeOption>("local");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
+        <p className="font-semibold text-sm">Save corrections</p>
+        <p className="text-xs text-muted-foreground">
+          Changed fields: <span className="font-mono text-foreground">{dirtyFields.join(", ")}</span>
+        </p>
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              className="mt-0.5"
+              checked={scope === "local"}
+              onChange={() => setScope("local")}
+            />
+            <div>
+              <p className="text-xs font-medium">Only this record</p>
+            </div>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              className="mt-0.5"
+              checked={scope === "rule"}
+              onChange={() => setScope("rule")}
+            />
+            <div>
+              <p className="text-xs font-medium">This record + all future matching values</p>
+              <p className="text-[11px] text-muted-foreground">Creates a correction rule for each changed field</p>
+            </div>
+          </label>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button size="sm" onClick={() => onSave(scope)} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function RecordDetailModal({
@@ -207,26 +326,24 @@ function RecordDetailModal({
   columns,
   siftId,
   onClose,
+  onRecordUpdated,
 }: {
   record: SiftRecord | null;
   columns: string[];
   siftId?: string;
   onClose: () => void;
+  onRecordUpdated?: (updated: SiftRecord) => void;
 }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editState, setEditState] = useState<EditState | null>(null);
-  const [editedFields, setEditedFields] = useState<Record<string, unknown>>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, unknown>>({});
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Reset edit state when record changes
   useEffect(() => {
-    setEditMode(false);
-    setEditState(null);
-    setEditedFields({});
-    setSaveError(null);
-  }, [record?.id]);
+    if (!record) { setEditMode(false); setEdits({}); }
+  }, [record]);
 
   if (!record) return null;
 
@@ -237,42 +354,50 @@ function RecordDetailModal({
   };
 
   const hasCitations = record.citations && Object.keys(record.citations).length > 0;
+  const correctedFields = (record as unknown as Record<string, unknown>).corrected_fields as
+    Record<string, { value: unknown; corrected_by: string; corrected_at: string }> | undefined ?? {};
 
-  const startEdit = (col: string) => {
-    const currentValue = editedFields[col] !== undefined ? editedFields[col] : record.extracted_data[col];
-    setEditState({
-      fieldName: col,
-      draftValue: fieldInputValue(currentValue),
-      saving: false,
-      scopeDialogOpen: false,
-    });
+  const dirtyFields = editMode
+    ? Object.keys(edits).filter((k) => edits[k] !== record.extracted_data[k])
+    : [];
+  const isDirty = dirtyFields.length > 0;
+
+  const handleSave = async (scope: ScopeOption) => {
+    if (!siftId) return;
+    setSaving(true);
+    try {
+      const corrections: Record<string, CorrectionItem> = {};
+      dirtyFields.forEach((f) => { corrections[f] = { value: edits[f], scope }; });
+      const updated = await patchRecord(siftId, record.id, corrections);
+      onRecordUpdated?.(updated);
+      setEditMode(false);
+      setEdits({});
+      setShowSaveDialog(false);
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = async (field: string) => {
+    if (!siftId) return;
+    try {
+      const updated = await patchRecord(siftId, record.id, { [field]: { value: null, scope: "reset" } });
+      onRecordUpdated?.(updated);
+    } catch {
+      // ignore
+    }
+  };
+
+  const startEdit = () => {
+    setEdits({ ...record.extracted_data });
+    setEditMode(true);
   };
 
   const cancelEdit = () => {
-    setEditState(null);
-    setSaveError(null);
-  };
-
-  const confirmEdit = () => {
-    if (!editState) return;
-    setEditState((prev) => prev ? { ...prev, scopeDialogOpen: true } : prev);
-  };
-
-  const saveEdit = async (scope: "record" | "rule") => {
-    if (!editState || !siftId) return;
-    const parsedValue = parseFieldValue(editState.draftValue, record.extracted_data[editState.fieldName]);
-    setEditState((prev) => prev ? { ...prev, saving: true, scopeDialogOpen: false } : prev);
-    setSaveError(null);
-    try {
-      await patchRecord(siftId, record.id, {
-        [editState.fieldName]: { value: parsedValue, scope: scope === "record" ? "local" : "rule" },
-      });
-      setEditedFields((prev) => ({ ...prev, [editState.fieldName]: parsedValue }));
-      setEditState(null);
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Save failed");
-      setEditState((prev) => prev ? { ...prev, saving: false } : prev);
-    }
+    setEdits({});
+    setEditMode(false);
   };
 
   return (
@@ -280,117 +405,93 @@ function RecordDetailModal({
       <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader className="pb-2">
-            <DialogTitle className="flex items-start gap-3 text-base pr-6">
+            <DialogTitle className="flex items-start justify-between gap-3 text-base pr-6">
               <span className="truncate">{record.filename || record.document_id}</span>
+              {siftId && (
+                <button
+                  type="button"
+                  title={editMode ? "Cancel edit" : "Edit record"}
+                  onClick={editMode ? cancelEdit : startEdit}
+                  className={`shrink-0 transition-colors ${editMode ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
             </DialogTitle>
-            <div className="flex items-center gap-2 flex-wrap pt-1">
-              {record.document_type && (
+            {record.document_type && (
+              <div className="flex items-center gap-2 flex-wrap pt-1">
                 <Badge variant="secondary" className="text-[11px] font-mono">
                   {record.document_type}
                 </Badge>
-              )}
-              {siftId && (
-                <button
-                  onClick={() => setEditMode((v) => !v)}
-                  className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border transition-colors ${
-                    editMode
-                      ? "bg-primary/10 border-primary/30 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Pencil className="h-3 w-3" />
-                  {editMode ? "Editing" : "Edit"}
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </DialogHeader>
 
-          {/* Reindex banner — shown when citations map is entirely empty */}
           {!hasCitations && siftId && <ReindexBanner siftId={siftId} />}
 
-          {saveError && (
-            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
-              {saveError}
-            </div>
-          )}
-
-          {/* Extracted fields */}
           <div className="space-y-0 divide-y divide-border/50">
             {columns.map((col) => {
               const citation = record.citations?.[col];
-              const isEditing = editState?.fieldName === col;
-              const isEdited = editedFields[col] !== undefined;
-              const displayValue = isEdited ? editedFields[col] : record.extracted_data[col];
+              const isEdited = !!correctedFields[col] && !editMode;
+              const correction = correctedFields[col];
+              const type = inferType(record.extracted_data[col]);
+              const isScalar = type !== "array" && type !== "object";
+              const isDirtyField = editMode && edits[col] !== record.extracted_data[col];
 
               return (
-                <div key={col} className="py-3 grid grid-cols-[160px_1fr] gap-4 items-start">
+                <div
+                  key={col}
+                  className={`py-3 grid grid-cols-[160px_1fr] gap-4 items-start ${isDirtyField ? "bg-amber-50/50 dark:bg-amber-950/10 -mx-1 px-1 rounded" : ""}`}
+                >
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
                     {col.replace(/_/g, " ")}
                   </span>
                   <div className="text-sm min-w-0">
-                    {isEditing ? (
-                      <div className="space-y-1.5">
-                        <textarea
-                          autoFocus
-                          value={editState.draftValue}
-                          onChange={(e) => setEditState((prev) => prev ? { ...prev, draftValue: e.target.value } : prev)}
-                          rows={typeof record.extracted_data[col] === "object" ? 4 : 1}
-                          className="w-full text-xs font-mono border border-primary/40 rounded px-2 py-1.5 bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    <div className="flex items-start justify-between gap-2">
+                      {editMode && isScalar ? (
+                        <EditableField
+                          fieldName={col}
+                          value={edits[col]}
+                          onChange={(v) => setEdits((prev) => ({ ...prev, [col]: v }))}
                         />
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={confirmEdit}
-                            disabled={editState.saving}
-                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                          >
-                            <CheckIcon className="h-3 w-3" />
-                            {editState.saving ? "Saving…" : "Save"}
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            disabled={editState.saving}
-                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
-                          >
-                            <XIcon className="h-3 w-3" />
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <DetailValue value={displayValue} />
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isEdited ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">
-                              edited
-                            </span>
-                          ) : (
-                            <CitationBadge citation={citation} />
-                          )}
-                          {editMode && (
-                            <button
-                              onClick={() => startEdit(col)}
-                              title={`Edit ${col}`}
-                              className="text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                      ) : (
+                        <DetailValue value={record.extracted_data[col]} />
+                      )}
+                      {!editMode && (
+                        <CitationBadge
+                          citation={citation}
+                          isEdited={isEdited}
+                          onReset={isEdited ? () => handleReset(col) : undefined}
+                        />
+                      )}
+                    </div>
+                    {!editMode && isEdited && correction && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Corrected by {correction.corrected_by} · {new Date(correction.corrected_at).toLocaleDateString()}
+                      </p>
                     )}
-                    {!isEditing && citation?.source_text && !isEdited && (
-                      <SnippetBlock citation={citation} />
-                    )}
+                    {!editMode && !isEdited && citation?.source_text && <SnippetBlock citation={citation} />}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Metadata */}
+          {editMode && (
+            <div className="pt-3 flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={cancelEdit}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={!isDirty}
+                onClick={() => setShowSaveDialog(true)}
+                className="gap-1"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Save corrections
+              </Button>
+            </div>
+          )}
+
           <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Metadata</p>
             <div className="space-y-1.5 text-xs">
@@ -426,38 +527,14 @@ function RecordDetailModal({
         </DialogContent>
       </Dialog>
 
-      {/* Scope selection dialog */}
-      <Dialog
-        open={editState?.scopeDialogOpen ?? false}
-        onOpenChange={(open) => {
-          if (!open) setEditState((prev) => prev ? { ...prev, scopeDialogOpen: false } : prev);
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Apply correction</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            How should this correction be applied?
-          </p>
-          <div className="flex flex-col gap-2 mt-2">
-            <button
-              onClick={() => saveEdit("record")}
-              className="w-full text-left border rounded-lg px-4 py-3 hover:bg-muted/60 transition-colors"
-            >
-              <p className="text-sm font-medium">This record only</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Fix the value for this specific document.</p>
-            </button>
-            <button
-              onClick={() => saveEdit("rule")}
-              className="w-full text-left border rounded-lg px-4 py-3 hover:bg-muted/60 transition-colors"
-            >
-              <p className="text-sm font-medium">This record + future documents</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Save as a correction rule — applied to future extractions too.</p>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {showSaveDialog && (
+        <SaveDialog
+          dirtyFields={dirtyFields}
+          onCancel={() => setShowSaveDialog(false)}
+          onSave={handleSave}
+          saving={saving}
+        />
+      )}
     </>
   );
 }
@@ -489,12 +566,16 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
-export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, onFilterChange }: RecordsTableProps) {
+export function RecordsTable({ records: initialRecords, isLoading, siftId, showUncertainOnly, onFilterChange }: RecordsTableProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "", dir: null });
   const [selected, setSelected] = useState<SiftRecord | null>(null);
+  const [records, setRecords] = useState<SiftRecord[]>(initialRecords);
   const [uncertainCount, setUncertainCount] = useState<number | null>(null);
+
+  useEffect(() => { setRecords(initialRecords); }, [initialRecords]);
 
   useEffect(() => {
     if (!siftId) return;
@@ -538,6 +619,12 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
     });
   };
 
+  const handleRecordUpdated = (updated: SiftRecord) => {
+    setRecords((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+    setSelected(updated);
+    if (siftId) queryClient.invalidateQueries({ queryKey: ["sift-records", siftId] });
+  };
+
   const thClass = "px-3 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide text-[10px] whitespace-nowrap";
   const sortableTh = (col: string, label: string) => (
     <th key={col} className={thClass}>
@@ -577,7 +664,6 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
 
   return (
     <div className="space-y-3">
-      {/* Toolbar: search + uncertain filter */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -616,7 +702,6 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
         </div>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-border/70 shadow-[0_1px_4px_0_hsl(var(--foreground)/0.04)] bg-white dark:bg-card">
         <table className="w-full text-xs">
           <thead>
@@ -694,6 +779,7 @@ export function RecordsTable({ records, isLoading, siftId, showUncertainOnly, on
         columns={columns}
         siftId={siftId}
         onClose={() => setSelected(null)}
+        onRecordUpdated={handleRecordUpdated}
       />
     </div>
   );

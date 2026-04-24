@@ -98,7 +98,7 @@ async def delete_document(
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    ok = await svc.delete_document(document_id)
+    ok = await svc.delete_document(document_id, org_id=principal.org_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Document not found")
 

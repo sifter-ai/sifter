@@ -225,7 +225,7 @@ async def update_folder(
 ):
     svc = DocumentService(db)
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    folder = await svc.update_folder(folder_id, updates)
+    folder = await svc.update_folder(folder_id, updates, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     return _folder_dict(folder)
@@ -238,7 +238,7 @@ async def delete_folder(
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    ok = await svc.delete_folder(folder_id)
+    ok = await svc.delete_folder(folder_id, org_id=principal.org_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Folder not found")
 
