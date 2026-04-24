@@ -8,9 +8,6 @@ jobs:
   publish-sdk:
     name: "@sifter-ai/sdk"
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write   # required for npm trusted publishing (OIDC)
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -28,16 +25,15 @@ jobs:
       - run: npm ci && npm run build
         working-directory: code/sdk-ts
 
-      - run: npm publish --access public --provenance
+      - run: npm publish --access public
         working-directory: code/sdk-ts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-cli:
     name: "@sifter-ai/cli"
     runs-on: ubuntu-latest
     needs: publish-sdk
-    permissions:
-      id-token: write   # required for npm trusted publishing (OIDC)
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -56,5 +52,7 @@ jobs:
       - run: npm ci && npm run build
         working-directory: code/cli
 
-      - run: npm publish --access public --provenance
+      - run: npm publish --access public
         working-directory: code/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
