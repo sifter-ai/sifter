@@ -684,7 +684,7 @@ class Sifter:
     Sifter SDK client. Connects to a running Sifter server.
 
     Args:
-        api_url: URL of the Sifter server (default: http://localhost:8000)
+        api_url: URL of the Sifter server (default: https://sifter.run)
         api_key: API key (or set SIFTER_API_KEY env var)
     """
 

@@ -1,13 +1,13 @@
 /**
- * 05 — Query and chat
+ * 05 — Natural language query
  *
- * After extraction, query and chat with your data using natural language.
+ * After extraction, query your data using natural language.
+ * Sifter translates the query into a MongoDB aggregation pipeline and returns exact results.
  *
  * Requirements:
  *   npx tsx 05_query_and_chat.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # A sift with extracted records already exists (run 02_invoices.ts first)
- *   # SIFTER_API_KEY env var set
  */
 import { Sifter } from "@sifter-ai/sdk";
 import type { SiftData } from "@sifter-ai/sdk";
@@ -29,29 +29,25 @@ const target: SiftData | undefined =
 const sift = await s.getSift(target!.id);
 console.log(`Using sift: '${sift.name}' (${sift.id})\n`);
 
-// ── Natural language query ────────────────────────────────────────────────────
-console.log("=== Query: top 5 invoices by total amount ===");
-const queryResult = await sift.query("Show me the 5 invoices with the highest total, sorted descending");
-const results = (queryResult.results ?? []) as Array<Record<string, unknown>>;
-for (const r of results.slice(0, 5)) {
-  const data = (r["extracted_data"] as Record<string, unknown> | undefined) ?? r;
-  const invoiceNo = (data["invoice_number"] as string) ?? "—";
-  const total = (data["total"] as string | number) ?? "—";
-  const currency = (data["currency"] as string) ?? "";
-  console.log(`  ${invoiceNo.padEnd(15)} ${String(total).padStart(10)} ${currency}`);
-}
+// ── Natural language queries ──────────────────────────────────────────────────
 
-// ── Chat ──────────────────────────────────────────────────────────────────────
-console.log("\n=== Chat ===");
-
-const questions = [
+const queries = [
+  "Show me the 5 invoices with the highest total, sorted descending",
   "What is the total amount across all invoices?",
   "Which supplier invoiced the most?",
-  "Are there any overdue invoices?",
 ];
 
-for (const q of questions) {
-  console.log(`\nQ: ${q}`);
-  const answer = await sift.chat(q);
-  console.log(`A: ${answer}`);
+for (const q of queries) {
+  console.log(`Q: ${q}`);
+  const queryResult = await sift.query(q);
+  const results = (queryResult.results ?? []) as Array<Record<string, unknown>>;
+  for (const r of results.slice(0, 5)) {
+    const data = (r["extracted_data"] as Record<string, unknown> | undefined) ?? r;
+    const invoiceNo = String(data["invoice_number"] ?? "—").padEnd(15);
+    const supplier  = String(data["supplier"] ?? "—").padEnd(25);
+    const total     = String(data["total"] ?? "—").padStart(10);
+    const currency  = String(data["currency"] ?? "");
+    console.log(`  ${invoiceNo} ${supplier} ${total} ${currency}`);
+  }
+  console.log();
 }

@@ -6,7 +6,7 @@
  *
  * Requirements:
  *   npx tsx 02_invoices.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # SIFTER_API_KEY env var set
  */
 import { Sifter } from "@sifter-ai/sdk";
@@ -28,12 +28,7 @@ await sift.upload("../documents/invoices/", { onConflict: "replace" });
 console.log("Processing...");
 await sift.wait();
 
-// Iterate over all extracted records (handles pagination automatically)
-const records: SiftRecord[] = [];
-for await (const r of sift.iterRecords<SiftRecord>()) {
-  records.push(r);
-}
-
+const records = await sift.records<SiftRecord>();
 console.log(`\nExtracted ${records.length} invoices:\n`);
 
 let totalSum = 0;

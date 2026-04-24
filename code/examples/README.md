@@ -25,13 +25,14 @@ Set two environment variables before running any example:
 
 ```bash
 export SIFTER_API_KEY=sk-...
-export SIFTER_API_URL=http://127.0.0.1:8000   # local dev
-# export SIFTER_API_URL=https://sifter.run    # cloud
+# Default endpoint is https://sifter.run (Sifter Cloud).
+# To use a self-hosted server:
+# export SIFTER_API_URL=http://127.0.0.1:8000
 ```
 
-> **macOS / Node note:** Node resolves `localhost` as `::1` (IPv6) on macOS,
-> but the Sifter server listens on `127.0.0.1` (IPv4). Use `127.0.0.1`
-> explicitly to avoid a connection refused error.
+> **macOS / Node note:** when pointing at a local server, Node resolves `localhost`
+> as `::1` (IPv6) on macOS but the server listens on `127.0.0.1` (IPv4).
+> Use `127.0.0.1` explicitly to avoid a connection refused error.
 
 ### Python
 
@@ -60,7 +61,7 @@ npm run invoices
 | 02 | `02_invoices.py` / `.ts` | Structured invoice extraction with explicit schema |
 | 03 | `03_contracts.py` / `.ts` | Contract extraction with boolean and date fields |
 | 04 | `04_folder_pipeline.py` / `.ts` | Persistent folder — upload once, query many times |
-| 05 | `05_query_and_chat.py` / `.ts` | Natural language query + aggregation |
+| 05 | `05_query_and_chat.py` / `.ts` | Natural language query → exact MongoDB aggregation results |
 | 06 | `06_webhooks.py` / `.ts` | Register a webhook and receive extraction events |
 | 07 | `07_citations.py` / `.ts` | Read per-field citation evidence (source text, page, confidence) |
 
@@ -68,6 +69,6 @@ npm run invoices
 
 ```
 documents/
-  invoices/     10 sample PDF invoices (INV-2025-001 … INV-2025-010)
+  invoices/     10 sample PDF invoices (invoice_001.pdf … invoice_010.pdf)
   contracts/    5 sample PDF contracts
 ```

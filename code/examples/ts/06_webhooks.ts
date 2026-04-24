@@ -9,7 +9,7 @@
  *
  * Requirements:
  *   npx tsx 06_webhooks.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # SIFTER_API_KEY and SIFTER_API_URL env vars set
  */
 import http from "http";

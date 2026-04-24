@@ -9,7 +9,7 @@ documents, the full `records` array with extracted fields.
 
 Requirements:
     uv run --project ../../sdk-python python 06_webhooks.py
-    # Sifter server running on localhost:8000
+    # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
     # Your webhook endpoint must be reachable from the Sifter server
     # SIFTER_API_KEY and SIFTER_API_URL env vars set
 """

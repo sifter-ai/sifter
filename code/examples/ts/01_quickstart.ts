@@ -6,7 +6,7 @@
  *
  * Requirements:
  *   npx tsx 01_quickstart.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # SIFTER_API_KEY env var set
  */
 import { Sifter } from "@sifter-ai/sdk";

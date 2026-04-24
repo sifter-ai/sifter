@@ -6,7 +6,7 @@
  *
  * Requirements:
  *   npx tsx 03_contracts.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # SIFTER_API_KEY env var set
  */
 import { Sifter } from "@sifter-ai/sdk";
@@ -45,7 +45,7 @@ threshold.setDate(threshold.getDate() + 90);
 
 const expiringSoon: Array<{ partyA: string; partyB: string; expiry: Date }> = [];
 
-for await (const r of sift.iterRecords<SiftRecord>()) {
+for (const r of await sift.records<SiftRecord>()) {
   const data = r.extracted_data ?? (r as unknown as Record<string, unknown>);
   const expiryStr = data["expiry_date"] as string | null;
   if (expiryStr) {

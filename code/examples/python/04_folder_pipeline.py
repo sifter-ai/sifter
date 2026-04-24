@@ -9,7 +9,7 @@ one for accounting fields, one for vendor categorisation.
 
 Requirements:
     pip install sifter-ai
-    # Sifter server running on localhost:8000 (./run.sh)
+    # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
 """
 from sifter import Sifter
 

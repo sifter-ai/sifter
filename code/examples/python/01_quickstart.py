@@ -6,7 +6,7 @@ One call: upload a folder, wait, get records.
 
 Requirements:
     pip install sifter-ai
-    # Sifter server running on localhost:8000 (./run.sh)
+    # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
 """
 from sifter import Sifter
 

@@ -9,7 +9,7 @@
  *
  * Requirements:
  *   npx tsx 04_folder_pipeline.ts
- *   # Sifter server running on localhost:8000
+ *   # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
  *   # SIFTER_API_KEY env var set
  */
 import { Sifter } from "@sifter-ai/sdk";
@@ -55,12 +55,12 @@ await siftCategory.wait();
 
 // Merge results by document
 const accounting = new Map<string, Record<string, unknown>>();
-for await (const r of siftAccounting.iterRecords<SiftRecord>()) {
+for (const r of await siftAccounting.records<SiftRecord>()) {
   accounting.set(r.document_id, r.extracted_data ?? {});
 }
 
 const categories = new Map<string, Record<string, unknown>>();
-for await (const r of siftCategory.iterRecords<SiftRecord>()) {
+for (const r of await siftCategory.records<SiftRecord>()) {
   categories.set(r.document_id, r.extracted_data ?? {});
 }
 
