@@ -42,6 +42,7 @@ class SifterConfig(BaseSettings):
     # JWT (for frontend / cloud layer)
     jwt_secret: str = "dev-secret-change-in-production"
     jwt_expire_minutes: int = 60 * 24  # 24h
+    app_url: str = "http://localhost:3000"
 
     # File storage
     upload_dir: str = "./uploads"

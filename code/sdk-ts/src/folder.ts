@@ -125,16 +125,6 @@ export class FolderHandle {
     return data.items ?? (data as unknown as unknown[]);
   }
 
-  async *iterDocuments(limit = 100): AsyncGenerator<unknown> {
-    let offset = 0;
-    while (true) {
-      const items = await this.documents(limit, offset);
-      yield* items;
-      offset += items.length;
-      if (items.length < limit) break;
-    }
-  }
-
   async addSift(sift: SiftHandle): Promise<FolderHandle> {
     const res = await this._fetch(
       `${this._apiUrl}/api/folders/${this.id}/extractors`,
@@ -167,16 +157,6 @@ export class FolderHandle {
     const data = await res.json();
     if (Array.isArray(data)) return { total: data.length, items: data };
     return { total: (data as { total?: number }).total ?? 0, items: (data as { items?: unknown[] }).items ?? [] };
-  }
-
-  async *iterSifts(limit = 100): AsyncGenerator<unknown> {
-    let offset = 0;
-    while (true) {
-      const { items } = await this.sifts(limit, offset);
-      yield* items;
-      offset += items.length;
-      if (items.length < limit) break;
-    }
   }
 
   async update(fields: { name?: string; description?: string }): Promise<FolderHandle> {

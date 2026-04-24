@@ -1,0 +1,21 @@
+{
+  "id": "insurance",
+  "name": "Insurance Certificate",
+  "description": "Insurance policies and certificates — coverage, premium, validity.",
+  "icon": "shield",
+  "instructions": "Extract: policy number, insurer name, insured name, insured address, coverage type, insured object or risk (e.g. property address, vehicle plate, activity), coverage amount or limit, deductible, annual premium, payment frequency, policy start date, policy end date, exclusions (as an array of short descriptions). Mark fields not present in the document as null.",
+  "schema_fields": [
+    {"name": "policy_number", "type": "string", "nullable": true},
+    {"name": "insurer_name", "type": "string", "nullable": true},
+    {"name": "insured_name", "type": "string", "nullable": true},
+    {"name": "insured_address", "type": "string", "nullable": true},
+    {"name": "coverage_type", "type": "string", "nullable": true},
+    {"name": "insured_object_or_risk", "type": "string", "nullable": true},
+    {"name": "coverage_limit", "type": "number", "nullable": true},
+    {"name": "deductible", "type": "number", "nullable": true},
+    {"name": "annual_premium", "type": "number", "nullable": true},
+    {"name": "payment_frequency", "type": "string", "nullable": true},
+    {"name": "policy_start_date", "type": "date", "nullable": true},
+    {"name": "policy_end_date", "type": "date", "nullable": true}
+  ]
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw, AlertTriangle } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Copy, ExternalLink, Search, X, Info, RotateCcw, AlertTriangle, Wand2, Pencil, Check as CheckIcon, X as XIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText } from "lucide-react";
 import type { Citation, SiftRecord } from "@/api/types";
-import { fetchRecordsCount, reindexSift } from "@/api/extractions";
+import { fetchRecordsCount, patchRecord, reindexSift } from "@/api/extractions";
 
 interface RecordsTableProps {
   records: SiftRecord[];
@@ -100,9 +100,16 @@ function CitationBadge({ citation }: { citation?: Citation }) {
     ? "text-amber-700"
     : "text-emerald-700";
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-medium shrink-0 ${textColor}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-      {label}
+    <span className="inline-flex items-center gap-1.5 shrink-0">
+      <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${textColor}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+        {label}
+      </span>
+      {citation.inferred && (
+        <span title="Inferred from context — no verbatim match found in document" className="text-violet-400">
+          <Wand2 className="h-3 w-3" />
+        </span>
+      )}
     </span>
   );
 }
@@ -166,6 +173,35 @@ function ReindexBanner({ siftId }: { siftId: string }) {
   );
 }
 
+type EditState = {
+  fieldName: string;
+  draftValue: string;
+  saving: boolean;
+  scopeDialogOpen: boolean;
+};
+
+function fieldInputValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function parseFieldValue(draft: string, original: unknown): unknown {
+  if (typeof original === "number") {
+    const n = Number(draft);
+    return Number.isNaN(n) ? draft : n;
+  }
+  if (typeof original === "boolean") {
+    if (draft === "true") return true;
+    if (draft === "false") return false;
+    return draft;
+  }
+  if (typeof original === "object" && original !== null) {
+    try { return JSON.parse(draft); } catch { return draft; }
+  }
+  return draft;
+}
+
 function RecordDetailModal({
   record,
   columns,
@@ -179,6 +215,18 @@ function RecordDetailModal({
 }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const [editedFields, setEditedFields] = useState<Record<string, unknown>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Reset edit state when record changes
+  useEffect(() => {
+    setEditMode(false);
+    setEditState(null);
+    setEditedFields({});
+    setSaveError(null);
+  }, [record?.id]);
 
   if (!record) return null;
 
@@ -190,81 +238,227 @@ function RecordDetailModal({
 
   const hasCitations = record.citations && Object.keys(record.citations).length > 0;
 
+  const startEdit = (col: string) => {
+    const currentValue = editedFields[col] !== undefined ? editedFields[col] : record.extracted_data[col];
+    setEditState({
+      fieldName: col,
+      draftValue: fieldInputValue(currentValue),
+      saving: false,
+      scopeDialogOpen: false,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditState(null);
+    setSaveError(null);
+  };
+
+  const confirmEdit = () => {
+    if (!editState) return;
+    setEditState((prev) => prev ? { ...prev, scopeDialogOpen: true } : prev);
+  };
+
+  const saveEdit = async (scope: "record" | "rule") => {
+    if (!editState || !siftId) return;
+    const parsedValue = parseFieldValue(editState.draftValue, record.extracted_data[editState.fieldName]);
+    setEditState((prev) => prev ? { ...prev, saving: true, scopeDialogOpen: false } : prev);
+    setSaveError(null);
+    try {
+      await patchRecord(siftId, record.id, {
+        [editState.fieldName]: { value: parsedValue, scope: scope === "record" ? "local" : "rule" },
+      });
+      setEditedFields((prev) => ({ ...prev, [editState.fieldName]: parsedValue }));
+      setEditState(null);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed");
+      setEditState((prev) => prev ? { ...prev, saving: false } : prev);
+    }
+  };
+
   return (
-    <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="flex items-start gap-3 text-base pr-6">
-            <span className="truncate">{record.filename || record.document_id}</span>
-          </DialogTitle>
-          {record.document_type && (
+    <>
+      <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-start gap-3 text-base pr-6">
+              <span className="truncate">{record.filename || record.document_id}</span>
+            </DialogTitle>
             <div className="flex items-center gap-2 flex-wrap pt-1">
-              <Badge variant="secondary" className="text-[11px] font-mono">
-                {record.document_type}
-              </Badge>
+              {record.document_type && (
+                <Badge variant="secondary" className="text-[11px] font-mono">
+                  {record.document_type}
+                </Badge>
+              )}
+              {siftId && (
+                <button
+                  onClick={() => setEditMode((v) => !v)}
+                  className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                    editMode
+                      ? "bg-primary/10 border-primary/30 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Pencil className="h-3 w-3" />
+                  {editMode ? "Editing" : "Edit"}
+                </button>
+              )}
+            </div>
+          </DialogHeader>
+
+          {/* Reindex banner — shown when citations map is entirely empty */}
+          {!hasCitations && siftId && <ReindexBanner siftId={siftId} />}
+
+          {saveError && (
+            <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {saveError}
             </div>
           )}
-        </DialogHeader>
 
-        {/* Reindex banner — shown when citations map is entirely empty */}
-        {!hasCitations && siftId && <ReindexBanner siftId={siftId} />}
+          {/* Extracted fields */}
+          <div className="space-y-0 divide-y divide-border/50">
+            {columns.map((col) => {
+              const citation = record.citations?.[col];
+              const isEditing = editState?.fieldName === col;
+              const isEdited = editedFields[col] !== undefined;
+              const displayValue = isEdited ? editedFields[col] : record.extracted_data[col];
 
-        {/* Extracted fields */}
-        <div className="space-y-0 divide-y divide-border/50">
-          {columns.map((col) => {
-            const citation = record.citations?.[col];
-            return (
-              <div key={col} className="py-3 grid grid-cols-[160px_1fr] gap-4 items-start">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
-                  {col.replace(/_/g, " ")}
-                </span>
-                <div className="text-sm min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <DetailValue value={record.extracted_data[col]} />
-                    <CitationBadge citation={citation} />
+              return (
+                <div key={col} className="py-3 grid grid-cols-[160px_1fr] gap-4 items-start">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
+                    {col.replace(/_/g, " ")}
+                  </span>
+                  <div className="text-sm min-w-0">
+                    {isEditing ? (
+                      <div className="space-y-1.5">
+                        <textarea
+                          autoFocus
+                          value={editState.draftValue}
+                          onChange={(e) => setEditState((prev) => prev ? { ...prev, draftValue: e.target.value } : prev)}
+                          rows={typeof record.extracted_data[col] === "object" ? 4 : 1}
+                          className="w-full text-xs font-mono border border-primary/40 rounded px-2 py-1.5 bg-background resize-y focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={confirmEdit}
+                            disabled={editState.saving}
+                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                          >
+                            <CheckIcon className="h-3 w-3" />
+                            {editState.saving ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            disabled={editState.saving}
+                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          >
+                            <XIcon className="h-3 w-3" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <DetailValue value={displayValue} />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isEdited ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-violet-600 bg-violet-50 border border-violet-200 rounded px-1.5 py-0.5">
+                              edited
+                            </span>
+                          ) : (
+                            <CitationBadge citation={citation} />
+                          )}
+                          {editMode && (
+                            <button
+                              onClick={() => startEdit(col)}
+                              title={`Edit ${col}`}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {!isEditing && citation?.source_text && !isEdited && (
+                      <SnippetBlock citation={citation} />
+                    )}
                   </div>
-                  {citation?.source_text && <SnippetBlock citation={citation} />}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Metadata */}
-        <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Metadata</p>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground w-24 shrink-0">Record ID</span>
-              <span className="font-mono text-[11px] text-foreground/70 truncate">{record.id}</span>
-              <button onClick={copyId} title="Copy ID" className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
-                {copied ? <span className="text-emerald-500 text-[10px]">Copied</span> : <Copy className="h-3 w-3" />}
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground w-24 shrink-0">Document</span>
-              <button
-                onClick={() => { onClose(); navigate(`/documents/${record.document_id}`); }}
-                className="font-mono text-[11px] text-primary hover:underline flex items-center gap-1 truncate"
-              >
-                {record.document_id}
-                <ExternalLink className="h-3 w-3 shrink-0" />
-              </button>
-            </div>
-            {record.record_index > 0 && (
+          {/* Metadata */}
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Metadata</p>
+            <div className="space-y-1.5 text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground w-24 shrink-0">Record index</span>
-                <span className="font-mono">{record.record_index}</span>
+                <span className="text-muted-foreground w-24 shrink-0">Record ID</span>
+                <span className="font-mono text-[11px] text-foreground/70 truncate">{record.id}</span>
+                <button onClick={copyId} title="Copy ID" className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+                  {copied ? <span className="text-emerald-500 text-[10px]">Copied</span> : <Copy className="h-3 w-3" />}
+                </button>
               </div>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground w-24 shrink-0">Created</span>
-              <span>{new Date(record.created_at).toLocaleString()}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-24 shrink-0">Document</span>
+                <button
+                  onClick={() => { onClose(); navigate(`/documents/${record.document_id}`); }}
+                  className="font-mono text-[11px] text-primary hover:underline flex items-center gap-1 truncate"
+                >
+                  {record.document_id}
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                </button>
+              </div>
+              {record.record_index > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground w-24 shrink-0">Record index</span>
+                  <span className="font-mono">{record.record_index}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-24 shrink-0">Created</span>
+                <span>{new Date(record.created_at).toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scope selection dialog */}
+      <Dialog
+        open={editState?.scopeDialogOpen ?? false}
+        onOpenChange={(open) => {
+          if (!open) setEditState((prev) => prev ? { ...prev, scopeDialogOpen: false } : prev);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Apply correction</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            How should this correction be applied?
+          </p>
+          <div className="flex flex-col gap-2 mt-2">
+            <button
+              onClick={() => saveEdit("record")}
+              className="w-full text-left border rounded-lg px-4 py-3 hover:bg-muted/60 transition-colors"
+            >
+              <p className="text-sm font-medium">This record only</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fix the value for this specific document.</p>
+            </button>
+            <button
+              onClick={() => saveEdit("rule")}
+              className="w-full text-left border rounded-lg px-4 py-3 hover:bg-muted/60 transition-colors"
+            >
+              <p className="text-sm font-medium">This record + future documents</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Save as a correction rule — applied to future extractions too.</p>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

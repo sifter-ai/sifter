@@ -169,7 +169,8 @@ export class SiftHandle {
     } catch { /* ignore */ }
   }
 
-  async *iterRecords<T = SiftRecord>(): AsyncGenerator<T> {
+  async records<T = SiftRecord>(): Promise<T[]> {
+    const items: T[] = [];
     let cursor: string | null = null;
     let offset = 0;
     while (true) {
@@ -181,28 +182,14 @@ export class SiftHandle {
       });
       await assertOk(res);
       const data = await res.json() as { items: T[]; total?: number; next_cursor?: string | null };
-      const items = data.items ?? [];
-      yield* items;
+      const page = data.items ?? [];
+      items.push(...page);
       cursor = data.next_cursor ?? null;
       if (cursor) continue;
-      offset += items.length;
-      if (!items.length || offset >= (data.total ?? 0)) break;
+      offset += page.length;
+      if (!page.length || offset >= (data.total ?? 0)) break;
     }
-  }
-
-  async records<T = SiftRecord>(options?: { limit?: number; offset?: number; cursor?: string }): Promise<T[]> {
-    const params = new URLSearchParams();
-    if (options?.cursor) params.set("cursor", options.cursor);
-    else if (options?.offset != null) params.set("offset", String(options.offset));
-    if (options?.limit != null) params.set("limit", String(options.limit));
-
-    const res = await this._fetch(
-      `${this._apiUrl}/api/sifts/${this.id}/records?${params}`,
-      { headers: this._headers },
-    );
-    await assertOk(res);
-    const data = await res.json() as { items: T[] };
-    return data.items;
+    return items;
   }
 
   async find<T = SiftRecord>(options?: {
@@ -290,20 +277,6 @@ export class SiftHandle {
     await assertOk(res);
     const data = await res.json() as { status: string };
     return data.status;
-  }
-
-  async chat(message: string): Promise<string> {
-    const res = await this._fetch(
-      `${this._apiUrl}/api/sifts/${this.id}/chat`,
-      {
-        method: "POST",
-        headers: { ...this._headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      },
-    );
-    await assertOk(res);
-    const data = await res.json() as { message?: string; response?: string };
-    return data.message ?? data.response ?? "";
   }
 
   async query(naturalLanguage: string, execute = true): Promise<{ pipeline: unknown[]; results: unknown[] | null }> {

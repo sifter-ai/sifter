@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -7,7 +7,6 @@ import {
   Cpu,
   Database,
   ExternalLink,
-  FileJson,
   FileText,
   Filter,
   Folder,
@@ -22,14 +21,12 @@ import {
   Shield,
   Terminal,
   Webhook,
-  Zap,
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
 const DOCS_URL = "https://sifterai.mintlify.app";
 const GITHUB_URL = "https://github.com/sifter-ai/sifter";
 
-// ── Demo interactive output ──────────────────────────────────────────────────
 const DEMO_OUTPUT = `{
   "vendor": "Acme Corp",
   "amount": 4200.00,
@@ -46,7 +43,6 @@ const DEMO_OUTPUT = `{
 }`;
 
 export default function LandingPage() {
-  const [demoRevealed, setDemoRevealed] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -90,13 +86,12 @@ export default function LandingPage() {
                 Document intelligence, open source.
               </span>
               <h1 className="text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
-                Your documents,<br />
-                <span className="text-primary">structured</span> and{" "}
-                <span className="text-primary">queryable.</span>
+                Structure any document.<br />
+                <span className="text-primary">Query it like</span>{" "}
+                <span className="text-primary">a database.</span>
               </h1>
               <p className="text-muted-foreground mt-5 leading-relaxed max-w-sm text-[15px]">
-                Define a schema. Sifter extracts exactly those fields from every document —
-                then query, filter, and build on top via API, SDK, or MCP.
+                Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
               </p>
               <div className="mt-7 flex gap-3 flex-wrap">
                 <Link to="/register"
@@ -156,37 +151,50 @@ export default function LandingPage() {
       </section>
 
       {/* ── Social proof ── */}
-      <section className="py-12 border-t border-b bg-muted/20">
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase text-center mb-8">
-            Trusted by developers and teams
+      <section className="py-8 border-t border-b bg-muted/20">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase">
+            Open source · MIT licensed · Self-hostable
           </p>
-          <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto mb-10">
-            <div className="text-center">
-              <p className="text-3xl font-bold tracking-tight">1,200+</p>
-              <p className="text-xs text-muted-foreground mt-1">GitHub stars</p>
+        </div>
+      </section>
+
+      {/* ── Why LLM extraction ── */}
+      <section className="py-20 border-t">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase mb-2">
+                Why LLM extraction
+              </p>
+              <h2 className="text-2xl font-bold leading-tight">
+                Works on real-world documents, not ideal ones.
+              </h2>
+              <p className="text-muted-foreground mt-4 leading-relaxed text-sm">
+                Traditional extractors break when the layout changes — a new invoice supplier, a CV with an unusual format, a contract with non-standard clause ordering. Sifter uses an LLM as the extraction engine, so it reads documents contextually, like a human would. The same sift handles 50 CVs from 50 different candidates, or utility bills from 10 different providers, without per-layout configuration.
+              </p>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold tracking-tight">50k+</p>
-              <p className="text-xs text-muted-foreground mt-1">Documents processed</p>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40 p-4 flex items-center gap-4">
+                <div className="text-2xl shrink-0">📄</div>
+                <div className="text-sm">
+                  <p className="font-medium text-red-700 dark:text-red-400">Template extractor</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Layout A ✓ · Layout B ✗ · Layout C ✗</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900/40 p-4 flex items-center gap-4">
+                <div className="text-2xl shrink-0">✨</div>
+                <div className="text-sm">
+                  <p className="font-medium text-emerald-700 dark:text-emerald-400">Sifter</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Layout A ✓ · Layout B ✓ · Layout C ✓</p>
+                </div>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold tracking-tight">40+</p>
-              <p className="text-xs text-muted-foreground mt-1">Integrations</p>
-            </div>
-          </div>
-          {/* Logo strip placeholder */}
-          <div className="flex items-center justify-center gap-8 flex-wrap opacity-30">
-            {["Acme Inc", "Globex", "Initech", "Umbrella", "Hooli", "Pied Piper"].map((name) => (
-              <span key={name} className="text-sm font-semibold tracking-wide text-muted-foreground">
-                {name}
-              </span>
-            ))}
           </div>
         </div>
       </section>
 
-      {/* ── Demo interattiva ── */}
+      {/* ── Illustrazione utilizzo ── */}
       <section className="py-20 border-b">
         <div className="max-w-4xl mx-auto px-6">
           <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase text-center mb-2">
@@ -195,19 +203,10 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center mb-10">Drop a document. Get structured data.</h2>
 
           <div className="border rounded-2xl overflow-hidden bg-card">
-            {/* Tabs */}
-            <div className="border-b flex">
-              <button className="px-5 py-3 text-sm font-medium border-b-2 border-primary text-primary">
-                Try an example
-              </button>
-              <button className="px-5 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Upload a document
-              </button>
-            </div>
-
             <div className="grid md:grid-cols-2 divide-x">
               {/* Left: input */}
               <div className="p-6 flex flex-col gap-4">
+                <p className="text-[10px] font-mono text-muted-foreground tracking-[0.15em] uppercase">Input</p>
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 text-primary rounded-lg p-2.5">
                     <FileText className="h-5 w-5" />
@@ -218,37 +217,26 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="bg-muted/40 rounded-lg p-3 font-mono text-xs text-muted-foreground">
-                  <p className="text-foreground font-medium mb-1">Instructions</p>
-                  <p>Extract: vendor, amount, currency, date, line items, payment status</p>
+                  <p className="text-foreground font-medium mb-1">Schema</p>
+                  <p>Extract: vendor, amount, currency, date, line_items, payment_status</p>
                 </div>
-                <button
-                  onClick={() => setDemoRevealed(true)}
+                <Link
+                  to="/register"
                   className="mt-auto bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 justify-center"
                 >
-                  <Zap className="h-3.5 w-3.5" /> Extract fields
-                </button>
+                  Try free <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
 
               {/* Right: output */}
-              <div className="p-6 bg-[#111113] relative">
-                {!demoRevealed ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-3 text-center min-h-[180px]">
-                    <FileJson className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-xs text-muted-foreground">Output will appear here</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-mono text-emerald-400/80 tracking-wide">
-                        ✓ Extracted in 1.8s
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-500">7 fields</span>
-                    </div>
-                    <pre className="font-mono text-[11px] text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap">
-                      {DEMO_OUTPUT}
-                    </pre>
-                  </>
-                )}
+              <div className="p-6 bg-[#111113]">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-mono text-muted-foreground tracking-[0.15em] uppercase">Output</p>
+                  <span className="text-[10px] font-mono text-zinc-500">7 fields</span>
+                </div>
+                <pre className="font-mono text-[11px] text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                  {DEMO_OUTPUT}
+                </pre>
               </div>
             </div>
           </div>
@@ -485,28 +473,28 @@ export default function LandingPage() {
           <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase text-center mb-2">
             Use cases
           </p>
-          <h2 className="text-2xl font-bold text-center mb-12">What teams use Sifter for.</h2>
-          <div className="grid md:grid-cols-3 gap-5">
-            <UseCaseCard label="Finance" title="Invoice processing">
-              "We process 500+ invoices a month. Sifter extracts vendor, amount, and line items into our ERP automatically."
-            </UseCaseCard>
-            <UseCaseCard label="Legal" title="Contract analysis">
-              "Extract key clauses, parties, and deadlines from contracts into a searchable database."
-            </UseCaseCard>
-            <UseCaseCard label="HR" title="Resume parsing">
-              "Parse inbound CVs into structured candidate records. No copy-paste, no manual entry."
-            </UseCaseCard>
+          <h2 className="text-2xl font-bold text-center mb-12">Any homogeneous document collection.</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { icon: "🧾", title: "Invoices", desc: "Extract supplier, amounts, VAT, line items from any invoice format." },
+              { icon: "📄", title: "CVs / Resumes", desc: "Turn a folder of candidates into a queryable talent database — works across any CV layout." },
+              { icon: "📋", title: "Contracts", desc: "Pull parties, dates, governing law, and key obligations from contracts of any structure." },
+              { icon: "💡", title: "Utility bills", desc: "Parse electricity, gas, water, and phone bills across all providers into a single dataset." },
+              { icon: "🧾", title: "Receipts", desc: "Capture merchant, items, totals, and payment method from paper or digital receipts." },
+              { icon: "🏦", title: "Bank statements", desc: "Extract transactions, balances, and period from statements regardless of bank format." },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="border rounded-xl p-5 bg-card flex gap-4 items-start">
+                <span className="text-2xl shrink-0">{icon}</span>
+                <div>
+                  <h3 className="font-semibold text-sm">{title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center justify-center gap-6 mt-10">
-            <a href={DOCS_URL + "/resources/use-cases"} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
-              See all use cases <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-            <a href={DOCS_URL + "/resources/cookbook"} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
-              Read the cookbook <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-          </div>
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            Any homogeneous document collection works — these are just the most common.
+          </p>
         </div>
       </section>
 
@@ -602,14 +590,6 @@ export default function LandingPage() {
 
               {/* OSS metrics */}
               <div className="mt-6 flex gap-6">
-                <div>
-                  <p className="text-sm font-semibold">⭐ 1,200</p>
-                  <p className="text-xs text-muted-foreground">stars</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">🔀 80</p>
-                  <p className="text-xs text-muted-foreground">contributors</p>
-                </div>
                 <div>
                   <p className="text-sm font-semibold">📦 MIT</p>
                   <p className="text-xs text-muted-foreground">license</p>

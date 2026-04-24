@@ -1,8 +1,8 @@
 ---
 title: REST API Endpoints
-status: changed
-version: "1.3"
-last-modified: "2026-04-21T00:00:00.000Z"
+status: synced
+version: "1.4"
+last-modified: "2026-04-24T00:00:00.000Z"
 ---
 
 # REST API Endpoints
@@ -163,6 +163,29 @@ See `product/features/server/citations.md` for the full shape and the extraction
 
 Chat body: `{ "message": str, "sift_id"?: str, "history"?: list }`
 Chat response: `{ "response": str, "data"?: list, "pipeline"?: list }`
+
+## Templates
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/templates` | Return full template library — no auth required |
+
+Response:
+```json
+{
+  "templates": [
+    {
+      "id": "invoice",
+      "name": "Invoice",
+      "description": "Standard B2B invoices — supplier, amounts, line items, tax, payment terms.",
+      "icon": "receipt",
+      "instructions": "Extract: supplier name…"
+    }
+  ]
+}
+```
+
+10 templates: `invoice`, `receipt`, `utility_bill`, `resume`, `contract`, `bank_statement`, `purchase_order`, `prescription`, `delivery_note`, `insurance`. Templates are instructions-only — no schema fields. Schema inference runs normally on first document.
 
 ## Config
 

@@ -100,8 +100,11 @@ class DocumentService:
         docs = await self.db["folders"].find(query).skip(skip).limit(limit).to_list(length=limit)
         return [Folder.from_mongo(d) for d in docs], total
 
-    async def get_folder(self, folder_id: str) -> Optional[Folder]:
-        doc = await self.db["folders"].find_one({"_id": ObjectId(folder_id)})
+    async def get_folder(self, folder_id: str, org_id: Optional[str] = None) -> Optional[Folder]:
+        query: dict = {"_id": ObjectId(folder_id)}
+        if org_id is not None:
+            query["org_id"] = org_id
+        doc = await self.db["folders"].find_one(query)
         return Folder.from_mongo(doc) if doc else None
 
     async def get_folder_path(self, folder_id: str) -> list[Folder]:
@@ -356,8 +359,11 @@ class DocumentService:
             })
         return result, total
 
-    async def get_document(self, document_id: str) -> Optional[Document]:
-        doc = await self.db["documents"].find_one({"_id": ObjectId(document_id)})
+    async def get_document(self, document_id: str, org_id: Optional[str] = None) -> Optional[Document]:
+        query: dict = {"_id": ObjectId(document_id)}
+        if org_id is not None:
+            query["org_id"] = org_id
+        doc = await self.db["documents"].find_one(query)
         return Document.from_mongo(doc) if doc else None
 
     async def delete_document(self, document_id: str) -> bool:

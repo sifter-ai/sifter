@@ -5,11 +5,12 @@ Provides minimal JWT auth for the frontend / local development.
 The cloud layer replaces this with full org-aware auth via
 dependency_overrides or by mounting its own router.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
+from jose import JWTError, jwt as jose_jwt
 from pydantic import BaseModel, EmailStr
 
 from sifter.auth import (
@@ -22,6 +23,7 @@ from sifter.auth import (
 from sifter.config import config
 from sifter.db import get_db
 from sifter.limiter import limiter
+from sifter.services.email import get_email_sender
 from sifter.storage import get_storage_backend
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -65,6 +67,19 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class DeleteAccountRequest(BaseModel):
+    confirm: bool = False
+
+
 _AVATAR_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _AVATAR_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 
@@ -99,6 +114,8 @@ async def register(request: Request, req: RegisterRequest, db=Depends(get_db)):
     user_id = str(result.inserted_id)
     token = create_access_token(user_id)
     user_doc = await db["users"].find_one({"_id": result.inserted_id})
+    email_sender = get_email_sender()
+    await email_sender.send_welcome(to=user_doc["email"], full_name=user_doc.get("full_name", ""))
     return AuthResponse(access_token=token, user=_user_out(user_doc))
 
 
@@ -220,7 +237,20 @@ async def update_me(
             conflict = await db["users"].find_one({"email": new_email, "_id": {"$ne": oid}})
             if conflict:
                 raise HTTPException(status_code=409, detail="Email already in use")
-            updates["email"] = new_email
+            now = datetime.now(timezone.utc)
+            payload = {
+                "sub": str(oid),
+                "type": "email_change",
+                "new_email": new_email,
+                "exp": now + timedelta(hours=24),
+            }
+            token = jose_jwt.encode(payload, config.jwt_secret, algorithm="HS256")
+            updates["pending_email"] = new_email
+            email_sender = get_email_sender()
+            await email_sender.send_email_change_verification(
+                to=new_email,
+                verification_url=f"{config.app_url}/verify-email?token={token}",
+            )
 
     if updates:
         await db["users"].update_one({"_id": oid}, {"$set": updates})
@@ -252,6 +282,8 @@ async def change_password(
     if len(req.new_password) < 8:
         raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
     await db["users"].update_one({"_id": oid}, {"$set": {"hashed_password": hash_password(req.new_password)}})
+    email_sender = get_email_sender()
+    await email_sender.send_password_changed(to=doc["email"])
     return {"ok": True}
 
 
@@ -305,3 +337,91 @@ async def get_avatar(user_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Avatar not found")
     content_type = doc.get("avatar_content_type", "image/jpeg")
     return Response(content=data, media_type=content_type, headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, req: ForgotPasswordRequest, db=Depends(get_db)):
+    doc = await db["users"].find_one({"email": req.email.lower()})
+    if doc and doc.get("auth_provider") != "google":
+        payload = {
+            "sub": str(doc["_id"]),
+            "type": "password_reset",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+        }
+        token = jose_jwt.encode(payload, config.jwt_secret, algorithm="HS256")
+        email_sender = get_email_sender()
+        await email_sender.send_password_reset(
+            to=req.email.lower(),
+            reset_url=f"{config.app_url}/reset-password?token={token}",
+        )
+    return {"ok": True}
+
+
+@router.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest, db=Depends(get_db)):
+    try:
+        payload = jose_jwt.decode(req.token, config.jwt_secret, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    if payload.get("type") != "password_reset":
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    if len(req.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    try:
+        oid = ObjectId(payload["sub"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    doc = await db["users"].find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    await db["users"].update_one({"_id": oid}, {"$set": {"hashed_password": hash_password(req.new_password)}})
+    return {"ok": True}
+
+
+@router.get("/verify-email")
+async def verify_email(token: str, db=Depends(get_db)):
+    try:
+        payload = jose_jwt.decode(token, config.jwt_secret, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    if payload.get("type") != "email_change":
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    new_email = payload.get("new_email")
+    if not new_email:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    try:
+        oid = ObjectId(payload["sub"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    conflict = await db["users"].find_one({"email": new_email, "_id": {"$ne": oid}})
+    if conflict:
+        raise HTTPException(status_code=409, detail="Email already in use")
+    await db["users"].update_one(
+        {"_id": oid},
+        {"$set": {"email": new_email}, "$unset": {"pending_email": ""}},
+    )
+    return {"ok": True}
+
+
+@router.delete("/me")
+async def delete_account(
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    if principal.key_id in ("anonymous", "bootstrap"):
+        raise HTTPException(status_code=401, detail="Not authenticated as a user")
+    try:
+        oid = ObjectId(principal.key_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    doc = await db["users"].find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=401, detail="User not found")
+    email = doc["email"]
+    full_name = doc.get("full_name", "")
+    await db["users"].delete_one({"_id": oid})
+    # TODO: cascade delete sifts/docs owned by this user
+    email_sender = get_email_sender()
+    await email_sender.send_account_deleted(to=email, full_name=full_name)
+    return Response(status_code=204)

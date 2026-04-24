@@ -1,0 +1,16 @@
+{
+  "id": "resume",
+  "name": "CV / Resume",
+  "description": "Candidate CVs for recruitment — works across any layout or format.",
+  "icon": "user",
+  "instructions": "Extract: full name, email, phone number, location (city + country), LinkedIn URL, current role or headline, years of total experience, work experience as an array (each item: company, role, start date, end date, description), education as an array (each item: institution, degree, field of study, graduation year), skills as an array of strings, languages as an array (each item: language + level). Mark fields not present in the document as null.",
+  "schema_fields": [
+    {"name": "full_name", "type": "string", "nullable": true},
+    {"name": "email", "type": "string", "nullable": true},
+    {"name": "phone_number", "type": "string", "nullable": true},
+    {"name": "location", "type": "string", "nullable": true},
+    {"name": "linkedin_url", "type": "string", "nullable": true},
+    {"name": "current_role", "type": "string", "nullable": true},
+    {"name": "years_of_experience", "type": "number", "nullable": true}
+  ]
+}

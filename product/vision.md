@@ -1,13 +1,13 @@
 ---
 title: Vision
 status: synced
-version: "3.0"
-last-modified: "2026-04-18T00:00:00.000Z"
+version: "3.1"
+last-modified: "2026-04-24T00:00:00.000Z"
 ---
 
 # Vision
 
-Sifter is an open-source document intelligence engine that turns unstructured documents — invoices, contracts, receipts, reports — into a structured, queryable database. It ships as a self-contained stack (REST API, Python SDK, TypeScript SDK, CLI, MCP server, chat, dashboards, webhook infrastructure) that developers embed into their own products, internal tools, or AI agents — and that small teams can also use directly via the bundled UI.
+Sifter is an open-source document intelligence engine that turns unstructured documents — invoices, contracts, receipts, CVs, utility bills, any document collection — into a structured, queryable database. It ships as a self-contained stack (REST API, Python SDK, TypeScript SDK, CLI, MCP server, chat, dashboards, webhook infrastructure) that developers embed into their own products, internal tools, or AI agents — and that small teams can also use directly via the bundled UI.
 
 **Tagline:** *"Structure any document. Query it like a database. Build on top via API."*
 
@@ -48,6 +48,12 @@ Target use cases:
 Sifter OSS is not a hosted multi-tenant service. It does not manage billing, does not expose an authenticated remote MCP endpoint, does not OAuth into Google Drive for you, does not run a mail-inbound service. Those operational surfaces live in **Sifter Cloud** (`sifter-cloud`), a separate commercial product built on the same public APIs this repo exposes.
 
 The split is simple: if a feature runs in-process against your Mongo and your LLM key, it lives in OSS. If a feature requires exposing an internet endpoint that we operate, or holds a managed account with an external provider on your behalf, it lives in Cloud.
+
+## Why LLM-based extraction matters
+
+Traditional document extractors rely on fixed templates or positional rules — they break the moment a layout changes. Sifter uses an LLM as the extraction engine, which means it reads documents the way a human would: understanding context, coping with layout variation, and filling in fields even when the document's structure doesn't match a template. This is what makes it work on real-world heterogeneous collections — a folder of CVs from 50 different candidates, utility bills from 10 different providers, contracts with wildly different clause structures — without requiring per-layout configuration.
+
+This is a deliberate architectural choice, not a side effect. The LLM handles the structural ambiguity; Sifter handles the rest: storage, schema inference, querying, webhooks, SDKs.
 
 ## Core Value Propositions
 

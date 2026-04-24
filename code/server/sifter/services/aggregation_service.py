@@ -76,21 +76,37 @@ class AggregationService:
         doc = await self.col.find_one({"_id": ObjectId(agg_id)})
         return Aggregation.from_mongo(doc) if doc else None
 
+    async def get_for_org(self, agg_id: str, org_id: str) -> Optional[Aggregation]:
+        """Fetch aggregation only if its parent sift belongs to org_id."""
+        agg = await self.get(agg_id)
+        if not agg:
+            return None
+        from .sift_service import SiftService
+        sift = await SiftService(self.db).get(agg.sift_id, org_id=org_id)
+        return agg if sift else None
+
     async def list_all(
         self,
         sift_id: Optional[str] = None,
+        sift_ids: Optional[list[str]] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[Aggregation], int]:
         query: dict = {}
         if sift_id:
             query["sift_id"] = sift_id
+        elif sift_ids is not None:
+            query["sift_id"] = {"$in": sift_ids}
         total = await self.col.count_documents(query)
         cursor = self.col.find(query).sort("created_at", -1).skip(skip).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [Aggregation.from_mongo(d) for d in docs], total
 
-    async def delete(self, agg_id: str) -> bool:
+    async def delete(self, agg_id: str, org_id: Optional[str] = None) -> bool:
+        if org_id is not None:
+            agg = await self.get_for_org(agg_id, org_id)
+            if not agg:
+                return False
         result = await self.col.delete_one({"_id": ObjectId(agg_id)})
         return result.deleted_count > 0
 

@@ -8,6 +8,7 @@ from ..auth import Principal, get_current_principal
 from ..db import get_db
 from ..models.aggregation import Aggregation
 from ..services.aggregation_service import AggregationService
+from ..services.sift_service import SiftService
 from ._pagination import paginated
 
 logger = structlog.get_logger()
@@ -24,9 +25,12 @@ class CreateAggregationRequest(BaseModel):
 @router.post("", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def create_aggregation(
     body: CreateAggregationRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
+    sift_svc = SiftService(db)
+    if not await sift_svc.get(body.sift_id, org_id=principal.org_id):
+        raise HTTPException(status_code=404, detail="Sift not found")
     svc = AggregationService(db)
     await svc.ensure_indexes()
     aggregation = await svc.create(
@@ -43,22 +47,30 @@ async def list_aggregations(
     sift_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = AggregationService(db)
-    aggregations, total = await svc.list_all(sift_id=sift_id, skip=offset, limit=limit)
+    sift_svc = SiftService(db)
+    if sift_id:
+        if not await sift_svc.get(sift_id, org_id=principal.org_id):
+            raise HTTPException(status_code=404, detail="Sift not found")
+        aggregations, total = await svc.list_all(sift_id=sift_id, skip=offset, limit=limit)
+    else:
+        org_sifts, _ = await sift_svc.list_all(org_id=principal.org_id, limit=1000)
+        sift_ids = [s.id for s in org_sifts]
+        aggregations, total = await svc.list_all(sift_ids=sift_ids, skip=offset, limit=limit)
     return paginated([_agg_to_dict(a) for a in aggregations], total, limit, offset)
 
 
 @router.get("/{agg_id}", response_model=dict)
 async def get_aggregation(
     agg_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = AggregationService(db)
-    aggregation = await svc.get(agg_id)
+    aggregation = await svc.get_for_org(agg_id, principal.org_id)
     if not aggregation:
         raise HTTPException(status_code=404, detail="Aggregation not found")
     return _agg_to_dict(aggregation)
@@ -67,11 +79,11 @@ async def get_aggregation(
 @router.get("/{agg_id}/result")
 async def get_aggregation_result(
     agg_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = AggregationService(db)
-    aggregation = await svc.get(agg_id)
+    aggregation = await svc.get_for_org(agg_id, principal.org_id)
     if not aggregation:
         raise HTTPException(status_code=404, detail="Aggregation not found")
     try:
@@ -87,10 +99,12 @@ async def get_aggregation_result(
 @router.post("/{agg_id}/regenerate")
 async def regenerate_aggregation(
     agg_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = AggregationService(db)
+    if not await svc.get_for_org(agg_id, principal.org_id):
+        raise HTTPException(status_code=404, detail="Aggregation not found")
     try:
         aggregation = await svc.regenerate(agg_id)
     except ValueError as e:
@@ -101,11 +115,11 @@ async def regenerate_aggregation(
 @router.delete("/{agg_id}")
 async def delete_aggregation(
     agg_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = AggregationService(db)
-    deleted = await svc.delete(agg_id)
+    deleted = await svc.delete(agg_id, org_id=principal.org_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Aggregation not found")
     return {"deleted": True}

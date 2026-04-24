@@ -1,8 +1,8 @@
 ---
 title: "Server: Document Extraction (Sifts)"
-status: changed
-version: "1.6"
-last-modified: "2026-04-21T00:00:00.000Z"
+status: synced
+version: "1.7"
+last-modified: "2026-04-24T00:00:00.000Z"
 ---
 
 # Document Extraction — Server
@@ -49,6 +49,10 @@ Key fields returned by `GET /api/sifts/{id}`:
 3. Documents are uploaded either via **Folders** (see `server/documents.md`) or directly via `POST /api/sifts/{id}/upload` — both routes go through the same folder-document pipeline
 4. Sifter processes each document asynchronously via the background queue
 5. Sift schema is auto-inferred from the first processed document
+
+## Templates (`GET /api/templates`)
+
+Returns the full template library (no auth required). Response: `{ "templates": [ { id, name, description, icon, instructions } ] }`. Templates are static JSON fixtures (instructions-only, no schema) loaded at server startup — no DB, no hot-reload. See `system/api.md` for the full response shape.
 
 ## Sift Creation (`POST /api/sifts`)
 

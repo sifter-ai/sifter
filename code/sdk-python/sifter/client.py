@@ -237,63 +237,39 @@ class SiftHandle:
                 except Exception:
                     pass
 
-    def records(
-        self,
-        limit: int = 100,
-        offset: int = 0,
-        cursor: Optional[str] = None,
-        model: Optional[Type[M]] = None,
-    ) -> "Page":
-        """Return one page of extracted records. Use iter_records() to exhaust all pages.
+    def records(self, model: Optional[Type[M]] = None) -> list:
+        """Return all extracted records, auto-paginating across pages.
         Pass model= (Pydantic BaseModel subclass) to get validated typed objects."""
         import httpx
-        params: dict = {"limit": limit}
-        if cursor is not None:
-            params["cursor"] = cursor
-        else:
-            params["offset"] = offset
-        with httpx.Client() as http:
-            r = http.get(
-                f"{self._client.api_url}/api/sifts/{self.id}/records",
-                headers=self._client._auth_headers(),
-                params=params,
-            )
-            r.raise_for_status()
-            data = r.json()
-        raw_items: list = data.get("items", []) if isinstance(data, dict) else data
-        if model is not None:
-            raw_items = [model(**item.get("extracted_data", item)) for item in raw_items]
-        return Page(
-            items=raw_items,
-            total=data.get("total", len(raw_items)) if isinstance(data, dict) else len(raw_items),
-            limit=limit,
-            offset=data.get("offset", offset) if isinstance(data, dict) else offset,
-            next_cursor=data.get("next_cursor") if isinstance(data, dict) else None,
-        )
-
-    def iter_records(
-        self,
-        limit: int = 100,
-        model: Optional[Type[M]] = None,
-        filter: Optional[dict] = None,
-    ):
-        """Iterate over all records across pages, yielding one record at a time."""
+        items: list = []
         cursor: Optional[str] = None
+        offset = 0
         while True:
-            page = self.records(limit=limit, cursor=cursor, model=model)
-            yield from page.items
-            if not page.has_more:
+            params: dict = {"limit": 100}
+            if cursor is not None:
+                params["cursor"] = cursor
+            else:
+                params["offset"] = offset
+            with httpx.Client() as http:
+                r = http.get(
+                    f"{self._client.api_url}/api/sifts/{self.id}/records",
+                    headers=self._client._auth_headers(),
+                    params=params,
+                )
+                r.raise_for_status()
+                data = r.json()
+            raw_items: list = data.get("items", []) if isinstance(data, dict) else data
+            if model is not None:
+                raw_items = [model(**item.get("extracted_data", item)) for item in raw_items]
+            items.extend(raw_items)
+            total = data.get("total", 0) if isinstance(data, dict) else 0
+            cursor = data.get("next_cursor") if isinstance(data, dict) else None
+            if cursor:
+                continue
+            offset += len(raw_items)
+            if not raw_items or offset >= total:
                 break
-            cursor = page.next_cursor
-            if cursor is None:
-                # offset-based fallback
-                offset = page.offset + len(page.items)
-                if offset >= page.total:
-                    break
-                page = self.records(limit=limit, offset=offset, model=model)
-                yield from page.items
-                if not page.has_more:
-                    break
+        return items
 
     def find(
         self,
@@ -635,16 +611,6 @@ class FolderHandle:
             next_cursor=data.get("next_cursor"),
         )
 
-    def iter_documents(self, limit: int = 100):
-        """Iterate over all documents in this folder across pages."""
-        offset = 0
-        while True:
-            page = self.documents(limit=limit, offset=offset)
-            yield from page.items
-            offset += len(page.items)
-            if not page.has_more:
-                break
-
     def add_sift(self, sift: SiftHandle) -> "FolderHandle":
         """Link a sift to this folder. All folder documents will be processed by it."""
         import httpx
@@ -689,16 +655,6 @@ class FolderHandle:
             next_cursor=data.get("next_cursor"),
         )
 
-    def iter_sifts(self, limit: int = 100):
-        """Iterate over all sifts linked to this folder across pages."""
-        offset = 0
-        while True:
-            page = self.sifts(limit=limit, offset=offset)
-            yield from page.items
-            offset += len(page.items)
-            if not page.has_more:
-                break
-
     def update(self, **kwargs) -> "FolderHandle":
         """Update folder properties. Accepts name= and/or description=."""
         import httpx
@@ -737,7 +693,7 @@ class Sifter:
         api_url: str = "",
         api_key: str = "",
     ):
-        self.api_url = (api_url or os.environ.get("SIFTER_API_URL", "http://localhost:8000")).rstrip("/")
+        self.api_url = (api_url or os.environ.get("SIFTER_API_URL", "https://sifter.run")).rstrip("/")
         self.api_key = api_key or os.environ.get("SIFTER_API_KEY", "")
 
     def _auth_headers(self) -> dict:
@@ -795,16 +751,6 @@ class Sifter:
             next_cursor=data.get("next_cursor"),
         )
 
-    def iter_sifts(self, limit: int = 100):
-        """Iterate over all sifts across pages, yielding one dict at a time."""
-        offset = 0
-        while True:
-            page = self.list_sifts(limit=limit, offset=offset)
-            yield from page.items
-            offset += len(page.items)
-            if not page.has_more:
-                break
-
     # ---- Folder CRUD ----
 
     def create_folder(self, path: str) -> FolderHandle:
@@ -854,16 +800,6 @@ class Sifter:
             next_cursor=data.get("next_cursor"),
         )
 
-    def iter_folders(self, limit: int = 200):
-        """Iterate over all folders across pages, yielding one dict at a time."""
-        offset = 0
-        while True:
-            page = self.list_folders(limit=limit, offset=offset)
-            yield from page.items
-            offset += len(page.items)
-            if not page.has_more:
-                break
-
     def document(self, document_id: str) -> DocumentHandle:
         """Return a handle to a document for accessing page images."""
         return DocumentHandle(document_id=document_id, client=self)
@@ -879,7 +815,7 @@ class Sifter:
         try:
             s.upload(path, on_conflict="replace")
             s.wait()
-            return list(s.iter_records())
+            return s.records()
         finally:
             s.delete()
 
@@ -934,16 +870,6 @@ class Sifter:
             offset=data.get("offset", offset),
             next_cursor=data.get("next_cursor"),
         )
-
-    def iter_hooks(self, limit: int = 100):
-        """Iterate over all webhooks across pages, yielding one dict at a time."""
-        offset = 0
-        while True:
-            page = self.list_hooks(limit=limit, offset=offset)
-            yield from page.items
-            offset += len(page.items)
-            if not page.has_more:
-                break
 
     def delete_hook(self, hook_id: str) -> None:
         """Delete a registered webhook."""

@@ -133,7 +133,7 @@ async def create_folder(
 async def get_folder_by_path(
     path: str,
     create: bool = False,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """Resolve a folder by its path. Pass create=true to auto-create intermediate folders."""
@@ -152,7 +152,7 @@ async def get_folder_by_path(
 async def update_folder_by_path(
     path: str,
     body: UpdateFolderRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """Update a folder identified by its path."""
@@ -168,7 +168,7 @@ async def update_folder_by_path(
 @router.delete("/by-path", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_folder_by_path(
     path: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """Delete a folder identified by its path."""
@@ -182,11 +182,11 @@ async def delete_folder_by_path(
 @router.get("/{folder_id}")
 async def get_folder(
     folder_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
+    folder = await svc.get_folder(folder_id, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     extractors = await svc.list_folder_extractors(folder_id)
@@ -207,7 +207,7 @@ async def get_folder(
 @router.get("/{folder_id}/path")
 async def get_folder_path(
     folder_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """Return ordered list of ancestor folders from root to this folder (for breadcrumbs)."""
@@ -220,7 +220,7 @@ async def get_folder_path(
 async def update_folder(
     folder_id: str,
     body: UpdateFolderRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -234,7 +234,7 @@ async def update_folder(
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_folder(
     folder_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -250,11 +250,11 @@ async def list_sifts_for_folder(
     folder_id: str,
     limit: int = 100,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
+    folder = await svc.get_folder(folder_id, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     links = await svc.list_folder_extractors(folder_id)
@@ -266,7 +266,7 @@ async def list_sifts_for_folder(
 async def link_sift(
     folder_id: str,
     body: LinkSiftRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -287,7 +287,7 @@ async def link_sift(
 async def unlink_sift(
     folder_id: str,
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -303,11 +303,11 @@ async def list_extractors(
     folder_id: str,
     limit: int = 100,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
+    folder = await svc.get_folder(folder_id, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     links = await svc.list_folder_extractors(folder_id)
@@ -322,7 +322,7 @@ async def list_extractors(
 async def link_extractor(
     folder_id: str,
     body: dict,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     sift_id = body.get("sift_id") or body.get("extraction_id")
@@ -347,7 +347,7 @@ async def link_extractor(
 async def unlink_extractor(
     folder_id: str,
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -363,11 +363,11 @@ async def list_documents(
     folder_id: str,
     limit: int = 50,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
+    folder = await svc.get_folder(folder_id, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     documents, total = await svc.list_documents(folder_id, skip=offset, limit=limit)
@@ -386,7 +386,7 @@ async def upload_document(
     on_conflict: str = Form("fail"),
 ):
     svc = DocumentService(db)
-    folder = await svc.get_folder(folder_id)
+    folder = await svc.get_folder(folder_id, org_id=principal.org_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
 

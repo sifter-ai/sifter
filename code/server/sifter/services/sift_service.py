@@ -61,8 +61,10 @@ class SiftService:
         logger.info("sift_created", sift_id=sift.id, name=name)
         return sift
 
-    async def get(self, sift_id: str) -> Optional[Sift]:
+    async def get(self, sift_id: str, org_id: Optional[str] = None) -> Optional[Sift]:
         query: dict = {"_id": ObjectId(sift_id)}
+        if org_id is not None:
+            query["org_id"] = org_id
         doc = await self.col.find_one(query)
         return Sift.from_mongo(doc) if doc else None
 

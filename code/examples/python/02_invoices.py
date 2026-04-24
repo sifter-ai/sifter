@@ -6,7 +6,7 @@ Exports results to CSV and prints a summary.
 
 Requirements:
     pip install sifter-ai
-    # Sifter server running on localhost:8000 (./run.sh)
+    # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
 """
 from sifter import Sifter
 
@@ -26,8 +26,7 @@ sift.upload("../documents/invoices/", on_conflict="replace")
 print("Processing...")
 sift.wait()
 
-# Iterate over all extracted records (handles pagination automatically)
-records = list(sift.iter_records())
+records = sift.records()
 print(f"\nExtracted {len(records)} invoices:\n")
 
 total_sum = 0.0

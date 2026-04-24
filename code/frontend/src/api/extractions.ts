@@ -104,6 +104,49 @@ export const chatWithSift = (
     body: JSON.stringify({ message, history }),
   });
 
+export interface CorrectionItem {
+  value: unknown;
+  scope: "local" | "rule" | "reset";
+}
+
+export const patchRecord = (
+  siftId: string,
+  recordId: string,
+  corrections: Record<string, CorrectionItem>
+): Promise<SiftRecord> =>
+  apiFetchJson<SiftRecord>(`${BASE}/${siftId}/records/${recordId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ corrections }),
+  });
+
+export interface CorrectionRule {
+  id: string;
+  sift_id: string;
+  field_name: string;
+  match_value: string;
+  replace_value: unknown;
+  created_by: string;
+  created_at: string;
+  applied_count: number;
+  active: boolean;
+}
+
+export const fetchCorrectionRules = (siftId: string): Promise<{ rules: CorrectionRule[] }> =>
+  apiFetchJson<{ rules: CorrectionRule[] }>(`${BASE}/${siftId}/correction-rules`);
+
+export const deleteCorrectionRule = (siftId: string, ruleId: string): Promise<{ ok: boolean }> =>
+  apiFetchJson<{ ok: boolean }>(`${BASE}/${siftId}/correction-rules/${ruleId}`, { method: "DELETE" });
+
+export const backfillCorrectionRule = (
+  siftId: string,
+  ruleId: string
+): Promise<{ applied_count: number }> =>
+  apiFetchJson<{ applied_count: number }>(
+    `${BASE}/${siftId}/correction-rules/${ruleId}/backfill`,
+    { method: "POST" }
+  );
+
 // Legacy aliases for backward compat within this file
 export const fetchExtractions = fetchSifts;
 export const fetchExtraction = fetchSift;

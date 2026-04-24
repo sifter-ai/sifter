@@ -1,6 +1,6 @@
 ---
 title: "Frontend: Records Table"
-status: changed
+status: synced
 version: "1.3"
 last-modified: "2026-04-21T00:00:00.000Z"
 ---

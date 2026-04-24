@@ -26,11 +26,11 @@ class ReprocessRequest(BaseModel):
 @router.get("/{document_id}")
 async def get_document(
     document_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    doc = await svc.get_document(document_id)
+    doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -71,12 +71,12 @@ async def get_document(
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..storage import get_storage_backend
     svc = DocumentService(db)
-    doc = await svc.get_document(document_id)
+    doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -94,7 +94,7 @@ async def download_document(
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
@@ -107,11 +107,11 @@ async def delete_document(
 async def reprocess_document(
     document_id: str,
     body: ReprocessRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    doc = await svc.get_document(document_id)
+    doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -137,11 +137,11 @@ async def reprocess_document(
 @router.get("/{document_id}/pages")
 async def list_document_pages(
     document_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    doc = await svc.get_document(document_id)
+    doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -173,11 +173,11 @@ async def get_document_page_image(
     document_id: str,
     page_number: int,
     dpi: int = Query(default=_DEFAULT_DPI, ge=36, le=_MAX_DPI),
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = DocumentService(db)
-    doc = await svc.get_document(document_id)
+    doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 

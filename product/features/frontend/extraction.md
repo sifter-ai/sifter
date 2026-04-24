@@ -1,8 +1,8 @@
 ---
 title: "Frontend: Document Extraction (Sifts)"
 status: synced
-version: "1.3"
-last-modified: "2026-04-20T00:00:00.000Z"
+version: "1.4"
+last-modified: "2026-04-24T00:00:00.000Z"
 ---
 
 # Document Extraction — Frontend
@@ -32,6 +32,36 @@ The page **does not** render aggregate KPIs (no `Total sifts` / `Indexing now` /
 - **Footer** — shows the document count (`N doc` / `N docs` / `No documents yet`). While `status === "indexing"`, the count is replaced by a progress bar + `processed/total docs` in amber. The footer does **not** render a `N fields` label (the pills communicate that) and does **not** render a trailing status text like `Active` / `Indexing` / `Paused` (the status dot communicates that).
 
 **Status dot** visuals: `active` green pulsing · `indexing` amber spinner · `error` red alert · `paused` grey pause · default muted check.
+
+### Sift Creation — Template selector
+
+The sift creation form (`SiftForm` / `CreateSiftDialog`) surfaces a template library before the name field.
+
+**Template row:** a horizontally scrollable row of compact cards (icon + label). Clicking a card:
+- Pre-fills the `instructions` textarea with the template's instructions text.
+- Shows a read-only schema preview below the textarea: `Fields from template: supplier_name · invoice_date · total_amount · +7 more`. Clicking "+N more" expands to show all field names with their types.
+- Highlights the selected card with a ring.
+
+Clicking the selected card again **deselects** it and clears the pre-fill. The user can freely edit the pre-filled instructions — the template is a starting point, not a locked preset.
+
+The `name` field is not pre-filled. `multi_record` is not pre-set.
+
+**On submit:** the `POST /api/sifts` payload is identical to the no-template case — only the instructions value differs. No new fields are sent; schema inference runs normally on first document.
+
+**Template library (10 templates):**
+
+| id | Name |
+|---|---|
+| `invoice` | Invoice |
+| `receipt` | Receipt |
+| `utility_bill` | Utility Bill |
+| `resume` | CV / Resume |
+| `contract` | Contract |
+| `bank_statement` | Bank Statement |
+| `purchase_order` | Purchase Order |
+| `prescription` | Medical Prescription |
+| `delivery_note` | Delivery Note |
+| `insurance` | Insurance Certificate |
 
 ### Sift Detail (`/sifts/:id`)
 

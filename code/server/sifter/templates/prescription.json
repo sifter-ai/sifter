@@ -1,0 +1,18 @@
+{
+  "id": "prescription",
+  "name": "Medical Prescription",
+  "description": "Medical prescriptions — patient, doctor, medications, dosage.",
+  "icon": "pill",
+  "instructions": "Extract: patient full name, patient date of birth, doctor full name, doctor license number, clinic or hospital name, prescription date, validity date, medications as an array (each item: name + dosage + form (tablet/capsule/etc.) + frequency + duration + quantity), diagnosis code (if present), notes or special instructions. Mark fields not present in the document as null.",
+  "schema_fields": [
+    {"name": "patient_full_name", "type": "string", "nullable": true},
+    {"name": "patient_date_of_birth", "type": "date", "nullable": true},
+    {"name": "doctor_full_name", "type": "string", "nullable": true},
+    {"name": "doctor_license_number", "type": "string", "nullable": true},
+    {"name": "clinic_name", "type": "string", "nullable": true},
+    {"name": "prescription_date", "type": "date", "nullable": true},
+    {"name": "validity_date", "type": "date", "nullable": true},
+    {"name": "diagnosis_code", "type": "string", "nullable": true},
+    {"name": "notes", "type": "string", "nullable": true}
+  ]
+}

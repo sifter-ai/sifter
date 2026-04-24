@@ -12,7 +12,7 @@ export class Sifter {
     const _env = typeof globalThis !== "undefined" && "process" in globalThis
       ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env
       : {} as Record<string, string | undefined>;
-    this._apiUrl = (options.apiUrl ?? _env["SIFTER_API_URL"] ?? "http://localhost:8000").replace(/\/$/, "");
+    this._apiUrl = (options.apiUrl ?? _env["SIFTER_API_URL"] ?? "https://sifter.run").replace(/\/$/, "");
     const apiKey = options.apiKey ?? _env["SIFTER_API_KEY"] ?? "";
     this._headers = apiKey ? { "X-API-Key": apiKey } : {};
     this._fetch = options.fetch ?? globalThis.fetch;
@@ -56,16 +56,6 @@ export class Sifter {
     return data.items;
   }
 
-  async *iterSifts(limit = 100): AsyncGenerator<SiftData> {
-    let offset = 0;
-    while (true) {
-      const items = await this.listSifts(limit, offset);
-      yield* items;
-      offset += items.length;
-      if (items.length < limit) break;
-    }
-  }
-
   // ---- One-liner ----
 
   async sift(path: string, instructions: string): Promise<unknown[]> {
@@ -73,9 +63,7 @@ export class Sifter {
     try {
       await s.upload(path, { onConflict: "replace" });
       await s.wait();
-      const records: unknown[] = [];
-      for await (const r of s.iterRecords()) records.push(r);
-      return records;
+      return s.records();
     } finally {
       await s.delete().catch(() => { /* ignore */ });
     }
@@ -111,48 +99,8 @@ export class Sifter {
     return data.items;
   }
 
-  async *iterFolders(limit = 200): AsyncGenerator<FolderData> {
-    let offset = 0;
-    while (true) {
-      const items = await this.listFolders(limit, offset);
-      yield* items;
-      offset += items.length;
-      if (items.length < limit) break;
-    }
-  }
-
   document(documentId: string): DocumentHandle {
     return new DocumentHandle(documentId, this._apiUrl, this._headers, this._fetch);
-  }
-
-  // ---- Document helpers ----
-
-  async documentPageCount(documentId: string): Promise<number> {
-    const res = await this._fetch(`${this._apiUrl}/api/documents/${documentId}/pages`, {
-      headers: this._headers,
-    });
-    await assertOk(res);
-    const data = await res.json() as { total: number };
-    return data.total;
-  }
-
-  async documentPageImage(documentId: string, page = 1, dpi = 150): Promise<ArrayBuffer> {
-    const params = new URLSearchParams({ dpi: String(dpi) });
-    const res = await this._fetch(
-      `${this._apiUrl}/api/documents/${documentId}/pages/${page}/image?${params}`,
-      { headers: this._headers },
-    );
-    await assertOk(res);
-    return res.arrayBuffer();
-  }
-
-  async documentPages(documentId: string): Promise<PageInfo[]> {
-    const res = await this._fetch(`${this._apiUrl}/api/documents/${documentId}/pages`, {
-      headers: this._headers,
-    });
-    await assertOk(res);
-    const data = await res.json() as { items: PageInfo[] };
-    return data.items;
   }
 
   // ---- Webhooks ----

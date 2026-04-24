@@ -6,7 +6,7 @@ Demonstrates callbacks to process each document as it completes.
 
 Requirements:
     pip install sifter-ai
-    # Sifter server running on localhost:8000 (./run.sh)
+    # SIFTER_API_KEY env var set (default endpoint: https://sifter.run)
 """
 from sifter import Sifter
 
@@ -38,7 +38,7 @@ from datetime import date, timedelta
 threshold = date.today() + timedelta(days=90)
 
 expiring_soon = []
-for r in sift.iter_records():
+for r in sift.records():
     data = r.get("extracted_data", r)
     expiry = data.get("expiry_date")
     if expiry:

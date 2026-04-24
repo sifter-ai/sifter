@@ -50,8 +50,8 @@ print("Waiting for category extraction...")
 sift_category.wait()
 
 # Merge results by document
-accounting = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_accounting.iter_records()}
-categories = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_category.iter_records()}
+accounting = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_accounting.records()}
+categories = {r.get("document_id"): r.get("extracted_data", {}) for r in sift_category.records()}
 
 print("\nMerged results:")
 for doc_id, acc in accounting.items():

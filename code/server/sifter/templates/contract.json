@@ -1,0 +1,21 @@
+{
+  "id": "contract",
+  "name": "Contract",
+  "description": "Legal contracts — parties, key dates, governing law, obligations.",
+  "icon": "file-check",
+  "instructions": "Extract: contract title, party A (name + role), party B (name + role), effective date, expiry date, governing law, jurisdiction, key obligations (as an array of short descriptions), termination conditions, payment terms (if any), confidentiality clause present (boolean), non-compete clause present (boolean). Mark fields not present in the document as null.",
+  "schema_fields": [
+    {"name": "contract_title", "type": "string", "nullable": true},
+    {"name": "party_a_name", "type": "string", "nullable": true},
+    {"name": "party_a_role", "type": "string", "nullable": true},
+    {"name": "party_b_name", "type": "string", "nullable": true},
+    {"name": "party_b_role", "type": "string", "nullable": true},
+    {"name": "effective_date", "type": "date", "nullable": true},
+    {"name": "expiry_date", "type": "date", "nullable": true},
+    {"name": "governing_law", "type": "string", "nullable": true},
+    {"name": "jurisdiction", "type": "string", "nullable": true},
+    {"name": "payment_terms", "type": "string", "nullable": true},
+    {"name": "has_confidentiality_clause", "type": "boolean", "nullable": true},
+    {"name": "has_non_compete_clause", "type": "boolean", "nullable": true}
+  ]
+}

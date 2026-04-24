@@ -151,11 +151,11 @@ async def list_sifts(
 @router.get("/{sift_id}", response_model=dict)
 async def get_sift(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     return _sift_to_dict(sift)
@@ -165,10 +165,13 @@ async def get_sift(
 async def update_sift(
     sift_id: str,
     body: UpdateSiftRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
+    if not sift:
+        raise HTTPException(status_code=404, detail="Sift not found")
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     sift = await svc.update(sift_id, updates)
     if not sift:
@@ -181,7 +184,7 @@ async def list_sift_folders(
     sift_id: str,
     limit: int = 100,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     """Return root-level folders that have this sift linked to them.
@@ -191,6 +194,10 @@ async def list_sift_folders(
     those out and returns only the top-level entries — folders whose parent is
     not also in the linked set.
     """
+    svc = SiftService(db)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
+    if not sift:
+        raise HTTPException(status_code=404, detail="Sift not found")
     links = await db["folder_extractors"].find({"sift_id": sift_id}).to_list(length=None)
     folder_ids = [ObjectId(lnk["folder_id"]) for lnk in links if lnk.get("folder_id")]
     if not folder_ids:
@@ -209,10 +216,13 @@ async def list_sift_folders(
 @router.delete("/{sift_id}")
 async def delete_sift(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
+    if not sift:
+        raise HTTPException(status_code=404, detail="Sift not found")
     deleted = await svc.delete(sift_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Sift not found")
@@ -243,7 +253,7 @@ async def upload_documents(
     svc = SiftService(db)
     doc_svc = DocumentService(db)
 
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -334,7 +344,7 @@ async def upload_documents(
 @router.post("/{sift_id}/reindex")
 async def reindex_sift(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.document_service import DocumentService
@@ -344,7 +354,7 @@ async def reindex_sift(
     svc = SiftService(db)
     doc_svc = DocumentService(db)
 
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -399,11 +409,11 @@ async def reindex_sift(
 @router.post("/{sift_id}/reset")
 async def reset_sift(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     result = await svc.reset_error(sift_id)
@@ -419,11 +429,11 @@ async def list_sift_documents(
     sift_id: str,
     limit: int = 50,
     offset: int = 0,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -469,11 +479,11 @@ async def count_records(
     q: Optional[str] = None,
     min_confidence: Optional[float] = None,
     has_uncertain_fields: Optional[bool] = None,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     if min_confidence is not None and not (0.0 <= min_confidence <= 1.0):
@@ -488,11 +498,11 @@ async def count_records(
 async def batch_records(
     sift_id: str,
     body: BatchRecordsRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     try:
@@ -519,11 +529,11 @@ async def get_records(
     q: Optional[str] = None,
     min_confidence: Optional[float] = None,
     has_uncertain_fields: Optional[bool] = None,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     if min_confidence is not None and not (0.0 <= min_confidence <= 1.0):
@@ -582,11 +592,11 @@ async def get_records(
 @router.get("/{sift_id}/records/csv")
 async def export_csv(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -608,11 +618,11 @@ async def export_csv(
 async def get_record_citations(
     sift_id: str,
     record_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     try:
@@ -627,6 +637,178 @@ async def get_record_citations(
 
 
 # ---------------------------------------------------------------------------
+# Record corrections + Correction rules
+# ---------------------------------------------------------------------------
+
+class CorrectionItem(BaseModel):
+    value: Any
+    scope: str  # "local" | "rule" | "reset"
+
+class CorrectionRequest(BaseModel):
+    corrections: dict[str, CorrectionItem]
+
+
+@router.patch("/{sift_id}/records/{record_id}")
+async def patch_record(
+    sift_id: str,
+    record_id: str,
+    body: CorrectionRequest,
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    svc = SiftService(db)
+    if not await svc.get(sift_id, org_id=principal.org_id):
+        raise HTTPException(status_code=404, detail="Sift not found")
+
+    try:
+        doc = await db["sift_results"].find_one({"_id": ObjectId(record_id), "sift_id": sift_id})
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid record id")
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    user_overrides = dict(doc.get("user_overrides") or {})
+    corrected_fields = dict(doc.get("corrected_fields") or {})
+    now = datetime.now(timezone.utc).isoformat()
+
+    for field_name, item in body.corrections.items():
+        if item.scope == "reset":
+            user_overrides.pop(field_name, None)
+            corrected_fields.pop(field_name, None)
+        else:
+            old_value = {**doc.get("extracted_data", {}), **user_overrides}.get(field_name)
+            user_overrides[field_name] = item.value
+            corrected_fields[field_name] = {
+                "value": item.value,
+                "scope": item.scope,
+                "corrected_by": principal.user_id or "anonymous",
+                "corrected_at": now,
+            }
+            if item.scope == "rule":
+                rule_doc = {
+                    "sift_id": sift_id,
+                    "field_name": field_name,
+                    "match_value": str(old_value).strip().lower() if old_value is not None else "",
+                    "replace_value": item.value,
+                    "created_by": principal.user_id or "anonymous",
+                    "created_at": datetime.now(timezone.utc),
+                    "applied_count": 0,
+                    "active": True,
+                }
+                await db["correction_rules"].insert_one(rule_doc)
+
+    await db["sift_results"].update_one(
+        {"_id": ObjectId(record_id)},
+        {"$set": {"user_overrides": user_overrides, "corrected_fields": corrected_fields}},
+    )
+
+    updated = await db["sift_results"].find_one({"_id": ObjectId(record_id)})
+    return _result_to_dict(updated)
+
+
+@router.get("/{sift_id}/correction-rules")
+async def list_correction_rules(
+    sift_id: str,
+    active_only: bool = True,
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    svc = SiftService(db)
+    if not await svc.get(sift_id, org_id=principal.org_id):
+        raise HTTPException(status_code=404, detail="Sift not found")
+
+    query: dict = {"sift_id": sift_id}
+    if active_only:
+        query["active"] = True
+    docs = await db["correction_rules"].find(query).sort("created_at", 1).to_list(length=500)
+    rules = []
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "created_at" in d and hasattr(d["created_at"], "isoformat"):
+            d["created_at"] = d["created_at"].isoformat()
+        rules.append(d)
+    return {"rules": rules}
+
+
+@router.delete("/{sift_id}/correction-rules/{rule_id}")
+async def delete_correction_rule(
+    sift_id: str,
+    rule_id: str,
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    svc = SiftService(db)
+    if not await svc.get(sift_id, org_id=principal.org_id):
+        raise HTTPException(status_code=404, detail="Sift not found")
+
+    try:
+        result = await db["correction_rules"].update_one(
+            {"_id": ObjectId(rule_id), "sift_id": sift_id},
+            {"$set": {"active": False}},
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid rule id")
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return {"ok": True}
+
+
+@router.post("/{sift_id}/correction-rules/{rule_id}/backfill")
+async def backfill_correction_rule(
+    sift_id: str,
+    rule_id: str,
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    svc = SiftService(db)
+    if not await svc.get(sift_id, org_id=principal.org_id):
+        raise HTTPException(status_code=404, detail="Sift not found")
+
+    try:
+        rule_doc = await db["correction_rules"].find_one({"_id": ObjectId(rule_id), "sift_id": sift_id})
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid rule id")
+
+    if not rule_doc:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    field_name = rule_doc["field_name"]
+    match_value = rule_doc["match_value"]
+    replace_value = rule_doc["replace_value"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Find matching records (check both extracted_data and user_overrides)
+    cursor = db["sift_results"].find({"sift_id": sift_id})
+    applied = 0
+    async for doc in cursor:
+        current = {**doc.get("extracted_data", {}), **doc.get("user_overrides", {})}
+        raw = current.get(field_name)
+        if raw is not None and str(raw).strip().lower() == match_value:
+            overrides = dict(doc.get("user_overrides") or {})
+            corrected = dict(doc.get("corrected_fields") or {})
+            overrides[field_name] = replace_value
+            corrected[field_name] = {
+                "value": replace_value,
+                "scope": "rule",
+                "corrected_by": principal.user_id or "anonymous",
+                "corrected_at": now,
+            }
+            await db["sift_results"].update_one(
+                {"_id": doc["_id"]},
+                {"$set": {"user_overrides": overrides, "corrected_fields": corrected}},
+            )
+            applied += 1
+
+    await db["correction_rules"].update_one(
+        {"_id": ObjectId(rule_id)},
+        {"$set": {"applied_count": rule_doc.get("applied_count", 0) + applied}},
+    )
+    return {"applied_count": applied}
+
+
+# ---------------------------------------------------------------------------
 # Query (NL) + Ad-hoc Aggregate
 # ---------------------------------------------------------------------------
 
@@ -634,11 +816,11 @@ async def get_record_citations(
 async def query_sift(
     sift_id: str,
     body: QueryRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -670,11 +852,11 @@ async def query_sift(
 async def aggregate_sift(
     sift_id: str,
     body: AggregateRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     validate_pipeline(body.pipeline)
@@ -701,13 +883,13 @@ async def aggregate_sift(
 async def sift_chat(
     sift_id: str,
     body: ChatRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.qa_agent import chat as qa_chat
 
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
 
@@ -737,14 +919,14 @@ async def sift_chat(
 async def extract_document(
     sift_id: str,
     body: ExtractRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.document_processor import enqueue
     from ..models.document import DocumentSiftStatusEnum
 
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     try:
@@ -781,11 +963,11 @@ async def extract_document(
 async def extraction_status(
     sift_id: str,
     document_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    if not await svc.get(sift_id):
+    if not await svc.get(sift_id, org_id=principal.org_id):
         raise HTTPException(status_code=404, detail="Sift not found")
 
     status_doc = await db["document_sift_statuses"].find_one(
@@ -818,11 +1000,11 @@ async def extraction_status(
 @router.get("/{sift_id}/schema")
 async def get_schema(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     return {
@@ -835,13 +1017,13 @@ async def get_schema(
 @router.get("/{sift_id}/schema.pydantic")
 async def get_schema_pydantic(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.schema_service import emit_pydantic
 
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     return Response(content=emit_pydantic(sift), media_type="text/plain")
@@ -850,13 +1032,13 @@ async def get_schema_pydantic(
 @router.get("/{sift_id}/schema.ts")
 async def get_schema_ts(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.schema_service import emit_typescript
 
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     return Response(content=emit_typescript(sift), media_type="text/plain")
@@ -865,13 +1047,13 @@ async def get_schema_ts(
 @router.get("/{sift_id}/schema.json")
 async def get_schema_json(
     sift_id: str,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..services.schema_service import emit_json_schema
 
     svc = SiftService(db)
-    sift = await svc.get(sift_id)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
     if not sift:
         raise HTTPException(status_code=404, detail="Sift not found")
     return emit_json_schema(sift)
@@ -936,6 +1118,10 @@ def _result_to_dict(doc: dict) -> dict:
         isinstance(c, dict) and c.get("confidence", 1.0) < 0.6
         for c in citations.values()
     )
+    # Merge user_overrides into extracted_data (overrides always win)
+    user_overrides = d.get("user_overrides") or {}
+    if user_overrides:
+        d["extracted_data"] = {**d.get("extracted_data", {}), **user_overrides}
     return d
 
 
