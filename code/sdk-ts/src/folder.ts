@@ -114,14 +114,25 @@ export class FolderHandle {
     return this;
   }
 
-  async documents(): Promise<unknown[]> {
+  async documents(limit = 100, offset = 0): Promise<unknown[]> {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     const res = await this._fetch(
-      `${this._apiUrl}/api/folders/${this.id}/documents`,
+      `${this._apiUrl}/api/folders/${this.id}/documents?${params}`,
       { headers: this._headers },
     );
     await assertOk(res);
     const data = await res.json() as { items?: unknown[] };
     return data.items ?? (data as unknown as unknown[]);
+  }
+
+  async *iterDocuments(limit = 100): AsyncGenerator<unknown> {
+    let offset = 0;
+    while (true) {
+      const items = await this.documents(limit, offset);
+      yield* items;
+      offset += items.length;
+      if (items.length < limit) break;
+    }
   }
 
   async addSift(sift: SiftHandle): Promise<FolderHandle> {
@@ -146,15 +157,26 @@ export class FolderHandle {
     return this;
   }
 
-  async sifts(): Promise<{ total: number; items: unknown[] }> {
+  async sifts(limit = 100, offset = 0): Promise<{ total: number; items: unknown[] }> {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     const res = await this._fetch(
-      `${this._apiUrl}/api/folders/${this.id}/extractors`,
+      `${this._apiUrl}/api/folders/${this.id}/extractors?${params}`,
       { headers: this._headers },
     );
     await assertOk(res);
     const data = await res.json();
     if (Array.isArray(data)) return { total: data.length, items: data };
     return { total: (data as { total?: number }).total ?? 0, items: (data as { items?: unknown[] }).items ?? [] };
+  }
+
+  async *iterSifts(limit = 100): AsyncGenerator<unknown> {
+    let offset = 0;
+    while (true) {
+      const { items } = await this.sifts(limit, offset);
+      yield* items;
+      offset += items.length;
+      if (items.length < limit) break;
+    }
   }
 
   async update(fields: { name?: string; description?: string }): Promise<FolderHandle> {

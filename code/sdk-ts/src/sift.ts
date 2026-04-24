@@ -1,5 +1,6 @@
 import { assertOk } from "./errors.js";
 import type {
+  Citation,
   FilterDict,
   SchemaResponse,
   SiftPage,
@@ -361,5 +362,28 @@ export class SiftHandle {
       await writeFile(outputPath, csv, "utf-8");
     }
     return csv;
+  }
+
+  record(recordId: string): RecordHandle {
+    return new RecordHandle(recordId, this.id, this._apiUrl, this._headers, this._fetch);
+  }
+}
+
+export class RecordHandle {
+  constructor(
+    private readonly _recordId: string,
+    private readonly _siftId: string,
+    private readonly _apiUrl: string,
+    private readonly _headers: Record<string, string>,
+    private readonly _fetch: typeof fetch,
+  ) {}
+
+  async citations(): Promise<{ record_id: string; document_id: string; citations: Record<string, Citation> }> {
+    const res = await this._fetch(
+      `${this._apiUrl}/api/sifts/${this._siftId}/records/${this._recordId}/citations`,
+      { headers: this._headers },
+    );
+    await assertOk(res);
+    return res.json();
   }
 }

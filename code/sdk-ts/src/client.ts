@@ -56,6 +56,16 @@ export class Sifter {
     return data.items;
   }
 
+  async *iterSifts(limit = 100): AsyncGenerator<SiftData> {
+    let offset = 0;
+    while (true) {
+      const items = await this.listSifts(limit, offset);
+      yield* items;
+      offset += items.length;
+      if (items.length < limit) break;
+    }
+  }
+
   // ---- One-liner ----
 
   async sift(path: string, instructions: string): Promise<unknown[]> {
@@ -99,6 +109,20 @@ export class Sifter {
     await assertOk(res);
     const data = await res.json() as { items: FolderData[] };
     return data.items;
+  }
+
+  async *iterFolders(limit = 200): AsyncGenerator<FolderData> {
+    let offset = 0;
+    while (true) {
+      const items = await this.listFolders(limit, offset);
+      yield* items;
+      offset += items.length;
+      if (items.length < limit) break;
+    }
+  }
+
+  document(documentId: string): DocumentHandle {
+    return new DocumentHandle(documentId, this._apiUrl, this._headers, this._fetch);
   }
 
   // ---- Document helpers ----
@@ -163,5 +187,44 @@ export class Sifter {
       headers: this._headers,
     });
     await assertOk(res);
+  }
+}
+
+export class DocumentHandle {
+  constructor(
+    private readonly _documentId: string,
+    private readonly _apiUrl: string,
+    private readonly _headers: Record<string, string>,
+    private readonly _fetch: typeof globalThis.fetch,
+  ) {}
+
+  async pageCount(): Promise<number> {
+    const res = await this._fetch(
+      `${this._apiUrl}/api/documents/${this._documentId}/pages`,
+      { headers: this._headers },
+    );
+    await assertOk(res);
+    const data = await res.json() as { total: number };
+    return data.total;
+  }
+
+  async pageImage(page = 1, dpi = 150): Promise<ArrayBuffer> {
+    const params = new URLSearchParams({ dpi: String(dpi) });
+    const res = await this._fetch(
+      `${this._apiUrl}/api/documents/${this._documentId}/pages/${page}/image?${params}`,
+      { headers: this._headers },
+    );
+    await assertOk(res);
+    return res.arrayBuffer();
+  }
+
+  async pages(): Promise<import("./types.js").PageInfo[]> {
+    const res = await this._fetch(
+      `${this._apiUrl}/api/documents/${this._documentId}/pages`,
+      { headers: this._headers },
+    );
+    await assertOk(res);
+    const data = await res.json() as { items: import("./types.js").PageInfo[] };
+    return data.items;
   }
 }

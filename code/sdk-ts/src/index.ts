@@ -1,5 +1,5 @@
-export { Sifter } from "./client.js";
-export { SiftHandle } from "./sift.js";
+export { Sifter, DocumentHandle } from "./client.js";
+export { SiftHandle, RecordHandle } from "./sift.js";
 export { FolderHandle } from "./folder.js";
 export { SifterError } from "./errors.js";
 export type {

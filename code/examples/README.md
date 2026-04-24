@@ -62,6 +62,7 @@ npm run invoices
 | 04 | `04_folder_pipeline.py` / `.ts` | Persistent folder — upload once, query many times |
 | 05 | `05_query_and_chat.py` / `.ts` | Natural language query + aggregation |
 | 06 | `06_webhooks.py` / `.ts` | Register a webhook and receive extraction events |
+| 07 | `07_citations.py` / `.ts` | Read per-field citation evidence (source text, page, confidence) |
 
 ## Sample documents
 
