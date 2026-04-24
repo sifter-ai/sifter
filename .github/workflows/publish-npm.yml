@@ -49,6 +49,15 @@ jobs:
           jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
         working-directory: code/cli
 
+      - name: Wait for SDK to be available on registry
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5; do
+            npm view "@sifter-ai/sdk@$VERSION" version 2>/dev/null && break
+            echo "Attempt $i: SDK $VERSION not yet on registry, retrying in 30s..."
+            sleep 30
+          done
+
       - run: npm install && npm run build
         working-directory: code/cli
         env:
