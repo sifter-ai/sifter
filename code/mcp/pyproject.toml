@@ -20,7 +20,7 @@ sifter-mcp = "sifter_mcp.__main__:main"
 [project.urls]
 Homepage = "https://sifter.ai"
 Documentation = "https://docs.sifter.ai/integrations/mcp-server"
-Repository = "https://github.com/bfortunato/sifter"
+Repository = "https://github.com/sifter-ai/sifter"
 
 [dependency-groups]
 dev = [

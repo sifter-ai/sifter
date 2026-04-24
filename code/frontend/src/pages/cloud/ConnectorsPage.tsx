@@ -6,7 +6,6 @@ import {
   ExternalLink,
   Folder as FolderIcon,
   FolderOpen,
-  Mail,
   Plug,
   RefreshCw,
   Trash2,
@@ -46,7 +45,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PlanLimitError } from "@/lib/apiFetch";
-import { InboundEmailPanel } from "@/components/cloud/InboundEmailPanel";
+// TODO: mail-to-upload — coming soon (needs inbound email provider setup)
+// import { InboundEmailPanel } from "@/components/cloud/InboundEmailPanel";
 
 // ─── Drive folder picker dialog ───────────────────────────────────────────────
 
@@ -506,58 +506,57 @@ function GDriveSection({ folders }: { folders: { id: string; name: string }[] })
   );
 }
 
-// ─── Mail-to-Upload section ───────────────────────────────────────────────────
-
-function MailToUploadSection({ folders }: { folders: { id: string; name: string }[] }) {
-  const [folderId, setFolderId] = useState<string>("");
-
-  return (
-    <div className="rounded-xl border overflow-hidden">
-      <div className="p-5 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Mail to Upload</p>
-            <p className="text-[11px] text-muted-foreground">
-              Get a unique email address — forward attachments directly into a Sifter folder
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-            <FolderOpen className="h-3 w-3" /> Target folder
-          </label>
-          <select
-            className="w-full max-w-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
-          >
-            <option value="">— select a folder to configure —</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {folderId ? (
-          <div className="rounded-xl border bg-muted/20 p-4">
-            <InboundEmailPanel folderId={folderId} />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed px-4 py-8 text-center">
-            <Mail className="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-            <p className="text-xs text-muted-foreground">
-              Select a folder above to view or set up its inbound email address.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// TODO: mail-to-upload — coming soon (needs inbound email provider setup)
+// function MailToUploadSection({ folders }: { folders: { id: string; name: string }[] }) {
+//   const [folderId, setFolderId] = useState<string>("");
+//
+//   return (
+//     <div className="rounded-xl border overflow-hidden">
+//       <div className="p-5 space-y-4">
+//         <div className="flex items-center gap-3">
+//           <div className="h-9 w-9 rounded-lg border bg-card flex items-center justify-center shrink-0">
+//             <Mail className="h-4 w-4 text-muted-foreground" />
+//           </div>
+//           <div>
+//             <p className="text-sm font-semibold">Mail to Upload</p>
+//             <p className="text-[11px] text-muted-foreground">
+//               Get a unique email address — forward attachments directly into a Sifter folder
+//             </p>
+//           </div>
+//         </div>
+//
+//         <div className="space-y-1">
+//           <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+//             <FolderOpen className="h-3 w-3" /> Target folder
+//           </label>
+//           <select
+//             className="w-full max-w-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+//             value={folderId}
+//             onChange={(e) => setFolderId(e.target.value)}
+//           >
+//             <option value="">— select a folder to configure —</option>
+//             {folders.map((f) => (
+//               <option key={f.id} value={f.id}>{f.name}</option>
+//             ))}
+//           </select>
+//         </div>
+//
+//         {folderId ? (
+//           <div className="rounded-xl border bg-muted/20 p-4">
+//             <InboundEmailPanel folderId={folderId} />
+//           </div>
+//         ) : (
+//           <div className="rounded-xl border border-dashed px-4 py-8 text-center">
+//             <Mail className="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+//             <p className="text-xs text-muted-foreground">
+//               Select a folder above to view or set up its inbound email address.
+//             </p>
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
 
 // ─── Logos ────────────────────────────────────────────────────────────────────
 
@@ -645,8 +644,8 @@ export default function ConnectorsPage() {
           </div>
         </div>
 
-        {/* Mail to Upload */}
-        <MailToUploadSection folders={folders} />
+        {/* TODO: mail-to-upload — coming soon (needs inbound email provider setup) */}
+        {/* <MailToUploadSection folders={folders} /> */}
 
         <p className="text-[11px] text-muted-foreground px-0.5">
           Documents synced via connectors count toward your monthly quota.

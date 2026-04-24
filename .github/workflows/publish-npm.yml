@@ -16,6 +16,12 @@ jobs:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
 
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
+        working-directory: code/sdk-ts
+
       - run: npm ci && npm run build
         working-directory: code/sdk-ts
 
@@ -36,9 +42,10 @@ jobs:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
 
-      - name: Replace local SDK dependency with published version
+      - name: Set version and replace local SDK dependency with published version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          npm version "$VERSION" --no-git-tag-version
           jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
         working-directory: code/cli
 

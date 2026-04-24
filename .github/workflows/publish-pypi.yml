@@ -12,30 +12,45 @@ jobs:
     name: sifter-ai
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-sdk
       url: https://pypi.org/p/sifter-ai
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+        working-directory: code/sdk-python
+
       - run: uv build
-        working-directory: code/sdk
+        working-directory: code/sdk-python
+
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: code/sdk/dist/
+          packages-dir: code/sdk-python/dist/
 
   publish-mcp:
     name: sifter-mcp
     runs-on: ubuntu-latest
     needs: publish-sdk
     environment:
-      name: pypi
+      name: pypi-mcp
       url: https://pypi.org/p/sifter-mcp
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+        working-directory: code/mcp
+
       - run: uv build
         working-directory: code/mcp
+
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: code/mcp/dist/
-
