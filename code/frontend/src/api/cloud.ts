@@ -42,6 +42,15 @@ export const startCheckout = (
     body: JSON.stringify({ plan_code, success_url, cancel_url }),
   });
 
+export const upgradeSubscription = (
+  plan_code: string
+): Promise<{ plan_code: string; status: string }> =>
+  apiFetchJson("/api/billing/upgrade", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_code }),
+  });
+
 // ---- Audit Log ----
 
 export interface AuditEvent {

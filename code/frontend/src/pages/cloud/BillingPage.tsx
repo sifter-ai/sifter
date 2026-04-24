@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ArrowRight, CreditCard, ExternalLink, Zap } from "lucide-react";
-import { fetchSubscription, fetchUsage, openBillingPortal, startCheckout } from "@/api/cloud";
+import { fetchSubscription, fetchUsage, openBillingPortal, startCheckout, upgradeSubscription } from "@/api/cloud";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -102,10 +102,18 @@ export default function BillingPage() {
     onSuccess: ({ url }) => { window.location.href = url; },
   });
 
+  const hasActiveSub = sub?.status === "active" || sub?.status === "trial";
+
+  // New subscribers → Stripe Checkout (new session)
   const checkoutMutation = useMutation({
     mutationFn: (plan_code: string) =>
       startCheckout(plan_code, window.location.href, window.location.href),
     onSuccess: ({ checkout_url }) => { window.location.href = checkout_url; },
+  });
+
+  // Existing subscribers → modify subscription, pay only the prorated difference
+  const upgradeMutation = useMutation({
+    mutationFn: (plan_code: string) => upgradeSubscription(plan_code),
   });
 
   const currentPlan = PLANS.find((p) => p.code === sub?.plan_code) ?? PLANS[0];
@@ -201,10 +209,12 @@ export default function BillingPage() {
         </p>
         <div className="rounded-xl border overflow-hidden divide-y">
           {PLANS.map((plan, idx) => {
-            const isCurrent  = sub?.plan_code === plan.code;
-            const isUpgrade  = idx > currentIdx;
+            const isCurrent   = sub?.plan_code === plan.code;
+            const isUpgrade   = idx > currentIdx;
             const isDowngrade = idx < currentIdx;
-            const loading    = checkoutMutation.isPending && checkoutMutation.variables === plan.code;
+            const loading     = hasActiveSub
+              ? (upgradeMutation.isPending && upgradeMutation.variables === plan.code)
+              : (checkoutMutation.isPending && checkoutMutation.variables === plan.code);
 
             return (
               <div
@@ -250,8 +260,12 @@ export default function BillingPage() {
                     <Button
                       size="sm"
                       className="w-full gap-1 text-xs h-7"
-                      onClick={() => checkoutMutation.mutate(plan.code)}
-                      disabled={checkoutMutation.isPending}
+                      onClick={() =>
+                        hasActiveSub
+                          ? upgradeMutation.mutate(plan.code)
+                          : checkoutMutation.mutate(plan.code)
+                      }
+                      disabled={upgradeMutation.isPending || checkoutMutation.isPending}
                     >
                       {loading ? (
                         "…"
@@ -267,8 +281,10 @@ export default function BillingPage() {
                       size="sm"
                       variant="ghost"
                       className="w-full text-xs h-7 text-muted-foreground hover:text-foreground"
-                      onClick={() => portalMutation.mutate()}
-                      disabled={portalMutation.isPending}
+                      onClick={() =>
+                        hasActiveSub ? upgradeMutation.mutate(plan.code) : portalMutation.mutate()
+                      }
+                      disabled={upgradeMutation.isPending || portalMutation.isPending}
                     >
                       Downgrade
                       <ArrowRight className="h-3 w-3 ml-1 opacity-50" />
