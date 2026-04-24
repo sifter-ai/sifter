@@ -117,7 +117,7 @@ def test_sift_records():
     s = make_client()
     handle = SiftHandle({"id": "x1"}, s)
     result = handle.records()
-    assert len(result.items) == 2
+    assert len(result) == 2
 
 
 @respx.mock
