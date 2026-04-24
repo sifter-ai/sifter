@@ -149,106 +149,123 @@ async def worker(db: AsyncIOMotorDatabase) -> None:
 
         logger.info("processing_document", document_id=document_id, sift_id=sift_id, attempt=attempts)
 
-        try:
-            await doc_svc.update_sift_status(document_id, sift_id, DocumentSiftStatusEnum.PROCESSING)
+        discard = await _process_task(
+            db=db, task_doc=task_doc,
+            document_id=document_id, sift_id=sift_id, storage_path=storage_path,
+            sift_org_id=sift_org_id, attempts=attempts, max_attempts=max_attempts,
+            doc_svc=doc_svc, ext_svc=ext_svc,
+        )
+        if discard:
+            continue
 
-            from ..storage import get_storage_backend, GCSBackend
-            from ..config import config as oss_config
-            from pathlib import Path
-            backend = get_storage_backend()
-            filename = Path(storage_path).name
-            _use_gcs_uri = (
-                isinstance(backend, GCSBackend)
-                and oss_config.llm_model.startswith("vertex_ai/")
-            )
-            logger.info("loading_document", document_id=document_id, storage_path=storage_path)
-            if _use_gcs_uri:
-                source = f"gs://{backend.bucket_name}/{storage_path}"
-            else:
-                source = await backend.load(storage_path)
-            from .limits import get_usage_limiter
-            await get_usage_limiter().check_extraction(org_id=sift_org_id)
 
-            results = await ext_svc.process_single_document(
-                sift_id, source, filename, document_id=document_id
-            )
+async def _process_task(
+    db, task_doc: dict,
+    document_id: str, sift_id: str, storage_path: str,
+    sift_org_id: str, attempts: int, max_attempts: int,
+    doc_svc, ext_svc,
+) -> bool:
+    """Execute one extraction task. Returns True if the document was discarded (caller must `continue`)."""
+    try:
+        await doc_svc.update_sift_status(document_id, sift_id, DocumentSiftStatusEnum.PROCESSING)
 
-            # Store first record's ID for traceability; multi-record docs may have many
-            first_record_id = results[0].id if results else None
+        from ..storage import get_storage_backend, GCSBackend
+        from ..config import config as oss_config
+        from pathlib import Path
+        backend = get_storage_backend()
+        filename = Path(storage_path).name
+        _use_gcs_uri = (
+            isinstance(backend, GCSBackend)
+            and oss_config.llm_model.startswith("vertex_ai/")
+        )
+        logger.info("loading_document", document_id=document_id, storage_path=storage_path)
+        if _use_gcs_uri:
+            source = f"gs://{backend.bucket_name}/{storage_path}"
+        else:
+            source = await backend.load(storage_path)
+
+        from .limits import get_usage_limiter
+        await get_usage_limiter().check_extraction(org_id=sift_org_id)
+
+        results = await ext_svc.process_single_document(
+            sift_id, source, filename, document_id=document_id
+        )
+
+        first_record_id = results[0].id if results else None
+        await doc_svc.update_sift_status(
+            document_id, sift_id, DocumentSiftStatusEnum.DONE, sift_record_id=first_record_id
+        )
+        await db[COLLECTION].update_one(
+            {"_id": task_doc["_id"]},
+            {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc)}},
+        )
+
+        logger.info("document_processed", document_id=document_id, sift_id=sift_id)
+
+        from .limits import get_usage_limiter
+        await get_usage_limiter().record_processed(org_id=sift_org_id, doc_count=1)
+
+        await _dispatch_webhook(
+            db=db,
+            event="sift.document.processed",
+            payload={"document_id": document_id, "sift_id": sift_id, "record_id": first_record_id, "record_count": len(results)},
+            sift_id=sift_id,
+            org_id=sift_org_id,
+        )
+        return False
+
+    except Exception as e:
+        from .sift_service import DocumentDiscardedError
+        if isinstance(e, DocumentDiscardedError):
             await doc_svc.update_sift_status(
-                document_id, sift_id, DocumentSiftStatusEnum.DONE, sift_record_id=first_record_id
+                document_id, sift_id, DocumentSiftStatusEnum.DISCARDED, filter_reason=e.reason
             )
-
             await db[COLLECTION].update_one(
                 {"_id": task_doc["_id"]},
                 {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc)}},
             )
-
-            logger.info("document_processed", document_id=document_id, sift_id=sift_id)
-
-            from .limits import get_usage_limiter
-            await get_usage_limiter().record_processed(org_id=sift_org_id, doc_count=1)
-
+            logger.info("document_discarded", document_id=document_id, sift_id=sift_id, reason=e.reason)
             await _dispatch_webhook(
                 db=db,
-                event="sift.document.processed",
-                payload={"document_id": document_id, "sift_id": sift_id, "record_id": first_record_id, "record_count": len(results)},
+                event="sift.document.discarded",
+                payload={"document_id": document_id, "sift_id": sift_id, "reason": e.reason},
                 sift_id=sift_id,
                 org_id=sift_org_id,
             )
+            return True  # caller must `continue`
 
-        except Exception as e:
-            from .sift_service import DocumentDiscardedError
-            if isinstance(e, DocumentDiscardedError):
-                await doc_svc.update_sift_status(
-                    document_id, sift_id, DocumentSiftStatusEnum.DISCARDED, filter_reason=e.reason
-                )
-                await db[COLLECTION].update_one(
-                    {"_id": task_doc["_id"]},
-                    {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc)}},
-                )
-                logger.info("document_discarded", document_id=document_id, sift_id=sift_id, reason=e.reason)
-                await _dispatch_webhook(
-                    db=db,
-                    event="sift.document.discarded",
-                    payload={"document_id": document_id, "sift_id": sift_id, "reason": e.reason},
-                    sift_id=sift_id,
-                    org_id=sift_org_id,
-                )
-                continue
+        error_msg = str(e)
+        logger.error("document_processing_failed", document_id=document_id, sift_id=sift_id, error=error_msg, attempt=attempts)
 
-            error_msg = str(e)
-            logger.error("document_processing_failed", document_id=document_id, sift_id=sift_id, error=error_msg, attempt=attempts)
+        sift_not_found = f"Sift {sift_id} not found" in error_msg
+        if not sift_not_found and attempts < max_attempts:
+            await db[COLLECTION].update_one(
+                {"_id": task_doc["_id"]},
+                {"$set": {"status": "pending", "claimed_at": None, "error_message": error_msg}},
+            )
+        else:
+            await db[COLLECTION].update_one(
+                {"_id": task_doc["_id"]},
+                {"$set": {"status": "error", "error_message": error_msg}},
+            )
+            if not sift_not_found:
+                try:
+                    await ext_svc.mark_document_failed(sift_id, error_msg)
+                except Exception as mark_err:
+                    logger.error("mark_document_failed_error", error=str(mark_err))
 
-            # Non-retryable: sift was deleted between enqueue and processing.
-            sift_not_found = f"Sift {sift_id} not found" in error_msg
-            if not sift_not_found and attempts < max_attempts:
-                await db[COLLECTION].update_one(
-                    {"_id": task_doc["_id"]},
-                    {"$set": {"status": "pending", "claimed_at": None, "error_message": error_msg}},
-                )
-            else:
-                await db[COLLECTION].update_one(
-                    {"_id": task_doc["_id"]},
-                    {"$set": {"status": "error", "error_message": error_msg}},
-                )
-                if not sift_not_found:
-                    try:
-                        await ext_svc.mark_document_failed(sift_id, error_msg)
-                    except Exception as mark_err:
-                        logger.error("mark_document_failed_error", error=str(mark_err))
-
-            try:
-                await doc_svc.update_sift_status(document_id, sift_id, DocumentSiftStatusEnum.ERROR, error_message=error_msg)
-                await _dispatch_webhook(
-                    db=db,
-                    event="sift.error",
-                    payload={"document_id": document_id, "sift_id": sift_id, "error": error_msg},
-                    sift_id=sift_id,
-                    org_id=sift_org_id,
-                )
-            except Exception as update_err:
-                logger.error("status_update_failed", error=str(update_err))
+        try:
+            await doc_svc.update_sift_status(document_id, sift_id, DocumentSiftStatusEnum.ERROR, error_message=error_msg)
+            await _dispatch_webhook(
+                db=db,
+                event="sift.error",
+                payload={"document_id": document_id, "sift_id": sift_id, "error": error_msg},
+                sift_id=sift_id,
+                org_id=sift_org_id,
+            )
+        except Exception as update_err:
+            logger.error("status_update_failed", error=str(update_err))
+        return False
 
 
 async def _dispatch_webhook(db, event: str, payload: dict, sift_id: Optional[str] = None, org_id: str = "default") -> None:
