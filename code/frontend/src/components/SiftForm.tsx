@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  FileText, Receipt, Zap, User, FileCheck, Landmark,
-  ShoppingCart, Pill, Package, Shield, X,
-} from "lucide-react";
+import { ChevronDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,44 +24,70 @@ interface SiftFormProps {
   onCreated?: (id: string) => void;
 }
 
-const ICON_MAP: Record<string, React.ReactNode> = {
-  "file-text": <FileText className="h-4 w-4" />,
-  "receipt": <Receipt className="h-4 w-4" />,
-  "zap": <Zap className="h-4 w-4" />,
-  "user": <User className="h-4 w-4" />,
-  "file-check": <FileCheck className="h-4 w-4" />,
-  "landmark": <Landmark className="h-4 w-4" />,
-  "shopping-cart": <ShoppingCart className="h-4 w-4" />,
-  "pill": <Pill className="h-4 w-4" />,
-  "package": <Package className="h-4 w-4" />,
-  "shield": <Shield className="h-4 w-4" />,
-};
-
-function TemplateCard({
-  template,
+function TemplateDropdown({
+  templates,
   selected,
   onSelect,
 }: {
-  template: Template;
-  selected: boolean;
-  onSelect: () => void;
+  templates: Template[];
+  selected: Template | null;
+  onSelect: (t: Template | null) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-lg border text-center shrink-0 transition-all text-xs font-medium ${
-        selected
-          ? "border-primary bg-primary/8 text-primary ring-1 ring-primary"
-          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
-      }`}
-      title={template.description}
-    >
-      <span className={selected ? "text-primary" : "text-muted-foreground"}>
-        {ICON_MAP[template.icon] ?? <FileText className="h-4 w-4" />}
-      </span>
-      <span className="whitespace-nowrap leading-tight">{template.name}</span>
-    </button>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {selected ? (
+          <>
+            <span className="text-primary font-medium">{selected.name}</span>
+            <span
+              className="ml-1 text-muted-foreground/60 hover:text-muted-foreground"
+              onClick={(e) => { e.stopPropagation(); onSelect(null); setOpen(false); }}
+              title="Clear"
+            >
+              ×
+            </span>
+          </>
+        ) : (
+          <>
+            <FileText className="h-3 w-3" />
+            Use a template
+            <ChevronDown className="h-3 w-3" />
+          </>
+        )}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 w-48 rounded-md border bg-popover shadow-md py-1">
+          {templates.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => { onSelect(t); setOpen(false); }}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-muted/60 transition-colors ${
+                selected?.id === t.id ? "text-primary font-medium" : "text-foreground"
+              }`}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -129,39 +152,6 @@ export function SiftForm({ trigger, onCreated }: SiftFormProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* Template selector */}
-          {templates.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Start from a template (optional)</Label>
-                {selectedTemplate && (
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedTemplate(null); setForm((f) => ({ ...f, instructions: "" })); }}
-                    className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 transition-colors"
-                  >
-                    <X className="h-3 w-3" /> Clear
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                {templates.map((t) => (
-                  <TemplateCard
-                    key={t.id}
-                    template={t}
-                    selected={selectedTemplate?.id === t.id}
-                    onSelect={() => handleSelectTemplate(t)}
-                  />
-                ))}
-              </div>
-              {selectedTemplate && (
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {selectedTemplate.description}
-                </p>
-              )}
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="name">Name *</Label>
             <Input
@@ -182,7 +172,19 @@ export function SiftForm({ trigger, onCreated }: SiftFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="instructions">Instructions *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="instructions">Instructions *</Label>
+              {templates.length > 0 && (
+                <TemplateDropdown
+                  templates={templates}
+                  selected={selectedTemplate}
+                  onSelect={(t) => {
+                    setSelectedTemplate(t);
+                    setForm((f) => ({ ...f, instructions: t ? t.instructions : "" }));
+                  }}
+                />
+              )}
+            </div>
             <Textarea
               id="instructions"
               placeholder="e.g. Extract: client name, invoice date, total amount, VAT number"
