@@ -34,7 +34,7 @@ export function extractCommand(globals: () => GlobalOpts): Command {
           await waitForSift(client, siftId);
           const sift = await client.getSift(siftId);
           const records = await sift.records();
-          const data = records.map(r => r.extracted_data ?? r);
+          const data = records.map((r: { extracted_data?: unknown }) => r.extracted_data ?? r);
           autoFormat(data, !!opts.json);
         } else {
           if (!opts.quiet) process.stderr.write(`Sift ID: ${siftId}\n`);

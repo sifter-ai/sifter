@@ -19,13 +19,9 @@ export function recordsCommand(globals: () => GlobalOpts): Command {
         const limit = parseInt(opts.limit);
         let rows: unknown[];
 
-        if (opts.filter || opts.cursor) {
-          const filter = opts.filter ? JSON.parse(opts.filter) as Record<string, unknown> : undefined;
-          const page = await sift.find({ filter, limit, cursor: opts.cursor });
-          rows = page.records;
-        } else {
-          rows = await sift.records({ limit });
-        }
+        const filter = opts.filter ? JSON.parse(opts.filter) as Record<string, unknown> : undefined;
+        const page = await sift.find({ filter, limit, cursor: opts.cursor });
+        rows = page.records;
 
         const data = rows.map(r => {
           const rec = r as Record<string, unknown>;

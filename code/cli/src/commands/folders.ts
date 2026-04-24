@@ -65,7 +65,7 @@ export function foldersCommand(globals: () => GlobalOpts): Command {
     .action(async (opts) => {
       try {
         const folders = await makeClient(globals()).listFolders(parseInt(opts.limit));
-        autoFormat(folders.map(f => ({ path: f.path, name: f.name, documents: f.document_count })), !!opts.json);
+        autoFormat(folders.map((f) => ({ path: f.path ?? "", name: f.name, documents: f.document_count })), !!opts.json);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 

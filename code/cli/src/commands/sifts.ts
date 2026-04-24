@@ -13,7 +13,7 @@ export function siftsCommand(globals: () => GlobalOpts): Command {
     .action(async (opts) => {
       try {
         const sifts = await makeClient(globals()).listSifts(parseInt(opts.limit));
-        autoFormat(sifts.map(s => ({ id: s.id, name: s.name, status: s.status })), !!opts.json);
+        autoFormat(sifts.map((s: { id: string; name: string; status: string }) => ({ id: s.id, name: s.name, status: s.status })), !!opts.json);
       } catch (e) { err(String(e)); process.exit(2); }
     });
 
