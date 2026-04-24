@@ -437,16 +437,26 @@ async def upload_document(
         raise
 
     sift_ids = await svc.collect_effective_sift_ids(folder_id)
+    is_replace = on_conflict == "replace"
 
     enqueued = []
     for sid in sift_ids:
-        await svc.create_sift_status(doc.id, sid)
+        if is_replace:
+            await svc.reset_sift_status(doc.id, sid)
+        else:
+            await svc.create_sift_status(doc.id, sid)
         await enqueue(doc.id, sid, doc.storage_path)
         enqueued.append(sid)
-        await db["sifts"].update_one(
-            {"_id": ObjectId(sid)},
-            {"$inc": {"total_documents": 1}, "$set": {"status": "indexing"}},
-        )
+        if not is_replace:
+            await db["sifts"].update_one(
+                {"_id": ObjectId(sid)},
+                {"$inc": {"total_documents": 1}, "$set": {"status": "indexing"}},
+            )
+        else:
+            await db["sifts"].update_one(
+                {"_id": ObjectId(sid)},
+                {"$set": {"status": "indexing"}},
+            )
 
     return {
         "id": doc.id,

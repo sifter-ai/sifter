@@ -401,6 +401,19 @@ class DocumentService:
         status.id = str(result.inserted_id)
         return status
 
+    async def reset_sift_status(self, document_id: str, sift_id: str) -> None:
+        """Upsert a PENDING status for a replaced document, clearing any previous result."""
+        await self.db["document_sift_statuses"].update_one(
+            {"document_id": document_id, "sift_id": sift_id},
+            {"$set": {
+                "status": DocumentSiftStatusEnum.PENDING,
+                "error_message": None,
+                "sift_record_id": None,
+                "filter_reason": None,
+            }},
+            upsert=True,
+        )
+
     # Legacy alias
     async def create_extraction_status(
         self, document_id: str, sift_id: str
