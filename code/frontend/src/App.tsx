@@ -46,6 +46,7 @@ import WebhooksSettingsPage from "@/pages/WebhooksSettingsPage";
 import FolderBrowserPage from "@/pages/FolderBrowserPage";
 import DocumentDetailPage from "@/pages/DocumentDetailPage";
 import LandingPage from "@/pages/LandingPage";
+import AcceptInvitePage from "@/pages/AcceptInvitePage";
 import EnterprisePage from "@/pages/EnterprisePage";
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
@@ -443,6 +444,7 @@ function AppRoutes() {
               {/* Public / auth callbacks */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/invite/accept" element={<AcceptInvitePage />} />
               <Route path="/s/:slug" element={<PublicViewerPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsOfServicePage />} />
@@ -463,6 +465,7 @@ function AppRoutes() {
         <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/invite/accept" element={<AcceptInvitePage />} />
         {/* Public share viewer — no auth required */}
         <Route
           path="/s/:slug"
