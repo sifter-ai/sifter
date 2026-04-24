@@ -25,8 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir uv
 
 # Install Python dependencies
+COPY code/mcp/ /app/mcp/
 WORKDIR /app/server
-COPY code/server/pyproject.toml code/server/uv.lock* ./
+COPY code/server/pyproject.toml code/server/uv.lock* code/server/README.md ./
 RUN uv sync --no-dev --frozen || uv sync --no-dev
 
 # Copy server source
