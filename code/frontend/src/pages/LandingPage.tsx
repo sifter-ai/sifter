@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.svg";
 
-const DOCS_URL = "https://sifterai.mintlify.app";
+const DOCS_URL = "https://docs.sifter.run";
 const GITHUB_URL = "https://github.com/sifter-ai/sifter";
 
 const DEMO_OUTPUT = `{
@@ -56,15 +56,15 @@ export default function LandingPage() {
           </div>
           <nav className="flex items-center gap-1">
             <a href={DOCS_URL} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+              className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               Docs
             </a>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+              className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               GitHub
             </a>
             <Link to="/login"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+              className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               Sign in
             </Link>
             <Link to="/register"
@@ -85,21 +85,21 @@ export default function LandingPage() {
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide font-mono uppercase">
                 Document intelligence, open source.
               </span>
-              <h1 className="text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
+              <h1 className="text-[2rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
                 Structure any document.<br />
                 <span className="text-primary">Query it like</span>{" "}
                 <span className="text-primary">a database.</span>
               </h1>
-              <p className="text-muted-foreground mt-5 leading-relaxed max-w-sm text-[15px]">
+              <p className="text-muted-foreground mt-5 leading-relaxed max-w-full md:max-w-sm text-[15px]">
                 Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
               </p>
-              <div className="mt-7 flex gap-3 flex-wrap">
+              <div className="mt-7 flex gap-3 flex-wrap sm:flex-nowrap">
                 <Link to="/register"
-                  className="bg-primary text-primary-foreground px-5 py-2.5 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 text-sm">
+                  className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-5 py-2.5 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 text-sm">
                   Try Sifter free <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
                 <a href={DOCS_URL + "/self-hosting/docker-compose"} target="_blank" rel="noopener noreferrer"
-                  className="border border-input px-5 py-2.5 rounded-md text-sm font-medium hover:bg-muted/60 transition-colors inline-flex items-center gap-2">
+                  className="w-full sm:w-auto justify-center border border-input px-5 py-2.5 rounded-md text-sm font-medium hover:bg-muted/60 transition-colors inline-flex items-center gap-2">
                   Self-host with Docker <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
@@ -203,7 +203,7 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center mb-10">Drop a document. Get structured data.</h2>
 
           <div className="border rounded-2xl overflow-hidden bg-card">
-            <div className="grid md:grid-cols-2 divide-x">
+            <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
               {/* Left: input */}
               <div className="p-6 flex flex-col gap-4">
                 <p className="text-[10px] font-mono text-muted-foreground tracking-[0.15em] uppercase">Input</p>
@@ -561,7 +561,7 @@ export default function LandingPage() {
                   {'      '}
                   <span className="text-amber-300">"url"</span>
                   {": "}
-                  <span className="text-emerald-400">"https://sifter.run/mcp/sk-..."</span>
+                  <span className="text-emerald-400">"https://api.sifter.run/mcp/sk-..."</span>
                   {"\n"}
                   {"    }\n"}
                   {"  }\n"}
@@ -637,7 +637,7 @@ export default function LandingPage() {
             1 extraction = 1 document processed by a sift (up to 10 pages).
           </p>
 
-          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <PricingCard name="Free" price="$0" period="forever" docs="10 extractions/mo" sifts="3 sifts" features={[
               "1 workspace",
               "Web UI",
