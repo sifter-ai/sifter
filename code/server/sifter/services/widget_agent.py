@@ -14,7 +14,7 @@ from typing import Any, Optional
 import litellm
 import structlog
 
-from ..config import config, api_kwargs
+from ..config import config, api_kwargs_for
 from .agent_tools import AGENT_TOOL_SCHEMAS, AgentToolRunner, ToolCallTrace
 
 logger = structlog.get_logger()
@@ -153,7 +153,7 @@ async def generate_widgets(
             tools=_WIDGET_TOOLS,
             tool_choice="auto",
             temperature=0.3,
-            **api_kwargs(config.dashboard_model),
+            **api_kwargs_for("dashboard"),
         )
 
         msg = response.choices[0].message

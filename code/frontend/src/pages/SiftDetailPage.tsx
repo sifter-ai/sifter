@@ -74,8 +74,7 @@ import {
 } from "@/api/extractions";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
-import type { Folder } from "@/api/types";
-import type { SiftDocument } from "@/api/types";
+import type { Folder, SchemaField, SiftDocument } from "@/api/types";
 
 function docStatusVariant(status: string) {
   switch (status) {
@@ -305,8 +304,6 @@ function LinkFolderDialog({
 }
 
 // ---------- helpers for the editorial redesign ----------
-
-type SchemaField = { name: string; type: string };
 
 function parseSchema(schema: string | null | undefined): SchemaField[] {
   if (!schema) return [];
@@ -734,7 +731,10 @@ export function SiftDetailPage() {
     ? (extraction.processed_documents / effectiveTotal) * 100
     : 0;
 
-  const schemaFields = parseSchema(extraction.schema);
+  const schemaFields: SchemaField[] =
+    extraction.schema_fields?.length
+      ? extraction.schema_fields
+      : parseSchema(extraction.schema);
   const recordCount = recordsPage?.total ?? 0;
 
   const tabTriggerClass =

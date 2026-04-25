@@ -7,6 +7,10 @@ export interface Subscription {
   plan_name: string;
   status: "active" | "past_due" | "trial" | "canceled";
   trial_end_at: string | null;
+  has_stripe_subscription: boolean;
+  pending_plan_code: string | null;
+  pending_plan_at: string | null;
+  current_period_end: string | null;
 }
 
 export interface Usage {
@@ -24,11 +28,11 @@ export const fetchSubscription = (): Promise<Subscription> =>
 export const fetchUsage = (): Promise<Usage> =>
   apiFetchJson("/api/usage");
 
-export const openBillingPortal = (): Promise<{ url: string }> =>
+export const openBillingPortal = (return_url?: string): Promise<{ url: string }> =>
   apiFetchJson("/api/billing/portal", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ return_url: window.location.href }),
+    body: JSON.stringify({ return_url: return_url ?? window.location.href }),
   });
 
 export const startCheckout = (
@@ -44,7 +48,12 @@ export const startCheckout = (
 
 export const upgradeSubscription = (
   plan_code: string
-): Promise<{ plan_code: string; status: string }> =>
+): Promise<{
+  plan_code: string;
+  status: "pending_webhook";
+  pending_plan_code?: string;
+  pending_plan_at?: string;
+}> =>
   apiFetchJson("/api/billing/upgrade", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -198,7 +207,7 @@ export const fetchAllInboundPolicies = (): Promise<{ policies: Array<{ folder_id
 // ---- Shares ----
 
 export interface Share {
-  id: string;
+  _id: string;
   title: string;
   slug: string;
   kind: "aggregation" | "chat_message" | "dashboard_view";
@@ -254,17 +263,29 @@ export const downloadSharePdf = async (id: string, title: string): Promise<void>
   URL.revokeObjectURL(url);
 };
 
-export const fetchPublicShare = (slug: string, viewJwt?: string): Promise<Share> =>
-  apiFetchJson(`/public/shares/${slug}`, {
-    headers: viewJwt ? { Authorization: `Bearer ${viewJwt}` } : {},
-  });
+export const fetchPublicShare = async (slug: string, viewJwt?: string): Promise<any> => {
+  const headers: Record<string, string> = {};
+  if (viewJwt) headers["Authorization"] = `Bearer ${viewJwt}`;
+  const res = await fetch(`/public/shares/${slug}`, { headers });
+  if (!res.ok) {
+    const err = Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+    throw err;
+  }
+  return res.json();
+};
 
-export const unlockShare = (slug: string, password: string): Promise<{ view_token: string }> =>
-  apiFetchJson(`/public/shares/${slug}/unlock`, {
+export const unlockShare = async (slug: string, password: string): Promise<{ view_token: string }> => {
+  const res = await fetch(`/public/shares/${slug}/unlock`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password }),
   });
+  if (!res.ok) {
+    const err = Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+    throw err;
+  }
+  return res.json();
+};
 
 // ---- Advanced Chat ----
 

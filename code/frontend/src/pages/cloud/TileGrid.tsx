@@ -20,6 +20,7 @@ interface TileGridProps {
   snapshots: Record<string, DashboardSnapshot>;
   onTileDelete: (tileId: string) => void;
   onTileRefresh: (tileId: string) => void;
+  onTileShare?: (tileId: string, tileTitle: string) => void;
   onBucketClick: (tileId: string, bucketKey: string, bucketValue: string) => void;
   onLayoutChange?: (layouts: Array<{ tile_id: string; x: number; y: number; w: number; h: number }>) => void;
 }
@@ -38,6 +39,7 @@ export function TileGrid({
   snapshots,
   onTileDelete,
   onTileRefresh,
+  onTileShare,
   onBucketClick,
   onLayoutChange,
 }: TileGridProps) {
@@ -120,6 +122,7 @@ export function TileGrid({
               siftName={siftNames[tile.sift_id]}
               onDelete={() => onTileDelete(tile.id)}
               onRefresh={() => onTileRefresh(tile.id)}
+              onShare={onTileShare ? () => onTileShare(tile.id, tile.title) : undefined}
               onBucketClick={(k, v) => onBucketClick(tile.id, k, v)}
             />
           </div>

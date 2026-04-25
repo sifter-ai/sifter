@@ -47,12 +47,19 @@ export interface APIKey {
 
 export type SiftStatus = "active" | "indexing" | "paused" | "error";
 
+export interface SchemaField {
+  name: string;
+  type: string;
+  nullable?: boolean;
+}
+
 export interface Sift {
   id: string;
   name: string;
   description: string;
   instructions: string;
   schema: string | null;
+  schema_fields: SchemaField[] | null;
   status: SiftStatus;
   error: string | null;
   processed_documents: number;
@@ -155,6 +162,22 @@ export interface ChatMessage {
   data?: Record<string, unknown>[] | null;
   pipeline?: Record<string, unknown>[] | null;
   trace?: ToolCallTrace[];
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionMessage {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant";
+  content: string;
+  trace: ToolCallTrace[];
+  created_at: string;
 }
 
 // ---- Folders & Documents ----

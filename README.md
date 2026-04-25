@@ -23,7 +23,7 @@ Sifter's approach: extract structured fields once (*client, date, total*), store
 ```bash
 git clone https://github.com/sifter-ai/sifter
 cd sifter/code
-cp server/.env.example server/.env    # set SIFTER_LLM_API_KEY (required)
+cp server/.env.example server/.env    # set SIFTER_DEFAULT_API_KEY (required)
 docker compose up -d
 ```
 

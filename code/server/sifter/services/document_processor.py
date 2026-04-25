@@ -176,7 +176,7 @@ async def _process_task(
         filename = Path(storage_path).name
         _use_gcs_uri = (
             isinstance(backend, GCSBackend)
-            and oss_config.llm_model.startswith("vertex_ai/")
+            and oss_config.extractor_model.startswith("vertex_ai/")
         )
         logger.info("loading_document", document_id=document_id, storage_path=storage_path)
         if _use_gcs_uri:

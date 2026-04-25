@@ -13,7 +13,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 os.environ["SIFTER_MONGODB_DATABASE"] = "sifter_test"
-os.environ.setdefault("SIFTER_LLM_API_KEY", "test-key")
+os.environ.setdefault("SIFTER_DEFAULT_API_KEY", "test-key")
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

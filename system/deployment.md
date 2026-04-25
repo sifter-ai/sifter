@@ -14,7 +14,7 @@ last-modified: "2026-04-17T00:00:00.000Z"
 Curious developers try Sifter with one command:
 
 ```bash
-docker run -p 8000:8000 -e SIFTER_LLM_API_KEY=sk-… ghcr.io/sifter-ai/sifter
+docker run -p 8000:8000 -e SIFTER_DEFAULT_API_KEY=sk-… ghcr.io/sifter-ai/sifter
 ```
 
 `ghcr.io/sifter-ai/sifter` is a multi-stage image that bundles MongoDB 7, the FastAPI server, and the built React frontend behind `supervisord`. First boot drops into a guided `/setup` screen; subsequent boots go straight to the app.
@@ -38,7 +38,7 @@ Requirements: `uv`, `docker`
 
 ```bash
 cd code/server
-cp .env.example .env   # edit SIFTER_LLM_API_KEY
+cp .env.example .env   # edit SIFTER_DEFAULT_API_KEY
 ./run.sh
 ```
 
@@ -87,7 +87,7 @@ The image starts an embedded `mongod` on `127.0.0.1:27017` with `/data/db` as db
 
 ```bash
 docker run -p 8000:8000 \
-  -e SIFTER_LLM_API_KEY=sk-… \
+  -e SIFTER_DEFAULT_API_KEY=sk-… \
   -e SIFTER_MONGODB_URI=mongodb+srv://… \
   -e SIFTER_DISABLE_EMBEDDED_MONGO=true \
   ghcr.io/sifter-ai/sifter
@@ -97,7 +97,7 @@ When `SIFTER_DISABLE_EMBEDDED_MONGO=true`, `supervisord` does not start the loca
 
 ### Required vs defaulted env
 
-On first boot only `SIFTER_LLM_API_KEY` is required. Everything else has working defaults. The container exits with a clear error when it is missing.
+On first boot only `SIFTER_DEFAULT_API_KEY` is required. Everything else has working defaults. The container exits with a clear error when it is missing.
 
 ## Docker Image
 
@@ -114,8 +114,8 @@ All variables use the `SIFTER_` prefix (via pydantic-settings).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SIFTER_LLM_API_KEY` | *(required)* | LLM provider API key |
-| `SIFTER_LLM_MODEL` | `openai/gpt-4o` | LiteLLM model string for extraction |
+| `SIFTER_DEFAULT_API_KEY` | *(required)* | LLM provider API key |
+| `SIFTER_EXTRACTOR_MODEL` | `openai/gpt-4o` | LiteLLM model string for extraction |
 | `SIFTER_PIPELINE_MODEL` | `openai/gpt-4o-mini` | Faster model for aggregation pipelines |
 | `SIFTER_MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `SIFTER_MONGODB_DATABASE` | `sifter` | Database name |

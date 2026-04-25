@@ -14,7 +14,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .api import aggregations, auth, chat, config as config_api, dashboards, documents, enterprise, sifts, folders, keys, templates, webhooks
+from .api import aggregations, auth, chat, chat_sessions, config as config_api, dashboards, documents, enterprise, sifts, folders, keys, templates, webhooks
 from .config import config
 from .db import close as close_db, get_db
 from .limiter import limiter
@@ -45,9 +45,16 @@ _worker_tasks = []
 async def lifespan(app: FastAPI):
     global _worker_tasks
     # Startup
-    if not config.llm_api_key:
-        raise RuntimeError(
-            "SIFTER_LLM_API_KEY is not set. Add your LLM provider API key to server/.env and restart."
+    if not config.default_api_key and not any(
+        getattr(config, f"{t}_api_key")
+        for t in ("extractor", "pipeline", "chat", "dashboard")
+    ):
+        logger.warning(
+            "no_llm_api_key_set",
+            message=(
+                "No LLM API key configured. Set SIFTER_DEFAULT_API_KEY or per-task keys. "
+                "Skip this if using native credentials (Vertex AI ADC, Gemini, Bedrock)."
+            ),
         )
 
     if config.api_key == "sk-dev":
@@ -56,7 +63,7 @@ async def lifespan(app: FastAPI):
             message="SIFTER_API_KEY is not set. Using insecure default 'sk-dev'. Set SIFTER_API_KEY in production.",
         )
 
-    logger.info("sifter_starting", mongodb_uri=config.mongodb_uri, model=config.llm_model)
+    logger.info("sifter_starting", mongodb_uri=config.mongodb_uri, model=config.extractor_model)
     os.makedirs(config.upload_dir, exist_ok=True)
     os.makedirs(config.storage_path, exist_ok=True)
 
@@ -128,6 +135,7 @@ app.include_router(templates.router)
 app.include_router(sifts.router)
 app.include_router(aggregations.router)
 app.include_router(chat.router)
+app.include_router(chat_sessions.router)
 app.include_router(folders.router)
 app.include_router(documents.router)
 app.include_router(webhooks.router)

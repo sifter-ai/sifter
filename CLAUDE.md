@@ -75,7 +75,7 @@ The backend serves the built frontend as static files, so `docker compose` gives
 - `sifter/db.py` — Motor async MongoDB client
 - `sifter/storage.py` — abstract file storage (filesystem / S3 / GCS)
 
-**LLM integration:** uses LiteLLM, configured via `SIFTER_LLM_API_KEY` and `SIFTER_LLM_MODEL` env vars.
+**LLM integration:** uses LiteLLM. `SIFTER_DEFAULT_MODEL/API_KEY/BASE_URL` are the fallbacks; per-agent overrides use `SIFTER_EXTRACTOR_*`, `SIFTER_PIPELINE_*`, `SIFTER_CHAT_*`, `SIFTER_DASHBOARD_*`. Empty task values fall back to the defaults.
 
 ## Frontend Architecture
 
@@ -97,8 +97,9 @@ The CLI (`cli/src/index.ts`) shells out to the TypeScript SDK via a local path r
 ## Configuration
 
 Backend requires `.env` in `code/server/` — copy from `.env.example`. Required vars:
-- `SIFTER_LLM_API_KEY` — API key for the LLM provider
-- `MONGODB_URI` — defaults to `mongodb://localhost:27017`
+- `SIFTER_DEFAULT_API_KEY` — LLM provider key (skip for native credentials like Vertex AI ADC or Gemini)
+- `SIFTER_DEFAULT_MODEL` — LiteLLM model string (e.g. `openai/gpt-4o`, `vertex_ai/gemini-2.5-flash`)
+- `SIFTER_MONGODB_URI` — defaults to `mongodb://localhost:27017`
 
 ## Cloud Extension
 

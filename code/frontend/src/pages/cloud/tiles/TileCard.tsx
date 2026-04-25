@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { DashboardTile, DashboardSnapshot } from "@/api/cloud";
+import { ShareBtn } from "@/components/cloud/ShareBtn";
 import { KpiTile } from "./KpiTile";
 import { TableTile } from "./TableTile";
 import { BarChartTile } from "./BarChartTile";
@@ -47,10 +48,11 @@ interface TileCardProps {
   siftName?: string;
   onDelete: () => void;
   onRefresh: () => void;
+  onShare?: () => void;
   onBucketClick: (bucketKey: string, bucketValue: string) => void;
 }
 
-export function TileCard({ tile, snapshot, siftName, onDelete, onRefresh, onBucketClick }: TileCardProps) {
+export function TileCard({ tile, snapshot, siftName, onDelete, onRefresh, onShare, onBucketClick }: TileCardProps) {
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const meta = KIND_META[tile.kind] ?? KIND_META.kpi;
   const Icon = meta.Icon;
@@ -90,6 +92,8 @@ export function TileCard({ tile, snapshot, siftName, onDelete, onRefresh, onBuck
           onPointerDown={stopProp}
         >
           <GripVertical className="h-3.5 w-3.5 text-muted-foreground/30 mr-0.5" aria-hidden />
+
+          {onShare && <ShareBtn onClick={onShare} size="sm" />}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

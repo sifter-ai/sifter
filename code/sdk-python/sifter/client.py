@@ -469,6 +469,52 @@ class RecordHandle:
             r.raise_for_status()
             return r.json()
 
+    def correct(self, fields: dict[str, Any]) -> dict[str, Any]:
+        """Correct one or more fields on this record.
+
+        Args:
+            fields: mapping of field_name → new_value
+
+        Returns the updated record dict.
+
+        Example::
+
+            sift.record(record_id).correct({"total": 1234, "currency": "EUR"})
+        """
+        import httpx
+        corrections = {k: {"value": v, "scope": "local"} for k, v in fields.items()}
+        with httpx.Client() as http:
+            r = http.patch(
+                f"{self._client.api_url}/api/sifts/{self._sift_id}/records/{self._record_id}",
+                headers={**self._client._auth_headers(), "Content-Type": "application/json"},
+                json={"corrections": corrections},
+            )
+            r.raise_for_status()
+            return r.json()
+
+    def reset(self, *fields: str) -> dict[str, Any]:
+        """Reset one or more fields to their original extracted value.
+
+        Args:
+            *fields: field names to reset
+
+        Returns the updated record dict.
+
+        Example::
+
+            sift.record(record_id).reset("total", "currency")
+        """
+        import httpx
+        corrections = {f: {"value": None, "scope": "reset"} for f in fields}
+        with httpx.Client() as http:
+            r = http.patch(
+                f"{self._client.api_url}/api/sifts/{self._sift_id}/records/{self._record_id}",
+                headers={**self._client._auth_headers(), "Content-Type": "application/json"},
+                json={"corrections": corrections},
+            )
+            r.raise_for_status()
+            return r.json()
+
 
 class DocumentHandle:
     """Handle to a document for accessing page images."""

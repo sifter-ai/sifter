@@ -8,7 +8,7 @@ from typing import Any, Optional
 import litellm
 import structlog
 
-from ..config import config, api_kwargs
+from ..config import config, api_kwargs_for
 from .file_processor import FileProcessor
 
 logger = structlog.get_logger()
@@ -97,7 +97,7 @@ async def extract(
     logger.info(
         "llm_extraction_start",
         filename=filename,
-        model=config.llm_model,
+        model=config.extractor_model,
         num_images=len(processed.images),
         text_chars=len(processed.text_content),
     )
@@ -105,13 +105,13 @@ async def extract(
     t0 = time.monotonic()
     try:
         response = await litellm.acompletion(
-            model=config.llm_model,
+            model=config.extractor_model,
             messages=messages,
             temperature=config.extraction_temperature,
-            **api_kwargs(config.llm_model),
+            **api_kwargs_for("extractor"),
         )
     except Exception as llm_err:
-        logger.error("extraction_llm_error", filename=filename, model=config.llm_model, error=str(llm_err))
+        logger.error("extraction_llm_error", filename=filename, model=config.extractor_model, error=str(llm_err))
         raise
     logger.info("llm_extraction_done", filename=filename, elapsed_s=round(time.monotonic() - t0, 2))
 

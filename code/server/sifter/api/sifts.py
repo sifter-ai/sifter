@@ -680,6 +680,20 @@ class CorrectionRequest(BaseModel):
     corrections: dict[str, CorrectionItem]
 
 
+async def _resolve_corrected_by(db, principal: Principal) -> str:
+    """Return the user's email if resolvable, else fall back to key_id."""
+    user_id = getattr(principal, "user_id", None) or principal.key_id
+    if not user_id or user_id in ("anonymous", "bootstrap"):
+        return user_id or "anonymous"
+    try:
+        user_doc = await db["users"].find_one({"_id": ObjectId(user_id)}, {"email": 1})
+        if user_doc and user_doc.get("email"):
+            return user_doc["email"]
+    except Exception:
+        pass
+    return user_id
+
+
 @router.patch("/{sift_id}/records/{record_id}")
 async def patch_record(
     sift_id: str,
@@ -703,6 +717,7 @@ async def patch_record(
     user_overrides = dict(doc.get("user_overrides") or {})
     corrected_fields = dict(doc.get("corrected_fields") or {})
     now = datetime.now(timezone.utc).isoformat()
+    corrected_by = await _resolve_corrected_by(db, principal)
 
     for field_name, item in body.corrections.items():
         if item.scope == "reset":
@@ -714,7 +729,7 @@ async def patch_record(
             corrected_fields[field_name] = {
                 "value": item.value,
                 "scope": item.scope,
-                "corrected_by": principal.user_id or "anonymous",
+                "corrected_by": corrected_by,
                 "corrected_at": now,
             }
             if item.scope == "rule":
@@ -810,6 +825,7 @@ async def backfill_correction_rule(
     match_value = rule_doc["match_value"]
     replace_value = rule_doc["replace_value"]
     now = datetime.now(timezone.utc).isoformat()
+    corrected_by = await _resolve_corrected_by(db, principal)
 
     # Find matching records (check both extracted_data and user_overrides)
     cursor = db["sift_results"].find({"sift_id": sift_id})
@@ -824,7 +840,7 @@ async def backfill_correction_rule(
             corrected[field_name] = {
                 "value": replace_value,
                 "scope": "rule",
-                "corrected_by": principal.user_id or "anonymous",
+                "corrected_by": corrected_by,
                 "corrected_at": now,
             }
             await db["sift_results"].update_one(

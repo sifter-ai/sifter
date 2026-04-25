@@ -153,7 +153,7 @@ export function DashboardSpecPanel({
           {/* Sifts used by tiles */}
           <div className="space-y-1.5 pt-2 border-t border-border/50">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] text-muted-foreground/70 font-mono uppercase tracking-wider">Sifts</span>
+              <span className="text-[11px] text-muted-foreground/70 font-mono uppercase tracking-wider">Scope</span>
               {usedSifts.length > 0 && (
                 <span className="text-[11px] font-semibold tabular-nums">{usedSifts.length}</span>
               )}

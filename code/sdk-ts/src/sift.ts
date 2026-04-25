@@ -359,4 +359,38 @@ export class RecordHandle {
     await assertOk(res);
     return res.json();
   }
+
+  async correct(fields: Record<string, unknown>): Promise<SiftRecord> {
+    const corrections: Record<string, { value: unknown; scope: string }> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      corrections[k] = { value: v, scope: "local" };
+    }
+    const res = await this._fetch(
+      `${this._apiUrl}/api/sifts/${this._siftId}/records/${this._recordId}`,
+      {
+        method: "PATCH",
+        headers: { ...this._headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ corrections }),
+      },
+    );
+    await assertOk(res);
+    return res.json();
+  }
+
+  async reset(...fields: string[]): Promise<SiftRecord> {
+    const corrections: Record<string, { value: null; scope: string }> = {};
+    for (const f of fields) {
+      corrections[f] = { value: null, scope: "reset" };
+    }
+    const res = await this._fetch(
+      `${this._apiUrl}/api/sifts/${this._siftId}/records/${this._recordId}`,
+      {
+        method: "PATCH",
+        headers: { ...this._headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ corrections }),
+      },
+    );
+    await assertOk(res);
+    return res.json();
+  }
 }

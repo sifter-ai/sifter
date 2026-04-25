@@ -1,8 +1,26 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowRight, CreditCard, ExternalLink, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, CreditCard, ExternalLink, Zap } from "lucide-react";
 import { fetchSubscription, fetchUsage, openBillingPortal, startCheckout, upgradeSubscription } from "@/api/cloud";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+type Notice =
+  | { kind: "success"; title: string; message: string }
+  | { kind: "error"; title: string; message: string };
+
+type PlanEntry = { code: string; name: string; price: number; docsLabel: string };
+
+type PendingAction =
+  | { type: "upgrade"; plan: PlanEntry }
+  | { type: "downgrade"; plan: PlanEntry; effectiveDate: string | null };
 
 // ─── Plan catalogue (must match plans.py) ────────────────────────────────────
 
@@ -85,11 +103,73 @@ function UsageRow({
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+function planLabel(code: string | null | undefined): string {
+  if (!code) return "";
+  return code.charAt(0).toUpperCase() + code.slice(1);
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function BillingPage() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [awaitingPlan, setAwaitingPlan] = useState<string | null>(null);
+
+  // Show a notice when returning from Stripe Checkout or portal, then clean the URL.
+  useEffect(() => {
+    const checkout = searchParams.get("checkout");
+    const portal = searchParams.get("portal");
+
+    if (checkout === "success") {
+      setNotice({
+        kind: "success",
+        title: "Subscription activated!",
+        message: "Welcome aboard. Your plan is now active — it may take a few seconds to reflect here.",
+      });
+      const poll = () => queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      poll();
+      setTimeout(poll, 2000);
+      navigate(window.location.pathname, { replace: true });
+    } else if (checkout === "canceled") {
+      setNotice({
+        kind: "error",
+        title: "Checkout cancelled",
+        message: "No charges were made. You can subscribe whenever you're ready.",
+      });
+      navigate(window.location.pathname, { replace: true });
+    } else if (portal === "return") {
+      // User returned from Stripe portal — poll a few times to catch webhook updates.
+      const poll = () => queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      poll();
+      const timers = [2000, 5000, 10000].map((ms) => setTimeout(poll, ms));
+      navigate(window.location.pathname, { replace: true });
+      return () => timers.forEach(clearTimeout);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { data: sub, isLoading: subLoading } = useQuery({
     queryKey: ["subscription"],
     queryFn: fetchSubscription,
   });
+
+  // When the subscription confirms the expected plan, replace the "in progress" notice.
+  useEffect(() => {
+    if (awaitingPlan && sub?.plan_code === awaitingPlan) {
+      setNotice({
+        kind: "success",
+        title: `You're now on ${planLabel(awaitingPlan)}`,
+        message: "Your plan has been updated and Stripe has confirmed the charge.",
+      });
+      setAwaitingPlan(null);
+    }
+  }, [sub?.plan_code, awaitingPlan]);
 
   const { data: usage } = useQuery({
     queryKey: ["usage"],
@@ -98,22 +178,57 @@ export default function BillingPage() {
   });
 
   const portalMutation = useMutation({
-    mutationFn: openBillingPortal,
+    mutationFn: () => {
+      const base = window.location.origin + window.location.pathname;
+      return openBillingPortal(`${base}?portal=return`);
+    },
     onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (err: Error) => setNotice({ kind: "error", title: "Couldn't open billing portal", message: err.message }),
   });
 
-  const hasActiveSub = sub?.status === "active" || sub?.status === "trial";
+  const hasActiveSub = sub?.has_stripe_subscription === true;
 
   // New subscribers → Stripe Checkout (new session)
   const checkoutMutation = useMutation({
-    mutationFn: (plan_code: string) =>
-      startCheckout(plan_code, window.location.href, window.location.href),
+    mutationFn: (plan_code: string) => {
+      const base = window.location.origin + window.location.pathname;
+      return startCheckout(plan_code, `${base}?checkout=success`, `${base}?checkout=canceled`);
+    },
     onSuccess: ({ checkout_url }) => { window.location.href = checkout_url; },
+    onError: (err: Error) => setNotice({ kind: "error", title: "Couldn't start checkout", message: err.message }),
   });
 
-  // Existing subscribers → modify subscription, pay only the prorated difference
+  // Existing subscribers → upgrade (immediate via Stripe.modify) or downgrade (Stripe SubscriptionSchedule).
+  // The local DB is updated by Stripe webhooks only — so we refetch a few times to catch the webhook landing.
   const upgradeMutation = useMutation({
     mutationFn: (plan_code: string) => upgradeSubscription(plan_code),
+    onSuccess: (data, plan_code) => {
+      // Webhook lands within 1-3s; invalidate now and again at 1.5s + 4s to pick up the synced state.
+      const poll = () => queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      poll();
+      setTimeout(poll, 1500);
+      setTimeout(poll, 4000);
+
+      if (data.pending_plan_code && data.pending_plan_at) {
+        setNotice({
+          kind: "success",
+          title: "Downgrade scheduled",
+          message: `Your plan will switch to ${planLabel(plan_code)} on ${formatDate(data.pending_plan_at)}. You keep your current plan and benefits until then.`,
+        });
+      } else {
+        setAwaitingPlan(plan_code);
+        setNotice({
+          kind: "success",
+          title: "Upgrade in progress…",
+          message: `Stripe is processing the charge for ${planLabel(plan_code)}. This page will update automatically.`,
+        });
+      }
+    },
+    onError: (err: Error) => setNotice({
+      kind: "error",
+      title: "Upgrade failed",
+      message: err.message || "Stripe couldn't process the change. Check your payment method in the billing portal.",
+    }),
   });
 
   const currentPlan = PLANS.find((p) => p.code === sub?.plan_code) ?? PLANS[0];
@@ -136,6 +251,18 @@ export default function BillingPage() {
   return (
     <div className="space-y-8">
 
+      {/* ── Notice (success or error from latest mutation) ─────────────────── */}
+      {notice && (
+        <Alert
+          variant={notice.kind === "error" ? "destructive" : "default"}
+          className={notice.kind === "success" ? "border-emerald-500/50 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600" : ""}
+        >
+          {notice.kind === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          <AlertTitle>{notice.title}</AlertTitle>
+          <AlertDescription>{notice.message}</AlertDescription>
+        </Alert>
+      )}
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="flex items-start gap-4">
         <div className="shrink-0 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-3 ring-1 ring-primary/10">
@@ -156,17 +283,28 @@ export default function BillingPage() {
       ) : sub ? (
         <div className={`rounded-xl ring-2 p-5 space-y-4 ${PLAN_BG[currentPlan.code]} ${PLAN_RING[currentPlan.code]}`}>
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${PLAN_DOT[currentPlan.code] ?? "bg-zinc-400"}`} />
-              <span className="text-lg font-semibold tracking-tight">{sub.plan_name}</span>
-              {(() => {
-                const s = STATUS_BADGE[sub.status];
-                return s ? (
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${s.cls}`}>
-                    {s.label}
-                  </span>
-                ) : null;
-              })()}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5">
+                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${PLAN_DOT[currentPlan.code] ?? "bg-zinc-400"}`} />
+                <span className="text-lg font-semibold tracking-tight">{sub.plan_name}</span>
+                {(() => {
+                  const s = STATUS_BADGE[sub.status];
+                  return s ? (
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${s.cls}`}>
+                      {s.label}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              {sub.current_period_end && sub.has_stripe_subscription && (
+                <p className="text-[12px] text-muted-foreground pl-[18px]">
+                  {sub.pending_plan_code === "free"
+                    ? <>Cancels on <strong>{formatDate(sub.current_period_end)}</strong></>
+                    : sub.pending_plan_code
+                    ? <>Current period ends <strong>{formatDate(sub.current_period_end)}</strong></>
+                    : <>Renews on <strong>{formatDate(sub.current_period_end)}</strong></>}
+                </p>
+              )}
             </div>
             <Button
               variant="outline"
@@ -209,18 +347,23 @@ export default function BillingPage() {
         </p>
         <div className="rounded-xl border overflow-hidden divide-y">
           {PLANS.map((plan, idx) => {
-            const isCurrent   = sub?.plan_code === plan.code;
-            const isUpgrade   = idx > currentIdx;
-            const isDowngrade = idx < currentIdx;
-            const loading     = hasActiveSub
+            const isCurrent        = sub?.plan_code === plan.code;
+            const isPendingDowngrade = sub?.pending_plan_code === plan.code;
+            const isUpgrade        = idx > currentIdx;
+            const isDowngrade      = idx < currentIdx;
+            const loading          = hasActiveSub
               ? (upgradeMutation.isPending && upgradeMutation.variables === plan.code)
               : (checkoutMutation.isPending && checkoutMutation.variables === plan.code);
+
+            const pendingDate = isPendingDowngrade && sub?.pending_plan_at
+              ? new Date(sub.pending_plan_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+              : null;
 
             return (
               <div
                 key={plan.code}
                 className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${
-                  isCurrent
+                  isCurrent || isPendingDowngrade
                     ? "bg-muted/60"
                     : "bg-card hover:bg-muted/30"
                 }`}
@@ -228,12 +371,18 @@ export default function BillingPage() {
                 {/* Dot + name */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${PLAN_DOT[plan.code] ?? "bg-zinc-400"}`} />
-                  <span className={`text-sm font-medium ${isCurrent ? "text-foreground" : "text-foreground/80"}`}>
+                  <span className={`text-sm font-medium ${isCurrent || isPendingDowngrade ? "text-foreground" : "text-foreground/80"}`}>
                     {plan.name}
                   </span>
                   {isCurrent && (
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      current
+                    <span className="inline-flex items-center leading-none rounded-full px-2 py-[3px] text-[10px] font-medium bg-muted text-muted-foreground">
+                      Current
+                    </span>
+                  )}
+                  {isPendingDowngrade && (
+                    <span className="inline-flex items-center leading-none gap-1 rounded-full px-2 py-[3px] text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                      <Clock className="h-2.5 w-2.5" />
+                      {pendingDate ? `Starts ${pendingDate}` : "Scheduled"}
                     </span>
                   )}
                 </div>
@@ -254,17 +403,19 @@ export default function BillingPage() {
 
                 {/* CTA */}
                 <div className="w-28 flex justify-end shrink-0">
-                  {isCurrent ? (
+                  {isCurrent || isPendingDowngrade ? (
                     <div className="w-full" />
                   ) : isUpgrade ? (
                     <Button
                       size="sm"
                       className="w-full gap-1 text-xs h-7"
-                      onClick={() =>
-                        hasActiveSub
-                          ? upgradeMutation.mutate(plan.code)
-                          : checkoutMutation.mutate(plan.code)
-                      }
+                      onClick={() => {
+                        if (hasActiveSub) {
+                          setPendingAction({ type: "upgrade", plan });
+                        } else {
+                          checkoutMutation.mutate(plan.code);
+                        }
+                      }}
                       disabled={upgradeMutation.isPending || checkoutMutation.isPending}
                     >
                       {loading ? (
@@ -281,9 +432,13 @@ export default function BillingPage() {
                       size="sm"
                       variant="ghost"
                       className="w-full text-xs h-7 text-muted-foreground hover:text-foreground"
-                      onClick={() =>
-                        hasActiveSub ? upgradeMutation.mutate(plan.code) : portalMutation.mutate()
-                      }
+                      onClick={() => {
+                        if (hasActiveSub) {
+                          setPendingAction({ type: "downgrade", plan, effectiveDate: sub?.current_period_end ?? null });
+                        } else {
+                          portalMutation.mutate();
+                        }
+                      }}
                       disabled={upgradeMutation.isPending || portalMutation.isPending}
                     >
                       Downgrade
@@ -324,6 +479,74 @@ export default function BillingPage() {
           All plans include a 10-page / document cap. Enterprise removes the cap and adds custom volume, SSO, BYOK, and SLA.
         </p>
       </div>
+
+      {/* ── Confirmation dialog ─────────────────────────────────────────────── */}
+      <AlertDialog open={!!pendingAction} onOpenChange={(open) => { if (!open) setPendingAction(null); }}>
+        <AlertDialogContent>
+          {pendingAction?.type === "upgrade" && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Upgrade to {pendingAction.plan.name}?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      You'll be charged <strong>${pendingAction.plan.price}/month</strong> starting now.
+                      Stripe will invoice the prorated difference for the current billing period immediately —
+                      your card on file will be charged right away.
+                    </p>
+                    <p className="text-muted-foreground">
+                      You can review all charges in the billing portal under "Invoices & payment".
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    upgradeMutation.mutate(pendingAction.plan.code);
+                    setPendingAction(null);
+                  }}
+                >
+                  Confirm upgrade
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+          {pendingAction?.type === "downgrade" && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Downgrade to {pendingAction.plan.name}?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      Your plan will stay active until the end of your current billing period
+                      {pendingAction.effectiveDate
+                        ? <> (<strong>{formatDate(pendingAction.effectiveDate)}</strong>)</>
+                        : null}
+                      , then switch to <strong>{pendingAction.plan.name} (${pendingAction.plan.price}/month)</strong>.
+                    </p>
+                    <p className="text-muted-foreground">
+                      No charge now. You keep all current plan features until the switch date.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    upgradeMutation.mutate(pendingAction.plan.code);
+                    setPendingAction(null);
+                  }}
+                >
+                  Schedule downgrade
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

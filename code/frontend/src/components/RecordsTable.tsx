@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FileText } from "lucide-react";
 import type { Citation, SiftRecord } from "@/api/types";
 import { fetchRecordsCount, reindexSift, patchRecord } from "@/api/extractions";
-import type { CorrectionItem } from "@/api/extractions";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface RecordsTableProps {
@@ -210,13 +209,24 @@ function EditableField({
   fieldName,
   value,
   onChange,
+  autoFocus,
+  onConfirm,
+  onCancel,
 }: {
   fieldName: string;
   value: unknown;
   onChange: (v: unknown) => void;
+  autoFocus?: boolean;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }) {
   const type = inferType(value);
   const strVal = value === null || value === undefined ? "" : String(value);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") { e.preventDefault(); onConfirm?.(); }
+    if (e.key === "Escape") { e.preventDefault(); onCancel?.(); }
+  };
 
   if (type === "array" || type === "object") {
     return <DetailValue value={value} />;
@@ -226,7 +236,9 @@ function EditableField({
       <select
         className="text-xs border border-input rounded px-2 py-1 bg-background"
         value={strVal}
+        autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value === "true")}
+        onKeyDown={handleKeyDown}
       >
         <option value="true">true</option>
         <option value="false">false</option>
@@ -239,7 +251,9 @@ function EditableField({
         type="number"
         className="text-xs border border-input rounded px-2 py-1 bg-background w-32 font-mono"
         value={strVal}
+        autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        onKeyDown={handleKeyDown}
       />
     );
   }
@@ -249,7 +263,9 @@ function EditableField({
         type="date"
         className="text-xs border border-input rounded px-2 py-1 bg-background font-mono"
         value={strVal}
+        autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value || null)}
+        onKeyDown={handleKeyDown}
       />
     );
   }
@@ -258,68 +274,14 @@ function EditableField({
       type="text"
       className="text-xs border border-input rounded px-2 py-1 bg-background w-full"
       value={strVal}
+      autoFocus={autoFocus}
       placeholder={`Edit ${fieldName}`}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={handleKeyDown}
     />
   );
 }
 
-type ScopeOption = "local" | "rule";
-
-function SaveDialog({
-  dirtyFields,
-  onCancel,
-  onSave,
-  saving,
-}: {
-  dirtyFields: string[];
-  onCancel: () => void;
-  onSave: (scope: ScopeOption) => void;
-  saving: boolean;
-}) {
-  const [scope, setScope] = useState<ScopeOption>("local");
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
-        <p className="font-semibold text-sm">Save corrections</p>
-        <p className="text-xs text-muted-foreground">
-          Changed fields: <span className="font-mono text-foreground">{dirtyFields.join(", ")}</span>
-        </p>
-        <div className="space-y-2">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="radio"
-              className="mt-0.5"
-              checked={scope === "local"}
-              onChange={() => setScope("local")}
-            />
-            <div>
-              <p className="text-xs font-medium">Only this record</p>
-            </div>
-          </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="radio"
-              className="mt-0.5"
-              checked={scope === "rule"}
-              onChange={() => setScope("rule")}
-            />
-            <div>
-              <p className="text-xs font-medium">This record + all future matching values</p>
-              <p className="text-[11px] text-muted-foreground">Creates a correction rule for each changed field</p>
-            </div>
-          </label>
-        </div>
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>Cancel</Button>
-          <Button size="sm" onClick={() => onSave(scope)} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function RecordDetailModal({
   record,
@@ -336,13 +298,12 @@ function RecordDetailModal({
 }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [edits, setEdits] = useState<Record<string, unknown>>({});
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!record) { setEditMode(false); setEdits({}); }
+    if (!record) { setEditingField(null); setEditValue(null); }
   }, [record]);
 
   if (!record) return null;
@@ -357,22 +318,26 @@ function RecordDetailModal({
   const correctedFields = (record as unknown as Record<string, unknown>).corrected_fields as
     Record<string, { value: unknown; corrected_by: string; corrected_at: string }> | undefined ?? {};
 
-  const dirtyFields = editMode
-    ? Object.keys(edits).filter((k) => edits[k] !== record.extracted_data[k])
-    : [];
-  const isDirty = dirtyFields.length > 0;
+  const startFieldEdit = (col: string) => {
+    setEditingField(col);
+    setEditValue(record.extracted_data[col]);
+  };
 
-  const handleSave = async (scope: ScopeOption) => {
-    if (!siftId) return;
+  const cancelFieldEdit = () => {
+    setEditingField(null);
+    setEditValue(null);
+  };
+
+  const confirmFieldEdit = async () => {
+    if (!editingField || !siftId) return;
     setSaving(true);
     try {
-      const corrections: Record<string, CorrectionItem> = {};
-      dirtyFields.forEach((f) => { corrections[f] = { value: edits[f], scope }; });
-      const updated = await patchRecord(siftId, record.id, corrections);
+      const updated = await patchRecord(siftId, record.id, {
+        [editingField]: { value: editValue, scope: "local" },
+      });
       onRecordUpdated?.(updated);
-      setEditMode(false);
-      setEdits({});
-      setShowSaveDialog(false);
+      setEditingField(null);
+      setEditValue(null);
     } catch {
       // ignore
     } finally {
@@ -390,33 +355,13 @@ function RecordDetailModal({
     }
   };
 
-  const startEdit = () => {
-    setEdits({ ...record.extracted_data });
-    setEditMode(true);
-  };
-
-  const cancelEdit = () => {
-    setEdits({});
-    setEditMode(false);
-  };
-
   return (
     <>
       <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader className="pb-2">
             <DialogTitle className="flex items-start justify-between gap-3 text-base pr-6">
               <span className="truncate">{record.filename || record.document_id}</span>
-              {siftId && (
-                <button
-                  type="button"
-                  title={editMode ? "Cancel edit" : "Edit record"}
-                  onClick={editMode ? cancelEdit : startEdit}
-                  className={`shrink-0 transition-colors ${editMode ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )}
             </DialogTitle>
             {record.document_type && (
               <div className="flex items-center gap-2 flex-wrap pt-1">
@@ -432,65 +377,87 @@ function RecordDetailModal({
           <div className="space-y-0 divide-y divide-border/50">
             {columns.map((col) => {
               const citation = record.citations?.[col];
-              const isEdited = !!correctedFields[col] && !editMode;
+              const isEdited = !!correctedFields[col];
               const correction = correctedFields[col];
               const type = inferType(record.extracted_data[col]);
               const isScalar = type !== "array" && type !== "object";
-              const isDirtyField = editMode && edits[col] !== record.extracted_data[col];
+              const isEditing = editingField === col;
+              const isDirtyField = isEditing && editValue !== record.extracted_data[col];
 
               return (
                 <div
                   key={col}
-                  className={`py-3 grid grid-cols-[160px_1fr] gap-4 items-start ${isDirtyField ? "bg-amber-50/50 dark:bg-amber-950/10 -mx-1 px-1 rounded" : ""}`}
+                  className={`py-3 grid grid-cols-[160px_1fr] gap-4 items-start group ${isDirtyField ? "bg-amber-50/50 dark:bg-amber-950/10 -mx-1 px-1 rounded" : ""}`}
                 >
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-0.5 truncate">
                     {col.replace(/_/g, " ")}
                   </span>
                   <div className="text-sm min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      {editMode && isScalar ? (
-                        <EditableField
-                          fieldName={col}
-                          value={edits[col]}
-                          onChange={(v) => setEdits((prev) => ({ ...prev, [col]: v }))}
-                        />
+                      {isEditing ? (
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <EditableField
+                              fieldName={col}
+                              value={editValue}
+                              onChange={setEditValue}
+                              autoFocus
+                              onConfirm={confirmFieldEdit}
+                              onCancel={cancelFieldEdit}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                            <button
+                              onClick={confirmFieldEdit}
+                              title="Save"
+                              disabled={saving}
+                              className="text-emerald-600 hover:text-emerald-700 transition-colors disabled:opacity-40"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={cancelFieldEdit}
+                              title="Cancel"
+                              disabled={saving}
+                              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <DetailValue value={record.extracted_data[col]} />
-                      )}
-                      {!editMode && (
-                        <CitationBadge
-                          citation={citation}
-                          isEdited={isEdited}
-                          onReset={isEdited ? () => handleReset(col) : undefined}
-                        />
+                        <>
+                          <DetailValue value={record.extracted_data[col]} />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <CitationBadge
+                              citation={citation}
+                              isEdited={isEdited}
+                              onReset={isEdited ? () => handleReset(col) : undefined}
+                            />
+                            {siftId && isScalar && !editingField && (
+                              <button
+                                onClick={() => startFieldEdit(col)}
+                                title="Edit field"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
-                    {!editMode && isEdited && correction && (
+                    {!isEditing && isEdited && correction && (
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         Corrected by {correction.corrected_by} · {new Date(correction.corrected_at).toLocaleDateString()}
                       </p>
                     )}
-                    {!editMode && !isEdited && citation?.source_text && <SnippetBlock citation={citation} />}
+                    {!isEditing && !isEdited && citation?.source_text && <SnippetBlock citation={citation} />}
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {editMode && (
-            <div className="pt-3 flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={cancelEdit}>Cancel</Button>
-              <Button
-                size="sm"
-                disabled={!isDirty}
-                onClick={() => setShowSaveDialog(true)}
-                className="gap-1"
-              >
-                <Check className="h-3.5 w-3.5" />
-                Save corrections
-              </Button>
-            </div>
-          )}
 
           <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Metadata</p>
@@ -527,14 +494,6 @@ function RecordDetailModal({
         </DialogContent>
       </Dialog>
 
-      {showSaveDialog && (
-        <SaveDialog
-          dirtyFields={dirtyFields}
-          onCancel={() => setShowSaveDialog(false)}
-          onSave={handleSave}
-          saving={saving}
-        />
-      )}
     </>
   );
 }

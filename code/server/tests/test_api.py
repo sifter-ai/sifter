@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 # Use a test database
 os.environ["SIFTER_MONGODB_DATABASE"] = "sifter_test"
-os.environ.setdefault("SIFTER_LLM_API_KEY", "test-key")
+os.environ.setdefault("SIFTER_DEFAULT_API_KEY", "test-key")
 
 # All tests in this module share the session event loop
 pytestmark = pytest.mark.asyncio(loop_scope="session")

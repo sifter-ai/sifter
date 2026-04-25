@@ -11,7 +11,7 @@ Or run the full stack with Docker Compose:
 ```bash
 git clone https://github.com/bfortunato/sifter
 cd sifter/code
-cp .env.example .env   # set SIFTER_LLM_API_KEY
+cp .env.example .env   # set SIFTER_DEFAULT_API_KEY
 docker compose up -d
 ```
 

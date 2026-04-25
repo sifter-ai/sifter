@@ -136,6 +136,26 @@ citations = record_handle.citations()
 
 See [Citations](/concepts/citations) for the full shape.
 
+## Record corrections
+
+Override extracted values and reset them to the original extraction when needed.
+
+```python
+record = sift.record("rec-abc123")
+
+# Correct one or more fields — returns the updated record dict
+updated = record.correct({"total": 1234.50, "currency": "EUR"})
+
+# Reset one or more fields back to the original extracted value
+updated = record.reset("total", "currency")
+```
+
+`correct()` stores corrections with scope `"local"` (only this record). The corrected values are reflected immediately in the record's `extracted_data` and are visible in the UI.
+
+<Info>
+Corrections are tracked with the identity of the caller (API key or user). The UI shows who corrected a field and when.
+</Info>
+
 ## Page images
 
 Render a document page as PNG bytes:

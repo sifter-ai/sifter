@@ -37,13 +37,18 @@ function parseSchemaFields(schema: string | null): { name: string; type: string 
 }
 
 function typeColor(type: string) {
-  switch (type) {
-    case "number": return "text-blue-600 bg-blue-50 border-blue-100";
-    case "boolean": return "text-violet-600 bg-violet-50 border-violet-100";
-    case "array": return "text-orange-600 bg-orange-50 border-orange-100";
-    case "object": return "text-pink-600 bg-pink-50 border-pink-100";
-    default: return "text-slate-600 bg-slate-50 border-slate-200";
-  }
+  const t = type.toLowerCase();
+  if (/\b(int|integer|number|float|decimal|numeric|long|double)\b/.test(t))
+    return "text-blue-600 bg-blue-50 border-blue-100";
+  if (/\b(bool|boolean)\b/.test(t))
+    return "text-violet-600 bg-violet-50 border-violet-100";
+  if (/\b(date|datetime|time|timestamp)\b/.test(t))
+    return "text-amber-600 bg-amber-50 border-amber-100";
+  if (/\b(array|list)\b/.test(t))
+    return "text-orange-600 bg-orange-50 border-orange-100";
+  if (/\b(object|json|dict|map)\b/.test(t))
+    return "text-pink-600 bg-pink-50 border-pink-100";
+  return "text-slate-600 bg-slate-50 border-slate-200";
 }
 
 function StatusDot({ status }: { status: string }) {
@@ -79,7 +84,9 @@ function formatDate(iso: string) {
 }
 
 function SiftCard({ sift, onClick }: { sift: Sift; onClick: () => void }) {
-  const fields = parseSchemaFields(sift.schema);
+  const fields = sift.schema_fields?.length
+    ? sift.schema_fields
+    : parseSchemaFields(sift.schema);
   const isIndexing = sift.status === "indexing";
   const progress =
     sift.total_documents > 0

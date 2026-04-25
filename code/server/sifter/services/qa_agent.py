@@ -9,7 +9,7 @@ from typing import Any, Optional
 import litellm
 import structlog
 
-from ..config import config, api_kwargs
+from ..config import config, api_kwargs_for
 from .agent_tools import AGENT_TOOL_SCHEMAS, AgentToolRunner, ToolCallTrace
 
 logger = structlog.get_logger()
@@ -69,7 +69,7 @@ async def chat(
             tools=AGENT_TOOL_SCHEMAS,
             tool_choice="auto",
             temperature=0.3,
-            **api_kwargs(config.chat_model),
+            **api_kwargs_for("chat"),
         )
 
         msg = response.choices[0].message

@@ -27,11 +27,14 @@ import {
   updateDashboardLayout,
   updateDashboard,
   deleteDashboard,
+  type Share,
 } from "@/api/cloud";
 import { TileGrid } from "./TileGrid";
 import { DrillDownPanel } from "./DrillDownPanel";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DashboardSpecPanel } from "./DashboardSpecPanel";
+import { ShareBtn } from "@/components/cloud/ShareBtn";
+import { ShareDialog } from "@/components/cloud/ShareDialog";
 
 interface DrillDownState {
   tileId: string;
@@ -52,6 +55,7 @@ export default function DashboardPage() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [shareTarget, setShareTarget] = useState<{ id: string; title: string; kind: Share["kind"] } | null>(null);
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ["dashboard", dashboardId],
@@ -189,6 +193,7 @@ export default function DashboardPage() {
 
             {/* Actions — same pattern as SiftDetailPage */}
             <div className="flex items-center gap-2 shrink-0">
+              <ShareBtn onClick={() => setShareTarget({ id: dashboardId!, title: dashboard.name, kind: "dashboard_view" })} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="h-9 w-9" title="More actions">
@@ -242,6 +247,7 @@ export default function DashboardPage() {
               snapshots={dashboard.snapshots ?? {}}
               onTileDelete={(id) => setDeleteTileId(id)}
               onTileRefresh={(id) => refreshTileMutation.mutate(id)}
+              onTileShare={(id, title) => setShareTarget({ id, title, kind: "aggregation" })}
               onBucketClick={handleBucketClick}
               onLayoutChange={(layouts) => layoutMutation.mutate(layouts)}
             />
@@ -326,6 +332,14 @@ export default function DashboardPage() {
         destructive
         loading={deleteDashboardMutation.isPending}
         onConfirm={() => deleteDashboardMutation.mutate()}
+      />
+
+      <ShareDialog
+        open={!!shareTarget}
+        onOpenChange={(v) => { if (!v) setShareTarget(null); }}
+        title={shareTarget?.title ?? ""}
+        kind={shareTarget?.kind ?? "dashboard_view"}
+        sourceId={shareTarget?.id ?? ""}
       />
     </div>
   );

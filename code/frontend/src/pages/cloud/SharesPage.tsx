@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Link2, Trash2 } from "lucide-react";
-import { fetchShares, revokeShare, deleteShare, type Share } from "@/api/cloud";
+import { Check, Copy, Trash2 } from "lucide-react";
+import { fetchShares, deleteShare, type Share } from "@/api/cloud";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const KIND_LABELS: Record<string, string> = {
   aggregation: "Aggregation",
@@ -20,12 +21,9 @@ const ACCESS_VARIANTS: Record<string, string> = {
 export default function SharesPage() {
   const qc = useQueryClient();
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Share | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["shares"], queryFn: fetchShares });
 
-  const revokeMutation = useMutation({
-    mutationFn: revokeShare,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["shares"] }),
-  });
   const deleteMutation = useMutation({
     mutationFn: deleteShare,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["shares"] }),
@@ -60,7 +58,7 @@ export default function SharesPage() {
             </thead>
             <tbody>
               {shares.map((s: Share) => (
-                <tr key={s.id} className="border-t hover:bg-muted/30">
+                <tr key={s._id} className="border-t hover:bg-muted/30">
                   <td className="px-3 py-2 font-medium">{s.title}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className="text-xs">{KIND_LABELS[s.kind] ?? s.kind}</Badge>
@@ -77,10 +75,7 @@ export default function SharesPage() {
                           ? <Check className="h-3.5 w-3.5 text-emerald-500" />
                           : <Copy className="h-3.5 w-3.5" />}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => revokeMutation.mutate(s.id)} title="Revoke">
-                        <Link2 className="h-3.5 w-3.5 text-amber-600" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(s.id)} title="Delete">
+                      <Button variant="ghost" size="sm" onClick={() => setPendingDelete(s)} title="Delete">
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>
@@ -91,6 +86,26 @@ export default function SharesPage() {
           </table>
         </div>
       )}
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete share?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.title}" will be permanently deleted. Anyone with the link will no longer be able to access it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { deleteMutation.mutate(pendingDelete!._id); setPendingDelete(null); }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

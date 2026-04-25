@@ -26,6 +26,8 @@ import {
 } from "@/api/cloud";
 import { fetchSifts } from "@/api/extractions";
 import { BlockRenderer } from "@/components/cloud/BlockRenderer";
+import { ShareBtn } from "@/components/cloud/ShareBtn";
+import { ShareDialog } from "@/components/cloud/ShareDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -138,7 +140,7 @@ function AgentSteps({ steps }: { steps: NonNullable<ChatMessageCloud["steps"]> }
   );
 }
 
-function MessageBubble({ msg }: { msg: ChatMessageCloud }) {
+function MessageBubble({ msg, onShare }: { msg: ChatMessageCloud; onShare?: () => void }) {
   if (msg.role === "user") {
     return (
       <div className="flex justify-end">
@@ -149,7 +151,7 @@ function MessageBubble({ msg }: { msg: ChatMessageCloud }) {
     );
   }
   return (
-    <div className="flex gap-3">
+    <div className="group flex gap-3">
       <AssistantAvatar />
       <div className="flex-1 min-w-0 space-y-3 pt-0.5">
         {msg.steps && msg.steps.length > 0 && <AgentSteps steps={msg.steps} />}
@@ -168,6 +170,11 @@ function MessageBubble({ msg }: { msg: ChatMessageCloud }) {
             <BlockRenderer block={block} />
           </div>
         ))}
+        {onShare && (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+            <ShareBtn onClick={onShare} size="sm" />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -253,6 +260,7 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedSiftIds] = useState<string[]>(siftId ? [siftId] : []);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [shareMsg, setShareMsg] = useState<{ id: string; content: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
@@ -582,7 +590,13 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
                     />
                   )}
                   {messages.map((msg) => (
-                    <MessageBubble key={msg.id} msg={msg} />
+                    <MessageBubble
+                      key={msg.id}
+                      msg={msg}
+                      onShare={msg.role === "assistant" && msg.id && !msg.id.startsWith("tmp_")
+                        ? () => setShareMsg({ id: msg.id, content: msg.content ?? "" })
+                        : undefined}
+                    />
                   ))}
                   {isTyping && <TypingDots />}
                   <div ref={bottomRef} />
@@ -622,6 +636,14 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
         destructive
         loading={deleteMutation.isPending}
         onConfirm={() => deleteSessionId && deleteMutation.mutate(deleteSessionId)}
+      />
+
+      <ShareDialog
+        open={!!shareMsg}
+        onOpenChange={(v) => { if (!v) setShareMsg(null); }}
+        title={shareMsg?.content?.slice(0, 60) ?? "Chat result"}
+        kind="chat_message"
+        sourceId={shareMsg?.id ?? ""}
       />
     </div>
   );

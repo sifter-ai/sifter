@@ -10,22 +10,33 @@ class SifterConfig(BaseSettings):
     mongodb_database: str = "sifter"
 
     # AI Provider (via LiteLLM)
-    # `default_model` is the single fallback used when a task-specific model is
-    # not set. Set task-specific overrides only when you need a different model
-    # for that concern (e.g. a vision-capable model for extraction).
+    # `default_model` is the fallback when a task-specific model is not set.
+    # `default_api_key` / `default_base_url` are the fallbacks when a task-specific
+    # api_key / base_url is not set.
     default_model: str = "vertex_ai/gemini-2.5-flash"
-    llm_api_key: str = ""
-    llm_base_url: str = ""  # e.g. https://api.fireworks.ai/inference/v1
+    default_api_key: str = ""
+    default_base_url: str = ""   # e.g. https://api.fireworks.ai/inference/v1
 
-    # Task-specific models. Empty string ⇒ fall back to `default_model`.
-    llm_model: str = ""          # extraction (PDFs/images → structured data)
-    pipeline_model: str = ""     # NL query → MongoDB aggregation pipeline
-    chat_model: str = ""         # conversational Q&A agent
-    dashboard_model: str = ""    # dashboard widget-generation agent
+    # Per-task overrides. Empty string ⇒ fall back to the corresponding default_*.
+    extractor_model: str = ""        # extraction (PDFs/images → structured data)
+    extractor_api_key: str = ""
+    extractor_base_url: str = ""
+
+    pipeline_model: str = ""         # NL query → MongoDB aggregation pipeline
+    pipeline_api_key: str = ""
+    pipeline_base_url: str = ""
+
+    chat_model: str = ""             # conversational Q&A agent
+    chat_api_key: str = ""
+    chat_base_url: str = ""
+
+    dashboard_model: str = ""        # dashboard widget-generation agent
+    dashboard_api_key: str = ""
+    dashboard_base_url: str = ""
 
     def model_post_init(self, __context) -> None:
         # Resolve empty task models to the default, so call sites can just read them.
-        for name in ("llm_model", "pipeline_model", "chat_model", "dashboard_model"):
+        for name in ("extractor_model", "pipeline_model", "chat_model", "dashboard_model"):
             if not getattr(self, name):
                 object.__setattr__(self, name, self.default_model)
 
@@ -115,18 +126,18 @@ def _uses_native_credentials(model: str) -> bool:
     return any(model.startswith(p) for p in _NATIVE_CREDENTIAL_PREFIXES)
 
 
-def api_kwargs(model: str) -> dict:
-    """Return api_key / api_base kwargs for litellm only when relevant."""
+def api_kwargs_for(task: str) -> dict:
+    """Return api_key / api_base kwargs for litellm for the given task.
+
+    Resolves: task-specific value → default value → omit (native credentials).
+    Tasks: extractor, pipeline, chat, dashboard.
+    """
+    model: str = getattr(config, f"{task}_model")
     if _uses_native_credentials(model):
         return {}
-    return {
-        k: v
-        for k, v in {
-            "api_key": config.llm_api_key or None,
-            "api_base": config.llm_base_url or None,
-        }.items()
-        if v is not None
-    }
+    api_key = getattr(config, f"{task}_api_key") or config.default_api_key or None
+    base_url = getattr(config, f"{task}_base_url") or config.default_base_url or None
+    return {k: v for k, v in {"api_key": api_key, "api_base": base_url}.items() if v is not None}
 
 
 _normalise_cors_env()

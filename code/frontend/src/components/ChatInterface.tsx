@@ -229,9 +229,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             <Markdown>{message.content}</Markdown>
           </div>
         )}
-        {message.data && message.data.length > 0 && (
-          <DataTable data={message.data as Record<string, unknown>[]} />
-        )}
       </div>
     </div>
   );

@@ -5,27 +5,88 @@ description: Full reference for all SIFTER_* environment variables.
 
 # Configuration
 
-All settings use the `SIFTER_` prefix and can be set in `code/.env` or as environment variables.
+All settings use the `SIFTER_` prefix and can be set in `code/server/.env` or as environment variables passed to the process / container.
 
-## LLM
+## LLM — default (fallback)
+
+These values are used for any agent that does not have a task-specific override set.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SIFTER_LLM_API_KEY` | *(required)* | API key for your LLM provider |
-| `SIFTER_LLM_MODEL` | `openai/gpt-4o` | LiteLLM model string for extraction |
-| `SIFTER_PIPELINE_MODEL` | `openai/gpt-4o-mini` | Faster model for aggregation pipelines |
+| `SIFTER_DEFAULT_MODEL` | `vertex_ai/gemini-2.5-flash` | LiteLLM model string used by all agents unless overridden. Examples: `openai/gpt-4o`, `anthropic/claude-opus-4-7`, `gemini/gemini-2.5-flash` |
+| `SIFTER_DEFAULT_API_KEY` | `""` | API key for the default provider. Leave empty when using native credentials (Vertex AI ADC, Bedrock IAM, etc.) |
+| `SIFTER_DEFAULT_BASE_URL` | `""` | Custom base URL for OpenAI-compatible endpoints (e.g. `https://api.fireworks.ai/inference/v1`) |
+
+## LLM — per-agent overrides
+
+Each agent can use a different model, API key, and base URL. Leave any field empty to inherit the corresponding `SIFTER_DEFAULT_*` value.
+
+### Extraction agent
+
+Converts documents (PDF, images, text) into structured records. Use a vision-capable model for scanned documents.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_EXTRACTOR_MODEL` | *(inherits default)* | Model for document extraction |
+| `SIFTER_EXTRACTOR_API_KEY` | *(inherits default)* | API key override |
+| `SIFTER_EXTRACTOR_BASE_URL` | *(inherits default)* | Base URL override |
+
+### Pipeline agent
+
+Translates natural-language queries into MongoDB aggregation pipelines. A fast, cheap model works well here.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_PIPELINE_MODEL` | *(inherits default)* | Model for pipeline generation |
+| `SIFTER_PIPELINE_API_KEY` | *(inherits default)* | API key override |
+| `SIFTER_PIPELINE_BASE_URL` | *(inherits default)* | Base URL override |
+
+### Chat agent
+
+Powers the conversational Q&A interface that lets users explore records in natural language.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_CHAT_MODEL` | *(inherits default)* | Model for chat |
+| `SIFTER_CHAT_API_KEY` | *(inherits default)* | API key override |
+| `SIFTER_CHAT_BASE_URL` | *(inherits default)* | Base URL override |
+
+### Dashboard agent
+
+Generates dashboard widget specs (KPIs, charts, tables) from a natural-language prompt.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SIFTER_DASHBOARD_MODEL` | *(inherits default)* | Model for dashboard generation |
+| `SIFTER_DASHBOARD_API_KEY` | *(inherits default)* | API key override |
+| `SIFTER_DASHBOARD_BASE_URL` | *(inherits default)* | Base URL override |
+
+## LLM — extraction tuning
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `SIFTER_EXTRACTION_TEMPERATURE` | `0.2` | Temperature for extraction calls |
-| `SIFTER_MAX_CONCURRENT_EXTRACTIONS` | `5` | Max parallel LLM calls |
+| `SIFTER_MAX_CONCURRENT_EXTRACTIONS` | `5` | Max parallel LLM calls during batch processing |
+
+## Native-credential providers
+
+Some providers authenticate via environment or service account rather than an API key.
+
+| Provider | How to configure |
+|----------|-----------------|
+| **Vertex AI** | Set `GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json` (or use Workload Identity). `SIFTER_DEFAULT_API_KEY` is ignored. |
+| **Gemini (AI Studio)** | Set `GEMINI_API_KEY=AIza...` *or* `SIFTER_EXTRACTOR_API_KEY`. |
+| **Amazon Bedrock** | Configure AWS credentials via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / instance role. |
 
 ## Auth
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SIFTER_API_KEY` | `sk-dev` | Bootstrap API key — **change in production** |
-| `SIFTER_REQUIRE_API_KEY` | `false` | If true, all requests require `X-API-Key` |
+| `SIFTER_REQUIRE_API_KEY` | `false` | If `true`, all requests require `X-API-Key` header |
 | `SIFTER_JWT_SECRET` | `dev-secret-...` | JWT signing secret — **change in production** |
-| `SIFTER_JWT_EXPIRE_MINUTES` | `1440` | JWT TTL (24h) |
-| `SIFTER_GOOGLE_CLIENT_ID` | `""` | Enable Google OAuth (leave empty to disable) |
+| `SIFTER_JWT_EXPIRE_MINUTES` | `1440` | JWT TTL in minutes (default 24 h) |
+| `SIFTER_GOOGLE_CLIENT_ID` | `""` | Enable Google OAuth sign-in (leave empty to disable) |
 
 ## Database
 
@@ -39,10 +100,11 @@ All settings use the `SIFTER_` prefix and can be set in `code/.env` or as enviro
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SIFTER_STORAGE_BACKEND` | `filesystem` | `filesystem` \| `s3` \| `gcs` |
-| `SIFTER_STORAGE_PATH` | `./uploads` | Base path for filesystem storage |
-| `SIFTER_MAX_FILE_SIZE_MB` | `50` | Maximum upload size |
+| `SIFTER_STORAGE_PATH` | `./uploads` | Base path for local filesystem storage |
+| `SIFTER_MAX_FILE_SIZE_MB` | `50` | Maximum upload size in MB |
+| `SIFTER_MAX_PDF_PAGES` | `10` | PDFs with more pages are rejected (split them first) |
 
-## S3 / S3-compatible
+### S3 / S3-compatible
 
 Used when `SIFTER_STORAGE_BACKEND=s3`.
 
@@ -50,11 +112,11 @@ Used when `SIFTER_STORAGE_BACKEND=s3`.
 |----------|---------|-------------|
 | `SIFTER_S3_BUCKET` | `""` | Bucket name |
 | `SIFTER_S3_REGION` | `us-east-1` | AWS region |
-| `SIFTER_S3_ACCESS_KEY_ID` | `""` | Access key |
-| `SIFTER_S3_SECRET_ACCESS_KEY` | `""` | Secret key |
-| `SIFTER_S3_ENDPOINT_URL` | `""` | Custom endpoint (MinIO, Cloudflare R2, etc.) |
+| `SIFTER_S3_ACCESS_KEY_ID` | `""` | Access key ID |
+| `SIFTER_S3_SECRET_ACCESS_KEY` | `""` | Secret access key |
+| `SIFTER_S3_ENDPOINT_URL` | `""` | Custom endpoint for MinIO, Cloudflare R2, etc. (empty = AWS) |
 
-## Google Cloud Storage
+### Google Cloud Storage
 
 Used when `SIFTER_STORAGE_BACKEND=gcs`.
 
@@ -62,7 +124,7 @@ Used when `SIFTER_STORAGE_BACKEND=gcs`.
 |----------|---------|-------------|
 | `SIFTER_GCS_BUCKET` | `""` | Bucket name |
 | `SIFTER_GCS_PROJECT` | `""` | GCP project ID |
-| `SIFTER_GCS_CREDENTIALS_FILE` | `""` | Path to service account JSON (empty = Application Default Credentials) |
+| `SIFTER_GCS_CREDENTIALS_FILE` | `""` | Path to service account JSON. Empty = Application Default Credentials |
 
 ## Workers and server
 
@@ -71,10 +133,11 @@ Used when `SIFTER_STORAGE_BACKEND=gcs`.
 | `SIFTER_MAX_WORKERS` | `4` | Concurrent document processing workers |
 | `SIFTER_HOST` | `0.0.0.0` | Bind address |
 | `SIFTER_PORT` | `8000` | Server port |
-| `SIFTER_CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed CORS origins (JSON array or comma-separated) |
+| `SIFTER_CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed CORS origins — JSON array or comma-separated list |
+| `SIFTER_DEBUG_LLM` | `false` | Log full LLM request/response exchanges to stdout |
 
 ## Enterprise
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SIFTER_SALES_EMAIL` | `""` | If set, enterprise contact form sends a notification email |
+| `SIFTER_SALES_EMAIL` | `""` | If set, the enterprise contact form sends a notification email here |
