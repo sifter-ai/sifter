@@ -56,6 +56,7 @@ class Document(BaseModel):
     size_bytes: int
     uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     storage_path: str
+    org_id: str = "default"
 
     model_config = {"populate_by_name": True, "arbitrary_types_allowed": True}
 
