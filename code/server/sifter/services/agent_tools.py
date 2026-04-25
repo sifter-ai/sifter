@@ -117,6 +117,7 @@ class ToolCallTrace:
     args: dict[str, Any]
     result_preview: str
     duration_ms: int
+    result: Any = None
 
 
 class AgentToolRunner:
@@ -133,7 +134,7 @@ class AgentToolRunner:
         result = await self._dispatch(name, args)
         duration_ms = (time.monotonic_ns() - t0) // 1_000_000
         preview = _make_preview(name, result)
-        return result, ToolCallTrace(tool=name, args=args, result_preview=preview, duration_ms=duration_ms)
+        return result, ToolCallTrace(tool=name, args=args, result_preview=preview, duration_ms=duration_ms, result=result)
 
     async def _dispatch(self, name: str, args: dict) -> Any:
         if name == "list_sifts":

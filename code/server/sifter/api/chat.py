@@ -28,6 +28,7 @@ class ToolCallTraceOut(BaseModel):
     args: dict[str, Any]
     result_preview: str
     duration_ms: int
+    result: Optional[Any] = None
 
 
 class ChatResponse(BaseModel):
@@ -67,6 +68,7 @@ async def chat(
                 args=t.args,
                 result_preview=t.result_preview,
                 duration_ms=t.duration_ms,
+                result=t.result,
             )
             for t in result.trace
         ],

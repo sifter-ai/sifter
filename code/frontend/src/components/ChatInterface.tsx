@@ -81,26 +81,6 @@ function DataTable({ data }: { data: Record<string, unknown>[] }) {
   );
 }
 
-function PipelineToggle({ pipeline }: { pipeline: Record<string, unknown>[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70 hover:text-foreground transition-colors"
-      >
-        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        View pipeline
-      </button>
-      {open && (
-        <pre className="mt-2 text-[11px] bg-muted/40 text-foreground/80 p-3 rounded-lg overflow-x-auto font-mono border border-border/50">
-          {JSON.stringify(pipeline, null, 2)}
-        </pre>
-      )}
-    </div>
-  );
-}
-
 const TOOL_LABELS: Record<string, string> = {
   list_sifts: "Listed sifts",
   get_sift: "Got sift info",
@@ -110,34 +90,67 @@ const TOOL_LABELS: Record<string, string> = {
   find_records: "Filtered records",
 };
 
+function TraceItem({ trace, index }: { trace: ToolCallTrace; index: number }) {
+  const [open, setOpen] = useState(false);
+  const label = TOOL_LABELS[trace.tool] ?? trace.tool;
+  const siftSuffix = trace.args["sift_id"] ? String(trace.args["sift_id"]).slice(-6) : null;
+  const hasDetail = Object.keys(trace.args).length > 0 || trace.result !== undefined;
+
+  return (
+    <li className="rounded-lg border border-border/50 bg-muted/30 text-xs overflow-hidden">
+      <button
+        onClick={() => hasDetail && setOpen((o) => !o)}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left ${hasDetail ? "hover:bg-muted/50 transition-colors" : ""}`}
+      >
+        <span className="font-mono text-[10px] font-semibold text-muted-foreground/60 tabular-nums w-5 shrink-0">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        {hasDetail ? (
+          open
+            ? <ChevronDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+            : <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+        ) : (
+          <Wrench className="h-3 w-3 text-amber-500/80 shrink-0" strokeWidth={2.25} />
+        )}
+        <span className="font-medium text-foreground/90 truncate">{label}</span>
+        {siftSuffix && (
+          <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">· {siftSuffix}</span>
+        )}
+        <span className="ml-auto flex items-center gap-1.5 shrink-0">
+          <span className="font-mono text-[10px] text-muted-foreground/50 tabular-nums">{trace.duration_ms}ms</span>
+          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-border/40 divide-y divide-border/40">
+          {Object.keys(trace.args).length > 0 && (
+            <div className="px-3 py-2 space-y-1">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/50">Request</span>
+              <pre className="text-[11px] text-foreground/80 overflow-x-auto font-mono leading-relaxed">
+                {JSON.stringify(trace.args, null, 2)}
+              </pre>
+            </div>
+          )}
+          {trace.result !== undefined && (
+            <div className="px-3 py-2 space-y-1">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/50">Response</span>
+              <pre className="text-[11px] text-foreground/80 overflow-x-auto font-mono leading-relaxed max-h-64 overflow-y-auto">
+                {JSON.stringify(trace.result, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
 function TraceList({ traces }: { traces: ToolCallTrace[] }) {
   if (!traces.length) return null;
   return (
     <ol className="flex flex-col gap-1.5 mb-2">
-      {traces.map((trace, i) => {
-        const label = TOOL_LABELS[trace.tool] ?? trace.tool;
-        const siftSuffix = trace.args["sift_id"] ? String(trace.args["sift_id"]).slice(-6) : null;
-        return (
-          <li
-            key={i}
-            className="group flex items-center gap-2.5 rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs"
-            style={{ animationDelay: `${i * 60}ms` }}
-          >
-            <span className="font-mono text-[10px] font-semibold text-muted-foreground/60 tabular-nums w-5 shrink-0">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <Wrench className="h-3 w-3 text-amber-500/80 shrink-0" strokeWidth={2.25} />
-            <span className="font-medium text-foreground/90 truncate">{label}</span>
-            {siftSuffix && (
-              <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">· {siftSuffix}</span>
-            )}
-            <span className="ml-auto flex items-center gap-1.5 text-muted-foreground shrink-0">
-              <span className="font-mono text-[10px] text-muted-foreground/50 tabular-nums">{trace.duration_ms}ms</span>
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-            </span>
-          </li>
-        );
-      })}
+      {traces.map((trace, i) => <TraceItem key={i} trace={trace} index={i} />)}
     </ol>
   );
 }
@@ -218,9 +231,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
         {message.data && message.data.length > 0 && (
           <DataTable data={message.data as Record<string, unknown>[]} />
-        )}
-        {message.pipeline && message.pipeline.length > 0 && (
-          <PipelineToggle pipeline={message.pipeline as Record<string, unknown>[]} />
         )}
       </div>
     </div>

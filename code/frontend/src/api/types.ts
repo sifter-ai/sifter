@@ -138,6 +138,7 @@ export interface ToolCallTrace {
   args: Record<string, unknown>;
   result_preview: string;
   duration_ms: number;
+  result?: unknown;
 }
 
 export interface ChatResponse {
