@@ -67,6 +67,7 @@ async def test_register_success(client):
         "email": "alice@example.com",
         "password": "s3cret!",
         "full_name": "Alice",
+        "privacy_accepted": True,
     })
     assert r.status_code == 200
     data = r.json()
@@ -78,7 +79,7 @@ async def test_register_success(client):
 
 
 async def test_register_duplicate_email(client):
-    payload = {"email": "bob@example.com", "password": "pass123"}
+    payload = {"email": "bob@example.com", "password": "pass123", "privacy_accepted": True}
     await client.post("/api/auth/register", json=payload)
     r = await client.post("/api/auth/register", json=payload)
     assert r.status_code == 400
@@ -98,6 +99,7 @@ async def test_login_success(client):
     await client.post("/api/auth/register", json={
         "email": "carol@example.com",
         "password": "mypassword",
+        "privacy_accepted": True,
     })
     r = await client.post("/api/auth/login", json={
         "email": "carol@example.com",
@@ -113,6 +115,7 @@ async def test_login_wrong_password(client):
     await client.post("/api/auth/register", json={
         "email": "dave@example.com",
         "password": "correctpass",
+        "privacy_accepted": True,
     })
     r = await client.post("/api/auth/login", json={
         "email": "dave@example.com",
@@ -138,6 +141,7 @@ async def test_me_with_valid_jwt(client):
         "email": "eve@example.com",
         "password": "evepass",
         "full_name": "Eve",
+        "privacy_accepted": True,
     })
     token = r.json()["access_token"]
 
@@ -217,6 +221,7 @@ async def test_jwt_grants_access(client):
     r = await client.post("/api/auth/register", json={
         "email": "frank@example.com",
         "password": "frankpass",
+        "privacy_accepted": True,
     })
     token = r.json()["access_token"]
 
