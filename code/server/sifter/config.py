@@ -108,7 +108,7 @@ def _normalise_cors_env() -> None:
         os.environ["SIFTER_CORS_ORIGINS"] = json.dumps(origins)
 
 
-_NATIVE_CREDENTIAL_PREFIXES = ("vertex_ai/", "bedrock/", "sagemaker/")
+_NATIVE_CREDENTIAL_PREFIXES = ("vertex_ai/", "gemini/", "bedrock/", "sagemaker/")
 
 
 def _uses_native_credentials(model: str) -> bool:
