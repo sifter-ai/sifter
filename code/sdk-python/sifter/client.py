@@ -684,7 +684,7 @@ class Sifter:
     Sifter SDK client. Connects to a running Sifter server.
 
     Args:
-        api_url: URL of the Sifter server (default: https://sifter.run)
+        api_url: URL of the Sifter server (default: https://api.sifter.run)
         api_key: API key (or set SIFTER_API_KEY env var)
     """
 
@@ -693,7 +693,7 @@ class Sifter:
         api_url: str = "",
         api_key: str = "",
     ):
-        self.api_url = (api_url or os.environ.get("SIFTER_API_URL", "https://sifter.run")).rstrip("/")
+        self.api_url = (api_url or os.environ.get("SIFTER_API_URL", "https://api.sifter.run")).rstrip("/")
         self.api_key = api_key or os.environ.get("SIFTER_API_KEY", "")
 
     def _auth_headers(self) -> dict:

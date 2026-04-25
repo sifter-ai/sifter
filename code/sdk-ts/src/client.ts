@@ -12,7 +12,7 @@ export class Sifter {
     const _env = typeof globalThis !== "undefined" && "process" in globalThis
       ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env
       : {} as Record<string, string | undefined>;
-    this._apiUrl = (options.apiUrl ?? _env["SIFTER_API_URL"] ?? "https://sifter.run").replace(/\/$/, "");
+    this._apiUrl = (options.apiUrl ?? _env["SIFTER_API_URL"] ?? "https://api.sifter.run").replace(/\/$/, "");
     const apiKey = options.apiKey ?? _env["SIFTER_API_KEY"] ?? "";
     this._headers = apiKey ? { "X-API-Key": apiKey } : {};
     this._fetch = options.fetch ?? globalThis.fetch;
