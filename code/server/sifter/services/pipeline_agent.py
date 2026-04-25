@@ -98,6 +98,7 @@ Generate the MongoDB aggregation pipeline for this query."""
         messages=messages,
         temperature=0.1,
         api_key=config.llm_api_key or None,
+        api_base=config.llm_base_url or None,
     )
 
     raw = response.choices[0].message.content

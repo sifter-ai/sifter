@@ -15,6 +15,7 @@ class SifterConfig(BaseSettings):
     # for that concern (e.g. a vision-capable model for extraction).
     default_model: str = "vertex_ai/gemini-2.5-flash"
     llm_api_key: str = ""
+    llm_base_url: str = ""  # e.g. https://api.fireworks.ai/inference/v1
 
     # Task-specific models. Empty string ⇒ fall back to `default_model`.
     llm_model: str = ""          # extraction (PDFs/images → structured data)

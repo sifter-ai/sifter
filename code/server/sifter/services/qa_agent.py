@@ -69,6 +69,7 @@ async def chat(
             tool_choice="auto",
             temperature=0.3,
             api_key=config.llm_api_key or None,
+            api_base=config.llm_base_url or None,
         )
 
         msg = response.choices[0].message

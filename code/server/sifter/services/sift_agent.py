@@ -109,6 +109,7 @@ async def extract(
             messages=messages,
             temperature=config.extraction_temperature,
             api_key=config.llm_api_key or None,
+            api_base=config.llm_base_url or None,
         )
     except Exception as llm_err:
         logger.error("extraction_llm_error", filename=filename, model=config.llm_model, error=str(llm_err))
