@@ -108,5 +108,26 @@ def _normalise_cors_env() -> None:
         os.environ["SIFTER_CORS_ORIGINS"] = json.dumps(origins)
 
 
+_NATIVE_CREDENTIAL_PREFIXES = ("vertex_ai/", "bedrock/", "sagemaker/")
+
+
+def _uses_native_credentials(model: str) -> bool:
+    return any(model.startswith(p) for p in _NATIVE_CREDENTIAL_PREFIXES)
+
+
+def api_kwargs(model: str) -> dict:
+    """Return api_key / api_base kwargs for litellm only when relevant."""
+    if _uses_native_credentials(model):
+        return {}
+    return {
+        k: v
+        for k, v in {
+            "api_key": config.llm_api_key or None,
+            "api_base": config.llm_base_url or None,
+        }.items()
+        if v is not None
+    }
+
+
 _normalise_cors_env()
 config = SifterConfig()

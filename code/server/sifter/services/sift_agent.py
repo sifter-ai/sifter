@@ -8,7 +8,7 @@ from typing import Any, Optional
 import litellm
 import structlog
 
-from ..config import config
+from ..config import config, api_kwargs
 from .file_processor import FileProcessor
 
 logger = structlog.get_logger()
@@ -108,8 +108,7 @@ async def extract(
             model=config.llm_model,
             messages=messages,
             temperature=config.extraction_temperature,
-            api_key=config.llm_api_key or None,
-            api_base=config.llm_base_url or None,
+            **api_kwargs(config.llm_model),
         )
     except Exception as llm_err:
         logger.error("extraction_llm_error", filename=filename, model=config.llm_model, error=str(llm_err))

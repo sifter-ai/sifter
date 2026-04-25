@@ -6,7 +6,7 @@ from typing import Any
 import litellm
 import structlog
 
-from ..config import config
+from ..config import config, api_kwargs
 
 logger = structlog.get_logger()
 
@@ -97,8 +97,7 @@ Generate the MongoDB aggregation pipeline for this query."""
         model=config.pipeline_model,
         messages=messages,
         temperature=0.1,
-        api_key=config.llm_api_key or None,
-        api_base=config.llm_base_url or None,
+        **api_kwargs(config.pipeline_model),
     )
 
     raw = response.choices[0].message.content
