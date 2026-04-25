@@ -6,6 +6,14 @@
 
 const TOKEN_KEY = "sifter_token";
 
+// Allow overriding the API base URL via env var (e.g. Cloudflare Pages → api.sifter.run).
+// Falls back to same-origin (empty string) for OSS self-hosted and local dev.
+const _API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+export function apiUrl(path: string): string {
+  return `${_API_BASE}${path}`;
+}
+
 export class AuthError extends Error {
   constructor() {
     super("Authentication expired");
@@ -42,6 +50,7 @@ export async function apiFetch(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
+  url = apiUrl(url);
   const token = getToken();
   const headers = new Headers(options.headers);
 

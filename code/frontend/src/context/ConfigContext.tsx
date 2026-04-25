@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiFetch";
 
 export type DeploymentMode = "oss" | "cloud";
 
@@ -23,7 +24,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/config")
+    fetch(apiUrl("/api/config"))
       .then((r) => r.json())
       .then((data) => {
         if (data.mode === "cloud") setMode("cloud");
