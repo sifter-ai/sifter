@@ -65,20 +65,20 @@ describe("register", () => {
       user: { id: "u2", email: "new@b.com", full_name: "Bob" },
     };
     vi.stubGlobal("fetch", mockFetch(200, resp));
-    const result = await register("new@b.com", "pass123", "Bob");
+    const result = await register("new@b.com", "pass123", "Bob", true);
     expect(result.access_token).toBe("jwt-token");
     expect(fetch).toHaveBeenCalledWith(
       "/api/auth/register",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ email: "new@b.com", password: "pass123", full_name: "Bob" }),
+        body: JSON.stringify({ email: "new@b.com", password: "pass123", full_name: "Bob", privacy_accepted: true }),
       })
     );
   });
 
   it("throws on 409 duplicate email", async () => {
     vi.stubGlobal("fetch", mockFetch(409, { detail: "Email already registered" }));
-    await expect(register("dup@b.com", "pass", "Bob")).rejects.toThrow();
+    await expect(register("dup@b.com", "pass", "Bob", true)).rejects.toThrow();
   });
 });
 

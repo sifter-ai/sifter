@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Camera, User as UserIcon } from "lucide-react";
-import { changePassword, updateProfile, uploadAvatar } from "../api/auth";
+import { changePassword, deleteAccount, updateProfile, uploadAvatar } from "../api/auth";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
+import { clearToken } from "../lib/apiFetch";
 
 function initials(name: string): string {
   return name
@@ -40,7 +41,7 @@ function AvatarPreview({ src, name, size = 64 }: { src: string | null; name: str
 }
 
 export default function AccountSettingsPage() {
-  const { user, updateUser } = useAuthContext();
+  const { user, updateUser, logout } = useAuthContext();
   const { mode } = useConfig();
 
   return (
@@ -48,6 +49,7 @@ export default function AccountSettingsPage() {
       <ProfileSection user={user} updateUser={updateUser} />
       <AvatarSection user={user} updateUser={updateUser} />
       {user?.auth_provider === "email" && <PasswordSection />}
+      <DeleteAccountSection userEmail={user?.email ?? ""} logout={logout} />
     </div>
   );
 }
@@ -201,6 +203,67 @@ function AvatarSection({
             {status === "saving" ? "Uploading…" : "Save avatar"}
           </Button>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteAccountSection({ userEmail, logout }: { userEmail: string; logout: () => void }) {
+  const [confirm, setConfirm] = useState("");
+  const [status, setStatus] = useState<"idle" | "deleting" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const canDelete = confirm === userEmail;
+
+  async function handleDelete() {
+    if (!canDelete) return;
+    setStatus("deleting");
+    setErrorMsg("");
+    try {
+      await deleteAccount();
+      clearToken();
+      logout();
+    } catch (e) {
+      setErrorMsg((e as Error).message);
+      setStatus("error");
+    }
+  }
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <CardTitle className="text-destructive">Delete account</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          This permanently deletes your account and all associated data — sifts, documents,
+          extracted records, API keys, and webhooks. This action cannot be undone.
+        </p>
+        <div className="space-y-2">
+          <Label htmlFor="delete-confirm" className="text-sm">
+            Type <span className="font-mono font-medium text-foreground">{userEmail}</span> to confirm
+          </Label>
+          <Input
+            id="delete-confirm"
+            type="text"
+            value={confirm}
+            onChange={(e) => { setConfirm(e.target.value); setStatus("idle"); }}
+            placeholder={userEmail}
+            className="max-w-sm"
+          />
+        </div>
+        {status === "error" && (
+          <Alert variant="destructive">
+            <AlertDescription>{errorMsg}</AlertDescription>
+          </Alert>
+        )}
+        <Button
+          variant="destructive"
+          onClick={handleDelete}
+          disabled={!canDelete || status === "deleting"}
+        >
+          {status === "deleting" ? "Deleting…" : "Delete my account"}
+        </Button>
       </CardContent>
     </Card>
   );

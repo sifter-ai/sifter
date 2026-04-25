@@ -66,6 +66,14 @@ class SifterConfig(BaseSettings):
     # Background workers
     max_workers: int = 4
 
+    # SMTP (optional — email sending disabled when smtp_host is empty)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@localhost"
+    smtp_tls: bool = True  # STARTTLS; set False for plain or SSL-only on port 465
+
     # Enterprise leads
     sales_email: str = ""  # if set, enterprise contact form sends a notification email
 

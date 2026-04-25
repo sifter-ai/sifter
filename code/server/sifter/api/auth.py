@@ -35,6 +35,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str = ""
+    privacy_accepted: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -100,6 +101,8 @@ def _user_out(doc: dict) -> UserOut:
 @router.post("/register", response_model=AuthResponse)
 @limiter.limit("5/minute")
 async def register(request: Request, req: RegisterRequest, db=Depends(get_db)):
+    if not req.privacy_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the Privacy Policy to register")
     existing = await db["users"].find_one({"email": req.email.lower()})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -110,6 +113,7 @@ async def register(request: Request, req: RegisterRequest, db=Depends(get_db)):
         "full_name": req.full_name,
         "hashed_password": hash_password(req.password),
         "created_at": now,
+        "privacy_policy_accepted_at": now,
     })
     user_id = str(result.inserted_id)
     token = create_access_token(user_id)
@@ -186,6 +190,7 @@ async def google_auth(request: Request, req: GoogleAuthRequest, db=Depends(get_d
                 "google_id": google_id,
                 "auth_provider": "google",
                 "created_at": now,
+                "privacy_policy_accepted_at": now,
             })
             doc = await db["users"].find_one({"_id": result.inserted_id})
 
@@ -420,8 +425,32 @@ async def delete_account(
         raise HTTPException(status_code=401, detail="User not found")
     email = doc["email"]
     full_name = doc.get("full_name", "")
+    org_id = principal.org_id
+
+    # Delete avatar from storage
+    if doc.get("avatar_storage_path"):
+        try:
+            storage = get_storage_backend()
+            await storage.delete(doc["avatar_storage_path"])
+        except Exception:
+            pass
+
+    # Cascade: collect sift_ids owned by this org for nested deletes
+    sift_ids = [str(s["_id"]) async for s in db["sifts"].find({"org_id": org_id}, {"_id": 1})]
+    doc_ids = [str(d["_id"]) async for d in db["documents"].find({"org_id": org_id}, {"_id": 1})]
+
+    await db["sift_results"].delete_many({"sift_id": {"$in": sift_ids}})
+    await db["correction_rules"].delete_many({"sift_id": {"$in": sift_ids}})
+    await db["document_sift_statuses"].delete_many({"document_id": {"$in": doc_ids}})
+    await db["processing_queue"].delete_many({"org_id": org_id})
+    await db["documents"].delete_many({"org_id": org_id})
+    await db["sifts"].delete_many({"org_id": org_id})
+    await db["folders"].delete_many({"org_id": org_id})
+    await db["webhooks"].delete_many({"org_id": org_id})
+    await db["api_keys"].delete_many({"org_id": org_id})
+    await db["dashboards"].delete_many({"org_id": org_id})
     await db["users"].delete_one({"_id": oid})
-    # TODO: cascade delete sifts/docs owned by this user
+
     email_sender = get_email_sender()
     await email_sender.send_account_deleted(to=email, full_name=full_name)
     return Response(status_code=204)

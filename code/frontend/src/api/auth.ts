@@ -19,13 +19,18 @@ export async function login(email: string, password: string): Promise<AuthRespon
 export async function register(
   email: string,
   password: string,
-  full_name: string
+  full_name: string,
+  privacy_accepted: boolean
 ): Promise<AuthResponse> {
   return apiFetchJson<AuthResponse>("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, full_name }),
+    body: JSON.stringify({ email, password, full_name, privacy_accepted }),
   });
+}
+
+export async function deleteAccount(): Promise<void> {
+  await apiFetchJson("/api/auth/me", { method: "DELETE" });
 }
 
 export async function fetchMe(): Promise<User> {
