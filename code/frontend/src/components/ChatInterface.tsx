@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ChevronDown, ChevronRight, CheckCircle2, CornerDownLeft, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -145,6 +146,7 @@ function Markdown({ children, className }: { children: string; className?: strin
   return (
     <div className={className}>
     <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
       components={{
         p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
         strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
@@ -171,6 +173,20 @@ function Markdown({ children, className }: { children: string; className?: strin
             {children}
           </a>
         ),
+        table: ({ children }) => (
+          <div className="my-2 overflow-x-auto rounded-lg border border-border/50">
+            <table className="w-full text-[13px]">{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+        tbody: ({ children }) => <tbody className="divide-y divide-border/50">{children}</tbody>,
+        tr: ({ children }) => <tr className="divide-x divide-border/50">{children}</tr>,
+        th: ({ children }) => (
+          <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => <td className="px-3 py-2 text-foreground/90">{children}</td>,
       }}
     >
       {children}
