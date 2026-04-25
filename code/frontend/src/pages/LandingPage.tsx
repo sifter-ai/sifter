@@ -63,14 +63,14 @@ export default function LandingPage() {
               className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               GitHub
             </a>
-            <Link to="/login"
+            <a href="https://app.sifter.run/login"
               className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               Sign in
-            </Link>
-            <Link to="/register"
+            </a>
+            <a href="https://app.sifter.run/register"
               className="ml-2 bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity">
               Try free →
-            </Link>
+            </a>
           </nav>
         </div>
       </header>
@@ -94,10 +94,10 @@ export default function LandingPage() {
                 Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
               </p>
               <div className="mt-7 flex gap-3 flex-wrap sm:flex-nowrap">
-                <Link to="/register"
+                <a href="https://app.sifter.run/register"
                   className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-5 py-2.5 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 text-sm">
                   Try Sifter free <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </a>
                 <a href={DOCS_URL + "/self-hosting/docker-compose"} target="_blank" rel="noopener noreferrer"
                   className="w-full sm:w-auto justify-center border border-input px-5 py-2.5 rounded-md text-sm font-medium hover:bg-muted/60 transition-colors inline-flex items-center gap-2">
                   Self-host with Docker <ExternalLink className="h-3.5 w-3.5" />
@@ -220,12 +220,12 @@ export default function LandingPage() {
                   <p className="text-foreground font-medium mb-1">Schema</p>
                   <p>Extract: vendor, amount, currency, date, line_items, payment_status</p>
                 </div>
-                <Link
-                  to="/register"
+                <a
+                  href="https://app.sifter.run/register"
                   className="mt-auto bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 justify-center"
                 >
                   Try free <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </a>
               </div>
 
               {/* Right: output */}
@@ -526,10 +526,10 @@ export default function LandingPage() {
               </div>
 
               <div className="mt-6 flex gap-4">
-                <Link to="/register"
+                <a href="https://app.sifter.run/register"
                   className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5">
                   Get your MCP URL <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </a>
                 <a href={DOCS_URL + "/integrations/mcp-server"} target="_blank" rel="noopener noreferrer"
                   className="text-sm font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors">
                   Read the MCP guide <ExternalLink className="h-3.5 w-3.5" />
@@ -708,10 +708,10 @@ export default function LandingPage() {
               <p className="text-sm text-muted-foreground leading-relaxed flex-1">
                 No infrastructure to manage. Web UI, REST API, Python SDK, and MCP — all on Sifter's hosted platform.
               </p>
-              <Link to="/register"
+              <a href="https://app.sifter.run/register"
                 className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5">
                 Get started free <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              </a>
             </div>
 
             <div className="rounded-2xl border bg-[#111113] text-white p-8 flex flex-col gap-5">
@@ -750,10 +750,10 @@ export default function LandingPage() {
             Free tier forever. Self-host anytime. No credit card required.
           </p>
           <div className="mt-8 flex gap-3 justify-center flex-wrap">
-            <Link to="/register"
+            <a href="https://app.sifter.run/register"
               className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2">
               Try Sifter free <ArrowRight className="h-4 w-4" />
-            </Link>
+            </a>
             <Link to="/enterprise"
               className="border border-white/20 text-white/80 px-6 py-3 rounded-md font-medium hover:bg-white/5 transition-colors inline-flex items-center gap-2">
               Book a demo <ExternalLink className="h-4 w-4" />
@@ -949,14 +949,14 @@ function PricingCard({
           </li>
         ))}
       </ul>
-      <Link to="/register"
+      <a href="https://app.sifter.run/register"
         className={highlighted
           ? "mt-6 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium text-center hover:opacity-90 transition-opacity"
           : "mt-6 border border-input px-4 py-2 rounded-md text-sm font-medium text-center hover:bg-muted/60 transition-colors"
         }
       >
         {cta}
-      </Link>
+      </a>
     </div>
   );
 }

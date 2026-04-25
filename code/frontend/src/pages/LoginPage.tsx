@@ -9,11 +9,7 @@ import { useConfig } from "../context/ConfigContext";
 import logo from "@/assets/logo.svg";
 
 function goToApp() {
-  if (window.location.hostname === "sifter.run") {
-    window.location.href = "https://app.sifter.run/";
-  } else {
-    window.location.href = "/";
-  }
+  window.location.href = "/";
 }
 
 export default function LoginPage() {
