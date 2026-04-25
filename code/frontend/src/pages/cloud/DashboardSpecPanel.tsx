@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
-import { Sparkles, RefreshCw, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Sparkles, RefreshCw, PanelRightClose, PanelRightOpen, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSifts } from "@/hooks/useExtractions";
 import type { StandaloneDashboard } from "@/api/cloud";
 
 const STORAGE_KEY = "dashboard-spec-collapsed";
@@ -19,6 +22,27 @@ export function DashboardSpecPanel({
   onRegenerate,
   regenerateError,
 }: DashboardSpecPanelProps) {
+  const { data: siftsPage, isLoading: siftsLoading } = useSifts();
+  const allSifts = siftsPage?.items ?? [];
+
+  const usedSiftIds = useMemo(
+    () => new Set(dashboard.tiles.map((t) => t.sift_id)),
+    [dashboard.tiles],
+  );
+
+  const usedSifts = useMemo(
+    () => allSifts.filter((s) => usedSiftIds.has(s.id)),
+    [allSifts, usedSiftIds],
+  );
+
+  const tileCountBySift = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of dashboard.tiles) {
+      counts[t.sift_id] = (counts[t.sift_id] ?? 0) + 1;
+    }
+    return counts;
+  }, [dashboard.tiles]);
+
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) === "1"; } catch { return false; }
   });
@@ -122,6 +146,42 @@ export function DashboardSpecPanel({
                     day: "numeric", month: "short", year: "numeric",
                   })}
                 </span>
+              </div>
+            )}
+          </div>
+
+          {/* Sifts used by tiles */}
+          <div className="space-y-1.5 pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] text-muted-foreground/70 font-mono uppercase tracking-wider">Sifts</span>
+              {usedSifts.length > 0 && (
+                <span className="text-[11px] font-semibold tabular-nums">{usedSifts.length}</span>
+              )}
+            </div>
+            {siftsLoading ? (
+              <div className="space-y-1">
+                <Skeleton className="h-7 w-full" />
+                <Skeleton className="h-7 w-full" />
+              </div>
+            ) : usedSifts.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground/50 px-2">
+                {tileCount === 0 ? "No widgets yet" : "Loading sifts…"}
+              </p>
+            ) : (
+              <div className="space-y-0.5">
+                {usedSifts.map((sift) => (
+                  <Link
+                    key={sift.id}
+                    to={`/sifts/${sift.id}`}
+                    className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  >
+                    <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 group-hover:text-primary transition-colors" strokeWidth={1.75} />
+                    <span className="truncate flex-1 text-[12px]">{sift.name}</span>
+                    <span className="font-mono text-[10px] tabular-nums text-muted-foreground/50 shrink-0">
+                      {tileCountBySift[sift.id]}w
+                    </span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
