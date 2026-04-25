@@ -10,6 +10,7 @@ import {
   fetchSifts,
   querySift,
   reindexSift,
+  cancelIndexing,
   resetSift,
   updateSift,
   uploadDocuments,
@@ -184,6 +185,14 @@ export const useReindexSift = (siftId: string) => {
       qc.invalidateQueries({ queryKey: ["sift", siftId] });
       qc.invalidateQueries({ queryKey: ["sift-records", siftId] });
     },
+  });
+};
+
+export const useCancelIndexing = (siftId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => cancelIndexing(siftId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sift", siftId] }),
   });
 };
 

@@ -46,6 +46,9 @@ export const uploadDocuments = (id: string, formData: FormData): Promise<unknown
 export const reindexSift = (id: string): Promise<unknown> =>
   apiFetchJson<unknown>(`${BASE}/${id}/reindex`, { method: "POST" });
 
+export const cancelIndexing = (id: string): Promise<unknown> =>
+  apiFetchJson<unknown>(`${BASE}/${id}/cancel-indexing`, { method: "POST" });
+
 export const resetSift = (id: string): Promise<Sift> =>
   apiFetchJson<Sift>(`${BASE}/${id}/reset`, { method: "POST" });
 

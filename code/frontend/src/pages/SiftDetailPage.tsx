@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Square,
   Trash2,
   Upload,
   XCircle,
@@ -59,6 +60,7 @@ import {
   useSiftFolders,
   useSiftRecords,
   useReindexSift,
+  useCancelIndexing,
   useRegenerateAggregation,
   useRunAggregation,
   useUpdateSift,
@@ -671,6 +673,7 @@ export function SiftDetailPage() {
     prevStatusRef.current = extraction?.status;
   }, [extraction?.status]);
   const reindexMutation = useReindexSift(id!);
+  const cancelIndexingMutation = useCancelIndexing(id!);
   const deleteMutation = useDeleteSift();
   const exportMutation = useExportCsv();
   const { data: siftFolders, isLoading: foldersLoading } = useSiftFolders(id!);
@@ -835,6 +838,16 @@ export function SiftDetailPage() {
                       Link folder
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    {isIndexing(extraction.status) && (
+                      <DropdownMenuItem
+                        onClick={() => cancelIndexingMutation.mutate()}
+                        disabled={cancelIndexingMutation.isPending}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Square className="h-4 w-4 mr-2" />
+                        Stop indexing
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={() => reindexMutation.mutate()}
                       disabled={reindexMutation.isPending || isIndexing(extraction.status)}

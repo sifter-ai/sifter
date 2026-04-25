@@ -407,6 +407,37 @@ async def reindex_sift(
     return {"status": "reindexing", "total": total}
 
 
+@router.post("/{sift_id}/cancel-indexing")
+async def cancel_indexing(
+    sift_id: str,
+    principal: Principal = Depends(get_current_principal),
+    db=Depends(get_db),
+):
+    """Cancel pending queue items for this sift and mark the sift active."""
+    from ..services.document_processor import COLLECTION as QUEUE_COLLECTION
+
+    svc = SiftService(db)
+    sift = await svc.get(sift_id, org_id=principal.org_id)
+    if not sift:
+        raise HTTPException(status_code=404, detail="Sift not found")
+
+    result = await db[QUEUE_COLLECTION].update_many(
+        {"sift_id": sift_id, "status": "pending"},
+        {"$set": {"status": "cancelled"}},
+    )
+    cancelled = result.modified_count
+
+    # Adjust total so processed_documents/total stays consistent, then force active.
+    if cancelled:
+        await db["sifts"].update_one(
+            {"_id": __import__("bson").ObjectId(sift_id)},
+            {"$inc": {"total_documents": -cancelled}},
+        )
+
+    sift = await svc.update(sift_id, {"status": SiftStatus.ACTIVE})
+    return {**_sift_to_dict(sift), "cancelled_count": cancelled}
+
+
 @router.post("/{sift_id}/reset")
 async def reset_sift(
     sift_id: str,
