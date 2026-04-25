@@ -70,24 +70,26 @@ export default function LoginPage() {
 
           {googleAuthEnabled && (
             <div className="space-y-3">
-              <GoogleLogin
-                onSuccess={async (response) => {
-                  if (!response.credential) return;
-                  setError("");
-                  setLoading(true);
-                  try {
-                    await loginWithGoogle(response.credential);
-                    goToApp();
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : "Google sign-in failed");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                onError={() => setError("Google sign-in failed")}
-                width="100%"
-                text="signin_with"
-              />
+              <div className="w-full overflow-hidden [&>div]:!w-full [&>div>div]:!w-full [&_iframe]:!w-full [&_iframe]:!max-w-none">
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (!response.credential) return;
+                    setError("");
+                    setLoading(true);
+                    try {
+                      await loginWithGoogle(response.credential);
+                      goToApp();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Google sign-in failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  onError={() => setError("Google sign-in failed")}
+                  width="400"
+                  text="signin_with"
+                />
+              </div>
               <div className="relative flex items-center gap-3">
                 <div className="flex-1 border-t border-border" />
                 <span className="text-xs text-muted-foreground">or</span>

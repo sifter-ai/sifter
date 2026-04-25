@@ -13,12 +13,14 @@ import {
   Key,
   LayoutDashboard,
   LogOut,
+  Menu,
   MessageCircle,
   Plug,
   Plus,
   Settings,
   User as UserIcon,
   Webhook,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -256,7 +258,7 @@ function OrgSwitcher() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ onClose }: { onClose?: () => void }) {
   const { isAuthenticated } = useAuthContext();
   const { mode } = useConfig();
   useDarkMode();
@@ -266,9 +268,10 @@ function Sidebar() {
   return (
     <aside className="w-56 h-screen sticky top-0 flex flex-col border-r bg-card shrink-0">
       {/* Logo */}
-      <div className="px-4 py-[14px]">
+      <div className="px-4 py-[14px] flex items-center justify-between">
         <Link
           to="/"
+          onClick={onClose}
           className="font-bold text-[15px] tracking-tight flex items-center gap-2.5 group"
         >
           <div className="relative">
@@ -276,6 +279,11 @@ function Sidebar() {
           </div>
           <span className="text-primary">Sifter</span>
         </Link>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-1 rounded hover:bg-muted">
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mx-3" />
@@ -286,19 +294,19 @@ function Sidebar() {
           Workspace
         </p>
         <div className="flex flex-col gap-0.5">
-          <NavLink to="/" end className={navLinkClass}>
+          <NavLink to="/" end className={navLinkClass} onClick={onClose}>
             <FileText className="h-4 w-4 shrink-0" />
             Sifts
           </NavLink>
-          <NavLink to="/folders" className={navLinkClass}>
+          <NavLink to="/folders" className={navLinkClass} onClick={onClose}>
             <Folder className="h-4 w-4 shrink-0" />
             Folders
           </NavLink>
-          <NavLink to="/chat" className={navLinkClass}>
+          <NavLink to="/chat" className={navLinkClass} onClick={onClose}>
             <MessageCircle className="h-4 w-4 shrink-0" />
             Chat
           </NavLink>
-          <NavLink to="/dashboards" className={navLinkClass}>
+          <NavLink to="/dashboards" className={navLinkClass} onClick={onClose}>
             <LayoutDashboard className="h-4 w-4 shrink-0" />
             Dashboards
           </NavLink>
@@ -308,19 +316,19 @@ function Sidebar() {
           Build
         </p>
         <div className="flex flex-col gap-0.5">
-          <NavLink to="/api-keys" className={navLinkClass}>
+          <NavLink to="/api-keys" className={navLinkClass} onClick={onClose}>
             <Key className="h-4 w-4 shrink-0" />
             API Keys
           </NavLink>
-          <NavLink to="/webhooks" className={navLinkClass}>
+          <NavLink to="/webhooks" className={navLinkClass} onClick={onClose}>
             <Webhook className="h-4 w-4 shrink-0" />
             Webhooks
           </NavLink>
-          <NavLink to="/mcp" className={navLinkClass}>
+          <NavLink to="/mcp" className={navLinkClass} onClick={onClose}>
             <Bot className="h-4 w-4 shrink-0" />
             MCP
           </NavLink>
-          <NavLink to="/connectors" className={navLinkClass}>
+          <NavLink to="/connectors" className={navLinkClass} onClick={onClose}>
             <Plug className="h-4 w-4 shrink-0" />
             Connectors
           </NavLink>
@@ -338,7 +346,7 @@ function Sidebar() {
             Docs
             <span className="ml-auto text-[10px] text-muted-foreground/50">↗</span>
           </a>
-          <NavLink to="/settings" end className={navLinkClass}>
+          <NavLink to="/settings" end className={navLinkClass} onClick={onClose}>
             <Settings className="h-4 w-4 shrink-0" />
             Settings
           </NavLink>
@@ -384,6 +392,7 @@ function ConnectorsRoute() {
 function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const { mode } = useConfig();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -396,61 +405,84 @@ function AppRoutes() {
   if (isAuthenticated) {
     return (
       <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
+        {/* Desktop sidebar */}
+        <div className="hidden md:flex">
+          <Sidebar />
+        </div>
+
+        {/* Mobile drawer overlay */}
+        {mobileOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
+            <div className="absolute left-0 top-0 h-full z-50">
+              <Sidebar onClose={() => setMobileOpen(false)} />
+            </div>
+          </div>
+        )}
+
         {mode === "cloud" && (
           <Suspense fallback={null}>
             <PlanLimitDialog />
           </Suspense>
         )}
-        <main className="flex-1 overflow-y-auto">
-          <Suspense fallback={null}>
-            <Routes>
-              <Route path="/" element={<ProtectedRoute><SiftsPage /></ProtectedRoute>} />
-              <Route path="/sifts/:id" element={<ProtectedRoute><SiftDetailPage /></ProtectedRoute>} />
-              <Route
-                path="/chat"
-                element={<ProtectedRoute><ChatPage /></ProtectedRoute>}
-              />
-              {/* Dashboards — available in both OSS and cloud */}
-              <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
-              <Route path="/dashboards/:id" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-              <Route path="/folders" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
-              <Route path="/folders/:id" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
-              <Route path="/documents/:id" element={<ProtectedRoute><DocumentDetailPage /></ProtectedRoute>} />
-              {/* Top-level Build surface — OSS + Cloud */}
-              <Route path="/webhooks" element={<ProtectedRoute><WebhooksSettingsPage /></ProtectedRoute>} />
-              <Route path="/connectors" element={<ProtectedRoute><ConnectorsRoute /></ProtectedRoute>} />
-              <Route path="/mcp" element={<ProtectedRoute><MCPSetupPage /></ProtectedRoute>} />
-              <Route path="/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
-                <Route index element={<Navigate to="/settings/account" replace />} />
-                <Route path="account" element={<AccountSettingsPage />} />
-                <Route path="appearance" element={<AppearanceSettingsPage />} />
+
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Mobile top bar */}
+          <header className="md:hidden flex items-center gap-3 px-4 py-3 border-b bg-card shrink-0">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-1.5 rounded-md hover:bg-muted"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <Link to="/" className="font-bold text-[15px] tracking-tight flex items-center gap-2 group">
+              <SifterLogo className="h-6 w-6" />
+              <span className="text-primary">Sifter</span>
+            </Link>
+          </header>
+
+          <main className="flex-1 overflow-y-auto">
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={<ProtectedRoute><SiftsPage /></ProtectedRoute>} />
+                <Route path="/sifts/:id" element={<ProtectedRoute><SiftDetailPage /></ProtectedRoute>} />
+                <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+                <Route path="/dashboards" element={<ProtectedRoute><DashboardListPage /></ProtectedRoute>} />
+                <Route path="/dashboards/:id" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                <Route path="/folders" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
+                <Route path="/folders/:id" element={<ProtectedRoute><FolderBrowserPage /></ProtectedRoute>} />
+                <Route path="/documents/:id" element={<ProtectedRoute><DocumentDetailPage /></ProtectedRoute>} />
+                <Route path="/webhooks" element={<ProtectedRoute><WebhooksSettingsPage /></ProtectedRoute>} />
+                <Route path="/connectors" element={<ProtectedRoute><ConnectorsRoute /></ProtectedRoute>} />
+                <Route path="/mcp" element={<ProtectedRoute><MCPSetupPage /></ProtectedRoute>} />
+                <Route path="/api-keys" element={<ProtectedRoute><ApiKeysPage /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>}>
+                  <Route index element={<Navigate to="/settings/account" replace />} />
+                  <Route path="account" element={<AccountSettingsPage />} />
+                  <Route path="appearance" element={<AppearanceSettingsPage />} />
+                  {mode === "cloud" && (
+                    <>
+                      <Route path="billing" element={<BillingPage />} />
+                      <Route path="audit" element={<AuditLogPage />} />
+                      <Route path="shares" element={<SharesPage />} />
+                      <Route path="organization" element={<OrganizationSettingsPage />} />
+                    </>
+                  )}
+                </Route>
                 {mode === "cloud" && (
-                  <>
-                    <Route path="billing" element={<BillingPage />} />
-                    <Route path="audit" element={<AuditLogPage />} />
-                    <Route path="shares" element={<SharesPage />} />
-                    <Route path="organization" element={<OrganizationSettingsPage />} />
-                  </>
-                )}
-              </Route>
-              {/* Cloud-only top-level routes */}
-              {mode === "cloud" && (
-                <>
                   <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
-                </>
-              )}
-              {/* Public / auth callbacks */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/invite/accept" element={<AcceptInvitePage />} />
-              <Route path="/s/:slug" element={<PublicViewerPage />} />
-              <Route path="/privacy" element={<PrivacyPolicyPage />} />
-              <Route path="/terms" element={<TermsOfServicePage />} />
-            </Routes>
-          </Suspense>
-        </main>
+                )}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/invite/accept" element={<AcceptInvitePage />} />
+                <Route path="/s/:slug" element={<PublicViewerPage />} />
+                <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                <Route path="/terms" element={<TermsOfServicePage />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
       </div>
     );
   }

@@ -76,24 +76,26 @@ export default function RegisterPage() {
 
           {googleAuthEnabled && (
             <div className="space-y-3">
-              <GoogleLogin
-                onSuccess={async (response) => {
-                  if (!response.credential) return;
-                  setError("");
-                  setLoading(true);
-                  try {
-                    await loginWithGoogle(response.credential);
-                    goToApp();
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : "Google sign-up failed");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                onError={() => setError("Google sign-up failed")}
-                width="100%"
-                text="signup_with"
-              />
+              <div className="w-full overflow-hidden [&>div]:!w-full [&>div>div]:!w-full [&_iframe]:!w-full [&_iframe]:!max-w-none">
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (!response.credential) return;
+                    setError("");
+                    setLoading(true);
+                    try {
+                      await loginWithGoogle(response.credential);
+                      goToApp();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Google sign-up failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  onError={() => setError("Google sign-up failed")}
+                  width="400"
+                  text="signup_with"
+                />
+              </div>
               <p className="text-[11px] text-muted-foreground text-center">
                 By signing up with Google you agree to our{" "}
                 <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
