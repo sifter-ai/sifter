@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+
+function goToApp() {
+  if (window.location.hostname === "sifter.run") {
+    window.location.href = "https://app.sifter.run/";
+  } else {
+    window.location.href = "/";
+  }
+}
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -11,20 +19,25 @@ import logo from "@/assets/logo.svg";
 export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuthContext();
   const { googleAuthEnabled } = useConfig();
-  const navigate = useNavigate();
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!privacyAccepted) {
+      setError("You must accept the Privacy Policy to continue.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
-      await register(email, password, fullName);
-      navigate("/");
+      await register(email, password, fullName, privacyAccepted);
+      goToApp();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -74,7 +87,7 @@ export default function RegisterPage() {
                   setLoading(true);
                   try {
                     await loginWithGoogle(response.credential);
-                    navigate("/");
+                    goToApp();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : "Google sign-up failed");
                   } finally {
@@ -85,6 +98,12 @@ export default function RegisterPage() {
                 width="100%"
                 text="signup_with"
               />
+              <p className="text-[11px] text-muted-foreground text-center">
+                By signing up with Google you agree to our{" "}
+                <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
+                {" "}and{" "}
+                <Link to="/terms" className="underline hover:text-foreground">Terms of Service</Link>.
+              </p>
               <div className="relative flex items-center gap-3">
                 <div className="flex-1 border-t border-border" />
                 <span className="text-xs text-muted-foreground">or</span>
@@ -139,13 +158,33 @@ export default function RegisterPage() {
               />
             </div>
 
+            <div className="flex items-start gap-2.5 pt-1">
+              <input
+                id="privacy"
+                type="checkbox"
+                checked={privacyAccepted}
+                onChange={(e) => { setPrivacyAccepted(e.target.checked); setError(""); }}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-primary"
+              />
+              <label htmlFor="privacy" className="text-xs text-muted-foreground leading-snug cursor-pointer">
+                I have read and accept the{" "}
+                <Link to="/privacy" target="_blank" className="underline hover:text-foreground">
+                  Privacy Policy
+                </Link>
+                {" "}and{" "}
+                <Link to="/terms" target="_blank" className="underline hover:text-foreground">
+                  Terms of Service
+                </Link>.
+              </label>
+            </div>
+
             {error && (
               <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full h-9 text-sm" disabled={loading}>
+            <Button type="submit" className="w-full h-9 text-sm" disabled={loading || !privacyAccepted}>
               {loading ? "Creating account…" : "Create account"}
             </Button>
           </form>

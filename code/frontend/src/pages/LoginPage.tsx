@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+
+function goToApp() {
+  if (window.location.hostname === "sifter.run") {
+    window.location.href = "https://app.sifter.run/";
+  } else {
+    window.location.href = "/";
+  }
+}
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -11,7 +19,7 @@ import logo from "@/assets/logo.svg";
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuthContext();
   const { googleAuthEnabled } = useConfig();
-  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +31,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate("/");
+      goToApp();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -73,7 +81,7 @@ export default function LoginPage() {
                   setLoading(true);
                   try {
                     await loginWithGoogle(response.credential);
-                    navigate("/");
+                    goToApp();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : "Google sign-in failed");
                   } finally {
