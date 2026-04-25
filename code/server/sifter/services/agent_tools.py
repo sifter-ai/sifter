@@ -122,7 +122,8 @@ class ToolCallTrace:
 class AgentToolRunner:
     """Executes tool calls from the agent loop directly against services."""
 
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db: AsyncIOMotorDatabase, org_id: str = "default"):
+        self.org_id = org_id
         self.sift_svc = SiftService(db)
         self.results_svc = SiftResultsService(db)
         self.agg_svc = AggregationService(db)
@@ -136,7 +137,7 @@ class AgentToolRunner:
 
     async def _dispatch(self, name: str, args: dict) -> Any:
         if name == "list_sifts":
-            sifts, _ = await self.sift_svc.list_all(limit=50)
+            sifts, _ = await self.sift_svc.list_all(limit=50, org_id=self.org_id)
             return [
                 {
                     "id": s.id,

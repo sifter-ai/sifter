@@ -276,6 +276,7 @@ class DashboardService:
         dashboard_id: str,
         prompt: str,
         sift_id: Optional[str] = None,
+        org_id: str = "default",
     ) -> dict:
         """Use the widget agent to propose tiles from a natural-language prompt,
         then persist them on the dashboard with an initial snapshot each.
@@ -295,6 +296,7 @@ class DashboardService:
             prompt=prompt,
             sift_hint=sift_id,
             db=self.db,
+            org_id=org_id,
         )
 
         if not agent_result.widgets:
@@ -341,7 +343,7 @@ class DashboardService:
             "refresh_errors": refresh_errors,
         }
 
-    async def regenerate_from_spec(self, dashboard_id: str, spec: str) -> dict:
+    async def regenerate_from_spec(self, dashboard_id: str, spec: str, org_id: str = "default") -> dict:
         """Replace all tiles with a fresh set generated from `spec`.
 
         The natural-language spec is persisted on the dashboard as its source
@@ -355,6 +357,7 @@ class DashboardService:
             prompt=spec,
             sift_hint=None,
             db=self.db,
+            org_id=org_id,
         )
 
         if not agent_result.widgets:

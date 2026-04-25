@@ -41,7 +41,7 @@ class ChatResponse(BaseModel):
 @router.post("", response_model=ChatResponse)
 async def chat(
     body: ChatRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     history_dicts = [{"role": m.role, "content": m.content} for m in body.history]
@@ -51,6 +51,7 @@ async def chat(
             message=body.message,
             history=history_dicts,
             db=db,
+            org_id=principal.org_id,
         )
     except Exception as e:
         logger.error("chat_error", error=str(e))

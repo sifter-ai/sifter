@@ -99,7 +99,7 @@ async def create_dashboard(
     )
     if body.spec and body.spec.strip():
         try:
-            result = await svc.regenerate_from_spec(str(dashboard["_id"]), body.spec)
+            result = await svc.regenerate_from_spec(str(dashboard["_id"]), body.spec, org_id=principal.org_id)
             return result["dashboard"]
         except ValueError as e:
             await svc.delete(str(dashboard["_id"]))
@@ -160,14 +160,14 @@ async def delete_dashboard(
 async def regenerate_dashboard(
     dashboard_id: str,
     body: RegenerateDashboardRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     if not body.spec or not body.spec.strip():
         raise HTTPException(status_code=400, detail="spec is required")
     svc = _svc(db)
     try:
-        result = await svc.regenerate_from_spec(dashboard_id, body.spec)
+        result = await svc.regenerate_from_spec(dashboard_id, body.spec, org_id=principal.org_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -277,7 +277,7 @@ async def refresh_tile(
 async def generate_tiles(
     dashboard_id: str,
     body: GenerateTilesRequest,
-    _: Principal = Depends(get_current_principal),
+    principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     if not body.prompt or not body.prompt.strip():
@@ -288,6 +288,7 @@ async def generate_tiles(
             dashboard_id=dashboard_id,
             prompt=body.prompt,
             sift_id=body.sift_id,
+            org_id=principal.org_id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

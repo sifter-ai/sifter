@@ -45,8 +45,9 @@ async def chat(
     message: str,
     history: list[dict],
     db,
+    org_id: str = "default",
 ) -> QAResponse:
-    runner = AgentToolRunner(db)
+    runner = AgentToolRunner(db, org_id=org_id)
     trace: list[ToolCallTrace] = []
 
     system_content = _SYSTEM_PROMPT

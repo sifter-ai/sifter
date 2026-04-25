@@ -121,8 +121,9 @@ async def generate_widgets(
     prompt: str,
     sift_hint: Optional[str],
     db,
+    org_id: str = "default",
 ) -> WidgetAgentResult:
-    runner = AgentToolRunner(db)
+    runner = AgentToolRunner(db, org_id=org_id)
     trace: list[ToolCallTrace] = []
 
     system = _SYSTEM_PROMPT
