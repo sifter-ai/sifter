@@ -274,6 +274,7 @@ class DocumentService:
         size_bytes: int,
         storage_path: str,
         on_conflict: Literal["fail", "replace"] = "fail",
+        org_id: str = "default",
     ) -> Document:
         """Persist document metadata. The caller is responsible for saving
         the file bytes to the storage backend before calling this method.
@@ -294,6 +295,7 @@ class DocumentService:
                         "size_bytes": size_bytes,
                         "storage_path": storage_path,
                         "updated_at": now,
+                        "org_id": org_id,
                     },
                     "$setOnInsert": {
                         "original_filename": filename,
@@ -318,6 +320,7 @@ class DocumentService:
                 content_type=content_type,
                 size_bytes=size_bytes,
                 storage_path=storage_path,
+                org_id=org_id,
             )
             insert_result = await self.db["documents"].insert_one(doc_obj.to_mongo())
             doc_obj.id = str(insert_result.inserted_id)

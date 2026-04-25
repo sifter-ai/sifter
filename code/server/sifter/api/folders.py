@@ -430,6 +430,7 @@ async def upload_document(
             size_bytes=len(content),
             storage_path=storage_path,
             on_conflict=conflict,
+            org_id=principal.org_id,
         )
     except Exception as e:
         if "DuplicateKeyError" in type(e).__name__ or "E11000" in str(e):
