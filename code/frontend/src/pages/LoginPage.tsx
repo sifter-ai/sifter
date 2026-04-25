@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { useAuthContext } from "../context/AuthContext";
+import { useConfig } from "../context/ConfigContext";
+import logo from "@/assets/logo.svg";
 
 function goToApp() {
   if (window.location.hostname === "sifter.run") {
@@ -8,13 +15,6 @@ function goToApp() {
     window.location.href = "/";
   }
 }
-import { GoogleLogin } from "@react-oauth/google";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { useAuthContext } from "../context/AuthContext";
-import { useConfig } from "../context/ConfigContext";
-import logo from "@/assets/logo.svg";
 
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuthContext();
