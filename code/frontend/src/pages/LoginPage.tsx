@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "../components/ui/button";
@@ -20,6 +20,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const googleContainerRef = useRef<HTMLDivElement>(null);
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(380);
+
+  useEffect(() => {
+    if (googleContainerRef.current) {
+      setGoogleButtonWidth(googleContainerRef.current.clientWidth);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,36 +76,6 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
           </div>
 
-          {googleAuthEnabled && (
-            <div className="space-y-3">
-              <div className="w-full overflow-hidden" style={{ maxWidth: "100%" }}>
-                <GoogleLogin
-                  onSuccess={async (response) => {
-                    if (!response.credential) return;
-                    setError("");
-                    setLoading(true);
-                    try {
-                      await loginWithGoogle(response.credential);
-                      goToApp();
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : "Google sign-in failed");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  onError={() => setError("Google sign-in failed")}
-                  width="300"
-                  text="signin_with"
-                />
-              </div>
-              <div className="relative flex items-center gap-3">
-                <div className="flex-1 border-t border-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <div className="flex-1 border-t border-border" />
-              </div>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -140,6 +118,36 @@ export default function LoginPage() {
               {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+
+          {googleAuthEnabled && (
+            <div className="space-y-3">
+              <div className="relative flex items-center gap-3">
+                <div className="flex-1 border-t border-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+              <div ref={googleContainerRef} className="w-full overflow-hidden">
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (!response.credential) return;
+                    setError("");
+                    setLoading(true);
+                    try {
+                      await loginWithGoogle(response.credential);
+                      goToApp();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Google sign-in failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  onError={() => setError("Google sign-in failed")}
+                  width={String(googleButtonWidth)}
+                  text="signin_with"
+                />
+              </div>
+            </div>
+          )}
 
           <p className="text-sm text-center text-muted-foreground">
             Don't have an account?{" "}

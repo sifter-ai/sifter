@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { Button } from "../components/ui/button";
@@ -22,6 +22,14 @@ export default function RegisterPage() {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const googleContainerRef = useRef<HTMLDivElement>(null);
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(380);
+
+  useEffect(() => {
+    if (googleContainerRef.current) {
+      setGoogleButtonWidth(googleContainerRef.current.clientWidth);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,42 +81,6 @@ export default function RegisterPage() {
             <h1 className="text-xl font-semibold tracking-tight">Create account</h1>
             <p className="text-sm text-muted-foreground">Sign up to get started with Sifter</p>
           </div>
-
-          {googleAuthEnabled && (
-            <div className="space-y-3">
-              <div className="w-full overflow-hidden" style={{ maxWidth: "100%" }}>
-                <GoogleLogin
-                  onSuccess={async (response) => {
-                    if (!response.credential) return;
-                    setError("");
-                    setLoading(true);
-                    try {
-                      await loginWithGoogle(response.credential);
-                      goToApp();
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : "Google sign-up failed");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  onError={() => setError("Google sign-up failed")}
-                  width="300"
-                  text="signup_with"
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground text-center">
-                By signing up with Google you agree to our{" "}
-                <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
-                {" "}and{" "}
-                <Link to="/terms" className="underline hover:text-foreground">Terms of Service</Link>.
-              </p>
-              <div className="relative flex items-center gap-3">
-                <div className="flex-1 border-t border-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <div className="flex-1 border-t border-border" />
-              </div>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -186,6 +158,42 @@ export default function RegisterPage() {
               {loading ? "Creating account…" : "Create account"}
             </Button>
           </form>
+
+          {googleAuthEnabled && (
+            <div className="space-y-3">
+              <div className="relative flex items-center gap-3">
+                <div className="flex-1 border-t border-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+              <div ref={googleContainerRef} className="w-full overflow-hidden">
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (!response.credential) return;
+                    setError("");
+                    setLoading(true);
+                    try {
+                      await loginWithGoogle(response.credential);
+                      goToApp();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Google sign-up failed");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  onError={() => setError("Google sign-up failed")}
+                  width={String(googleButtonWidth)}
+                  text="signup_with"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground text-center">
+                By signing up with Google you agree to our{" "}
+                <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>
+                {" "}and{" "}
+                <Link to="/terms" className="underline hover:text-foreground">Terms of Service</Link>.
+              </p>
+            </div>
+          )}
 
           <p className="text-sm text-center text-muted-foreground">
             Already have an account?{" "}
