@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     libmupdf-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy local packages (sdk + mcp) so uv path sources resolve
-COPY sdk/ ../sdk/
+# Copy local packages (sdk-python + mcp) so uv path sources resolve
+COPY sdk-python/ ../sdk-python/
 COPY mcp/ ../mcp/
 
 # Install Python dependencies

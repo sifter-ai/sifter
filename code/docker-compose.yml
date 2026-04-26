@@ -24,7 +24,10 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - server/.env
+      - path: server/.env.local
+        required: false
+      - path: server/.env
+        required: false
     environment:
       - SIFTER_MONGODB_URI=mongodb://mongodb:27017
     volumes:
