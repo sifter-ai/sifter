@@ -70,7 +70,7 @@ export function DashboardSpecPanel({
 
   return (
     <aside
-      className={`shrink-0 flex flex-col border-l border-border/70 bg-card/60 transition-all duration-300 ${
+      className={`hidden md:flex shrink-0 flex-col border-l border-border/70 bg-card/60 transition-all duration-300 ${
         collapsed ? "w-10" : "w-80"
       }`}
       aria-label="Spec panel"
