@@ -19,6 +19,10 @@ docker compose up -d
 - API: `http://localhost:8000`
 - Swagger: `http://localhost:8000/docs`
 
+<Warning>
+The default bootstrap API key is **`sk-dev`**. It works out of the box for local testing — use it as `X-API-Key: sk-dev` or set `api_key="sk-dev"` in the SDK. **Change it before exposing the instance publicly** by setting `SIFTER_API_KEY` in your `.env`.
+</Warning>
+
 ## What's in the Compose stack
 
 - **MongoDB 7** with a persistent volume
@@ -85,6 +89,7 @@ Caddy provisions TLS automatically.
 
 ## Production checklist
 
+- [ ] Set `SIFTER_API_KEY` to a strong secret (default is `sk-dev`)
 - [ ] Set `SIFTER_JWT_SECRET` to a random 64-char string: `openssl rand -hex 32`
 - [ ] Use a managed MongoDB instance (Atlas free tier works well)
 - [ ] Set `SIFTER_CORS_ORIGINS` to your frontend domain
