@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const LIMIT_LABELS: Record<string, string> = {
-  docs_per_month:       "monthly document quota",
+  docs_per_month:       "monthly extraction quota",
   sifts_max:            "sift limit",
   attachment_too_large: "file size limit",
   api_access:           "API access",

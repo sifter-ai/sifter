@@ -322,7 +322,7 @@ export default function BillingPage() {
           {usage && (
             <div className="space-y-3 pt-1">
               <UsageRow
-                label="Documents"
+                label="Extractions"
                 value={usage.docs_processed}
                 limit={usage.docs_limit}
                 display={`${usage.docs_processed.toLocaleString()} / ${usage.docs_limit?.toLocaleString() ?? "∞"} this month`}
@@ -389,7 +389,7 @@ export default function BillingPage() {
 
                 {/* Docs */}
                 <span className="text-sm tabular-nums text-muted-foreground w-20 text-right shrink-0">
-                  {plan.docsLabel} <span className="text-xs">docs/mo</span>
+                  {plan.docsLabel} <span className="text-xs">extr/mo</span>
                 </span>
 
                 {/* Price */}

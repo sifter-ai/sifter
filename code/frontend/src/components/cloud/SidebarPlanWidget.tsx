@@ -84,7 +84,7 @@ export function SidebarPlanWidget() {
         <span className="text-foreground/80 font-medium tabular-nums">{usedFmt}</span>
         {" / "}
         <span className="tabular-nums">{limitFmt}</span>
-        {" docs"}
+        {" extractions"}
         {pct !== null && pct >= 80 && (
           <span className={`ml-1.5 font-semibold ${pct >= 100 ? "text-destructive" : "text-amber-500"}`}>
             {Math.round(pct)}%
