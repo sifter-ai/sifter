@@ -25,7 +25,7 @@ _request_api_key: contextvars.ContextVar[str] = contextvars.ContextVar(
     "sifter_request_api_key", default=""
 )
 
-mcp = FastMCP("sifter", streamable_http_path="/")
+mcp = FastMCP("sifter", streamable_http_path="/", stateless_http=True)
 
 
 def _get_client() -> Sifter:
