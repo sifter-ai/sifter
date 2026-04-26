@@ -44,7 +44,11 @@ export function DashboardSpecPanel({
   }, [dashboard.tiles]);
 
   const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) === "1"; } catch { return false; }
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null) return stored === "1";
+    } catch {}
+    return typeof window !== "undefined" && window.innerWidth < 768;
   });
   const [draft, setDraft] = useState(dashboard.spec ?? "");
 

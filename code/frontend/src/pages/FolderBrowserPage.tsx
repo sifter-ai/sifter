@@ -17,6 +17,7 @@ import {
   Trash2,
   Unlink,
   Upload,
+  PanelLeft,
 } from "lucide-react";
 import {
   createFolder,
@@ -263,6 +264,7 @@ export default function FolderBrowserPage() {
 
   const [showUpload, setShowUpload] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedSiftId, setSelectedSiftId] = useState("");
   const [search, setSearch] = useState("");
 
@@ -426,10 +428,10 @@ export default function FolderBrowserPage() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Unified top rail — mirrors CloudChatPage for visual consistency between submenu pages */}
+      {/* Unified top rail */}
       <header className="flex h-14 shrink-0 border-b">
-        {/* Left slot: matches sidebar width + bg so the sidebar column reads as one continuous strip top-to-bottom */}
-        <div className="w-60 shrink-0 flex items-center px-3 border-r bg-muted/20">
+        {/* Left slot — desktop only */}
+        <div className="hidden md:flex w-60 shrink-0 items-center px-3 border-r bg-muted/20">
           <button
             onClick={() => openCreateDialog(null)}
             className="group relative w-full h-9 rounded-lg overflow-hidden bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all hover:-translate-y-px active:translate-y-0 active:shadow-sm"
@@ -441,7 +443,22 @@ export default function FolderBrowserPage() {
         </div>
 
         {/* Right slot: breadcrumb + contextual actions */}
-        <div className="flex-1 flex items-center gap-2 px-5 min-w-0">
+        <div className="flex-1 flex items-center gap-2 px-4 min-w-0">
+          {/* Mobile-only controls */}
+          <div className="flex items-center gap-1.5 md:hidden shrink-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => openCreateDialog(null)}
+              className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
           {folderId && editingName ? (
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Input
@@ -559,8 +576,21 @@ export default function FolderBrowserPage() {
 
       {/* Body: folder tree sidebar + main panel */}
       <div className="flex flex-1 min-h-0">
+        {/* Mobile backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {/* Folder tree sidebar */}
-        <aside className="w-60 shrink-0 border-r flex flex-col bg-muted/20">
+        <aside
+          className={`flex-col border-r bg-background md:bg-muted/20 ${
+            sidebarOpen
+              ? "flex fixed inset-y-0 left-0 w-72 z-40 shadow-xl"
+              : "hidden md:flex md:w-60 md:relative md:shrink-0"
+          }`}
+        >
           <nav className="flex-1 overflow-y-auto p-2">
             <div className="space-y-0.5">
               {/* All Documents */}
@@ -570,7 +600,7 @@ export default function FolderBrowserPage() {
                     ? "bg-primary/10 font-medium text-foreground border-primary pl-[10px]"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent pl-[10px]"
                 }`}
-                onClick={() => navigate("/folders")}
+                onClick={() => { navigate("/folders"); setSidebarOpen(false); }}
               >
                 <FolderIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
                 <span className="truncate flex-1">All Documents</span>
@@ -595,7 +625,7 @@ export default function FolderBrowserPage() {
                     activeFolderId={folderId}
                     expanded={effectiveExpanded}
                     onToggle={handleToggle}
-                    onSelect={(id) => navigate(`/folders/${id}`)}
+                    onSelect={(id) => { navigate(`/folders/${id}`); setSidebarOpen(false); }}
                     depth={0}
                     gdriveIds={gdriveIds}
                     inboundIds={inboundIds}

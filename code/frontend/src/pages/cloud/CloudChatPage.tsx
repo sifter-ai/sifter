@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Wrench,
   CornerDownLeft,
+  PanelLeft,
 } from "lucide-react";
 import {
   fetchChatSessions,
@@ -261,6 +262,7 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
   const [selectedSiftIds] = useState<string[]>(siftId ? [siftId] : []);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState<{ id: string; content: string } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
@@ -281,6 +283,7 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
 
   const loadSession = async (id: string) => {
     setActiveSessionId(id);
+    setSidebarOpen(false);
     const { messages: msgs } = await fetchChatSession(id);
     setMessages(msgs);
   };
@@ -350,10 +353,10 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Unified top rail — single h-14 row spans sidebar + chat, so borders & heights always align */}
+      {/* Unified top rail */}
       <header className="flex h-14 shrink-0 border-b">
-        {/* Left slot: matches sidebar width + bg so the sidebar column reads as one continuous strip top-to-bottom */}
-        <div className="w-60 shrink-0 flex items-center px-3 border-r bg-muted/20">
+        {/* Left slot — desktop only */}
+        <div className="hidden md:flex w-60 shrink-0 items-center px-3 border-r bg-muted/20">
           <button
             onClick={() => {
               setActiveSessionId(null);
@@ -367,13 +370,28 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
           </button>
         </div>
 
-        {/* Right slot: breadcrumb title + agent badge + actions */}
-        <div className="flex-1 flex items-center gap-3 px-5 min-w-0">
+        {/* Right slot */}
+        <div className="flex-1 flex items-center gap-2 px-4 min-w-0">
+          {/* Mobile-only controls */}
+          <div className="flex items-center gap-1.5 md:hidden shrink-0">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => { setActiveSessionId(null); setMessages([]); }}
+              className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">
               Chat
             </span>
-            <span className="h-px w-5 bg-border shrink-0" aria-hidden />
+            <span className="hidden md:block h-px w-5 bg-border shrink-0" aria-hidden />
             <span className="text-sm font-semibold tracking-tight text-foreground truncate">
               {activeSession?.title || (activeSessionId ? "New chat" : "New conversation")}
             </span>
@@ -404,8 +422,21 @@ export default function CloudChatPage({ siftId }: { siftId?: string }) {
 
       {/* Body: sidebar + chat area share the remaining height */}
       <div className="flex flex-1 min-h-0">
+        {/* Mobile backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-30 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {/* Session list sidebar */}
-        <aside className="w-60 shrink-0 border-r flex flex-col bg-muted/20">
+        <aside
+          className={`flex-col border-r bg-muted/20 bg-background md:bg-muted/20 ${
+            sidebarOpen
+              ? "flex fixed inset-y-0 left-0 w-72 z-40 shadow-xl"
+              : "hidden md:flex md:w-60 md:relative md:shrink-0"
+          }`}
+        >
           <nav className="flex-1 overflow-y-auto p-2">
             {sessionsLoading && (
               <div className="space-y-1.5 px-1 pt-2">
