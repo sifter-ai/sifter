@@ -58,7 +58,7 @@ async def list_sifts(limit: int = 50, offset: int = 0) -> dict:
     """
     async with _get_client() as client:
         page = await client.list_sifts(limit=min(limit, 200), offset=offset)
-    return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
+    return {"items": [h._data for h in page.items], "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
@@ -108,7 +108,7 @@ async def list_folders(limit: int = 100, offset: int = 0) -> dict:
     """
     async with _get_client() as client:
         page = await client.list_folders(limit=min(limit, 200), offset=offset)
-    return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
+    return {"items": [h._data for h in page.items], "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
