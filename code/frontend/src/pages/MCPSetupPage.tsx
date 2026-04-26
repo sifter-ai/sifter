@@ -81,7 +81,7 @@ function cloudClaudeDesktop(url: string) {
 }
 
 function cloudClaudeCode(url: string) {
-  return `claude mcp add sifter --url ${url} \\
+  return `claude mcp add --transport http sifter ${url} \\
   --header "Authorization: Bearer YOUR_API_KEY"`;
 }
 
