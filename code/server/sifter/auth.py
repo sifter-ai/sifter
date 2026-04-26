@@ -34,6 +34,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class Principal:
     key_id: str  # "anonymous", "bootstrap", DB key _id, or user _id
     org_id: str = "default"
+    user_id: Optional[str] = None  # set for JWT-authenticated users; None for API-key principals
+
+    def __post_init__(self):
+        if self.user_id is None:
+            self.user_id = self.key_id
 
 
 def _hash_api_key(raw_key: str) -> str:
