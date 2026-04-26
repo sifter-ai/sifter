@@ -36,7 +36,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex overflow-x-hidden">
       {/* Left panel — brand */}
       <div className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 bg-[hsl(263,45%,14%)] text-white p-10">
         <div className="flex items-center gap-2.5">
@@ -55,7 +55,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 overflow-x-hidden">
         <div className="w-full max-w-sm space-y-7">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
@@ -86,7 +86,7 @@ export default function LoginPage() {
                     }
                   }}
                   onError={() => setError("Google sign-in failed")}
-                  width="400"
+                  width="360"
                   text="signin_with"
                 />
               </div>
