@@ -75,9 +75,9 @@ Or, if you're self-hosting, use `sk-dev` (the default key) or create one in the 
 ## Extract your first documents
 
 ```ts
-import { SifterClient } from "@sifter-ai/sdk";
+import { Sifter } from "@sifter-ai/sdk";
 
-const sifter = new SifterClient({ apiKey: "sk-..." });
+const sifter = new Sifter({ apiKey: "sk-..." });
 
 // Create an extractor
 const sift = await sifter.createSift(
@@ -86,11 +86,11 @@ const sift = await sifter.createSift(
 );
 
 // Upload documents and wait for processing
-const handle = await sifter.uploadToSift(sift.id, ["./invoices/"]);
-await handle.wait();
+await sift.upload("./invoices/");
+await sift.wait();
 
 // Retrieve structured records
-const records = await sift.records({ limit: 100 });
+const records = await sift.records();
 records.forEach((r) => console.log(r.extracted_data));
 ```
 

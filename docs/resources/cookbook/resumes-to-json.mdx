@@ -54,7 +54,7 @@ folder.add_sift(sift)
 folder.upload("./resumes/")
 
 sift.wait()
-print(f"Parsed {sift.records().total} resumes")
+print(f"Parsed {len(sift.records())} resumes")
 ```
 
 ## Query across candidates
@@ -66,9 +66,9 @@ print(result)
 
 # Programmatic filter — iterate all matching records across pages
 seniors = sift.find(filter={
-    "skills": {"$in": ["Python"]},
-    "years_of_experience": {"$gte": 5},
-    "open_to_remote": True,
+    "extracted_data.skills": {"$in": ["Python"]},
+    "extracted_data.years_of_experience": {"$gte": 5},
+    "extracted_data.open_to_remote": True,
 })
 for r in seniors.items:
     print(r["extracted_data"]["full_name"], r["extracted_data"]["years_of_experience"])

@@ -29,18 +29,21 @@ s = Sifter(
 The SDK exposes a unified surface across OSS and Cloud. Cloud-only methods (connectors, shares, billing, audit log) raise specific errors when the backend doesn't support them or when your plan doesn't include them.
 
 ```python
-from sifter import Sifter, NotAvailableError, PlanLimitError
+from sifter import Sifter
+import httpx
 
 s = Sifter(api_url="...", api_key="sk-...")
 
 try:
-    conn = s.connectors.gdrive.list()
-except NotAvailableError:
-    # Backend is OSS/self-hosted — cloud-only feature not available here.
-    print("Connectors require Sifter Cloud.")
-except PlanLimitError as e:
-    # Cloud backend, but the current plan doesn't allow this operation.
-    print(f"Upgrade required: {e.required_plan}")
+    sift = s.get_sift("sift-id")
+    results = sift.query("Total by client")
+except httpx.HTTPStatusError as e:
+    if e.response.status_code == 402:
+        print("Upgrade required for this feature.")
+    elif e.response.status_code in (401, 403):
+        print("Check your API key.")
+    else:
+        raise
 ```
 
 | Exception | When it fires |
@@ -61,13 +64,11 @@ Autocomplete surfaces every method on both OSS and Cloud. The runtime decides if
 sift = s.create_sift("Invoices", "client, date, total amount, VAT number")
 sift = s.create_sift("Invoices", "client, date, total amount, VAT number", description="AP invoices 2024")
 
-# Read — one page
+# Read — one page (items are SiftHandle objects)
 page = s.list_sifts(limit=50, offset=0)   # returns Page(items, total, limit, offset)
 print(f"{page.total} sifts total")
-
-# Read — iterate all
-for sift_data in s.iter_sifts():
-    print(sift_data["name"])
+for sift in page.items:
+    print(sift.name)
 
 # Update / delete
 sift = s.get_sift("sift-id")
@@ -174,15 +175,12 @@ folder.add_sift(sift)
 folder.upload("./contracts/q1/")         # directory
 folder.upload(pdf_bytes, filename="nda.pdf")  # bytes
 
-# One page
+# Documents (one page — paginate with offset for more)
 page = folder.documents(limit=50, offset=0)
-
-# Iterate all
-for doc in folder.iter_documents():
+for doc in page.items:
     print(doc["filename"])
 
-folder.sifts()          # Page of linked sifts
-folder.iter_sifts()     # iterate all linked sifts
+folder.sifts()          # Page of linked sifts (items are SiftHandle objects)
 folder.delete()
 ```
 

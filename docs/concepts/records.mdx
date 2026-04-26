@@ -22,14 +22,14 @@ A **Record** is a structured result produced when a document is processed by a s
 <Tabs>
   <Tab title="Python SDK">
 ```python
-for record in sift.iter_records():
+for record in sift.records():
     print(record["extracted_data"])
     print(record["confidence"])
 ```
   </Tab>
   <Tab title="TypeScript SDK">
 ```ts
-const records = await sift.records({ limit: 100 });
+const records = await sift.records();
 records.forEach((r) => {
   console.log(r.extracted_data);
   console.log(r.confidence);

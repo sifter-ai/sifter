@@ -20,9 +20,9 @@ bun add @sifter-ai/sdk
 ## Client
 
 ```ts
-import { SifterClient } from "@sifter-ai/sdk";
+import { Sifter } from "@sifter-ai/sdk";
 
-const sifter = new SifterClient({
+const sifter = new Sifter({
   apiUrl: "https://sifter.run",          // or http://localhost:8000 for self-hosted
   apiKey: process.env.SIFTER_API_KEY,    // falls back to SIFTER_API_KEY env var
 });
@@ -49,7 +49,7 @@ const sift = await sifter.createSift(
 
 // Read
 const sift = await sifter.getSift("sift-id");
-const sifts = await sifter.listSifts(50, 0);
+const sifts = await sifter.listSifts(50, 0); // returns SiftHandle[]
 
 // Update / delete
 await sift.update({ name: "Invoices 2024" });
@@ -61,8 +61,8 @@ await sift.delete();
 `SiftHandle` is the working object — all record access, querying, and aggregation flows through it.
 
 ```ts
-// Paginated records
-const records = await sift.records({ limit: 100, offset: 0 });
+// All records (auto-paginates)
+const records = await sift.records();
 
 // Typed records — pass your extracted-data shape
 interface Invoice {
@@ -70,7 +70,7 @@ interface Invoice {
   date: string;
   total: number;
 }
-const typed = await sift.records<Invoice>({ limit: 100 });
+const typed = await sift.records<Invoice>();
 
 // Cursor-based find with filter, sort, projection
 const page = await sift.find<Invoice>({
@@ -126,7 +126,7 @@ When uploading bytes or a `File`, `filename` is inferred from `File.name` or mus
 const folder = await sifter.createFolder("/q1-contracts");
 await folder.addSift(sift);
 await folder.upload("./contracts/q1/");                          // Node.js path
-await folder.upload(pdfBytes, { filename: "nda.pdf" });          // bytes
+await folder.upload(pdfBytes, { filename: "nda.pdf" });          // bytes — filename required
 await folder.upload("./contracts/", { onConflict: "fail" });     // strict mode
 const docs = await folder.documents();
 const sifts = await folder.sifts();
@@ -138,9 +138,9 @@ await folder.delete();
 
 ```ts
 // Page metadata + per-page rendered images
-const pageCount = await sifter.documentPageCount("doc-xyz");
-const pages = await sifter.documentPages("doc-xyz");
-const imgBytes = await sifter.documentPageImage("doc-xyz", 1, 200); // ArrayBuffer
+const doc = sifter.document("doc-xyz");
+const pageCount = await doc.pageCount();
+const imgBytes = await doc.pageImage(1, 200); // ArrayBuffer
 ```
 
 ## Citations
@@ -249,7 +249,7 @@ import type {
 Plug in retry, tracing, or edge-runtime fetches:
 
 ```ts
-const sifter = new SifterClient({
+const sifter = new Sifter({
   apiUrl: "https://sifter.run",
   apiKey: "sk-...",
   fetch: async (input, init) => {

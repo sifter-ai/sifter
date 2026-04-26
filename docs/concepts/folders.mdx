@@ -67,7 +67,7 @@ await folder.upload("./invoice.pdf");
 // From bytes
 import { readFileSync } from "fs";
 const bytes = readFileSync("./invoice.pdf");
-await folder.upload(bytes, "invoice.pdf");
+await folder.upload(bytes, { filename: "invoice.pdf" });
 
 // From a browser File object
 await folder.upload(fileInput.files[0]);
@@ -94,11 +94,9 @@ curl -X POST https://api.sifter.ai/api/folders/{id}/documents \
 <Tabs>
   <Tab title="Python SDK">
 ```python
-# One page
+# One page (paginate with offset= for more)
 page = folder.documents(limit=50, offset=0)
-
-# Iterate all
-for doc in folder.iter_documents():
+for doc in page.items:
     print(doc["filename"])
 ```
   </Tab>
