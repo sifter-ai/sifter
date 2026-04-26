@@ -55,7 +55,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 overflow-x-hidden">
+      <div className="flex-1 flex items-center justify-center p-5 sm:p-8 overflow-x-hidden min-w-0">
         <div className="w-full max-w-sm space-y-7">
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
@@ -70,7 +70,7 @@ export default function LoginPage() {
 
           {googleAuthEnabled && (
             <div className="space-y-3">
-              <div className="w-full overflow-hidden [&>div]:!w-full [&>div>div]:!w-full [&_iframe]:!w-full [&_iframe]:!max-w-none">
+              <div className="w-full overflow-hidden" style={{ maxWidth: "100%" }}>
                 <GoogleLogin
                   onSuccess={async (response) => {
                     if (!response.credential) return;
@@ -86,7 +86,7 @@ export default function LoginPage() {
                     }
                   }}
                   onError={() => setError("Google sign-in failed")}
-                  width="360"
+                  width="300"
                   text="signin_with"
                 />
               </div>
