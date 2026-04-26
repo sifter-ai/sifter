@@ -325,6 +325,28 @@ class AsyncSiftHandle:
             )
             r.raise_for_status()
 
+    async def extract(self, document_id: str) -> dict:
+        """Enqueue extraction for a single document on this sift."""
+        async with httpx.AsyncClient() as http:
+            r = await http.post(
+                f"{self._client.api_url}/api/sifts/{self.id}/extract",
+                headers=self._client._auth_headers(),
+                json={"document_id": document_id},
+            )
+            r.raise_for_status()
+            return r.json()
+
+    async def extraction_status(self, document_id: str) -> str:
+        """Return extraction status for a document: queued|running|completed|failed."""
+        async with httpx.AsyncClient() as http:
+            r = await http.get(
+                f"{self._client.api_url}/api/sifts/{self.id}/extraction-status",
+                headers=self._client._auth_headers(),
+                params={"document_id": document_id},
+            )
+            r.raise_for_status()
+            return r.json()["status"]
+
     def record(self, record_id: str) -> AsyncRecordHandle:
         return AsyncRecordHandle(record_id=record_id, sift_id=self.id, client=self._client)
 

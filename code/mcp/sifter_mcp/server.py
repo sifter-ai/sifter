@@ -14,7 +14,7 @@ import contextvars
 import os
 
 from mcp.server.fastmcp import FastMCP
-from sifter import Sifter
+from sifter import AsyncSifter
 
 # Env-level defaults (used in stdio mode)
 _api_url = os.environ.get("SIFTER_BASE_URL", "http://localhost:8000")
@@ -28,34 +28,36 @@ _request_api_key: contextvars.ContextVar[str] = contextvars.ContextVar(
 mcp = FastMCP("sifter", streamable_http_path="/", stateless_http=True)
 
 
-def _get_client() -> Sifter:
+def _get_client() -> AsyncSifter:
     api_key = _request_api_key.get() or _env_api_key
     if not api_key:
         raise RuntimeError("SIFTER_API_KEY environment variable is required")
-    return Sifter(api_url=_api_url, api_key=api_key)
+    return AsyncSifter(api_url=_api_url, api_key=api_key)
 
 
 @mcp.tool()
-def list_sifts(limit: int = 50, offset: int = 0) -> dict:
+async def list_sifts(limit: int = 50, offset: int = 0) -> dict:
     """List sifts with their name, instructions, and document/record counts.
 
     Args:
         limit: Maximum number of sifts to return (default 50, max 200)
         offset: Number of sifts to skip for pagination
     """
-    page = _get_client().list_sifts(limit=min(limit, 200), offset=offset)
+    async with _get_client() as client:
+        page = await client.list_sifts(limit=min(limit, 200), offset=offset)
     return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
-def get_sift(sift_id: str) -> dict:
+async def get_sift(sift_id: str) -> dict:
     """Get sift metadata and inferred extraction schema for a specific sift."""
-    handle = _get_client().get_sift(sift_id)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
     return handle._data if hasattr(handle, "_data") else {"sift_id": sift_id}
 
 
 @mcp.tool()
-def list_records(sift_id: str, limit: int = 20, offset: int = 0, cursor: str = "") -> dict:
+async def list_records(sift_id: str, limit: int = 20, offset: int = 0, cursor: str = "") -> dict:
     """Get extracted records from a sift.
 
     Args:
@@ -64,47 +66,49 @@ def list_records(sift_id: str, limit: int = 20, offset: int = 0, cursor: str = "
         offset: Number of records to skip (ignored when cursor is provided)
         cursor: Opaque pagination cursor from a previous call's next_cursor field
     """
-    limit = min(limit, 100)
-    page = _get_client().get_sift(sift_id).find(
-        limit=limit,
-        cursor=cursor or None,
-    )
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        page = await handle.find(limit=min(limit, 100), cursor=cursor or None)
     return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset, "next_cursor": page.next_cursor}
 
 
 @mcp.tool()
-def query_sift(sift_id: str, natural_language: str) -> list[dict]:
+async def query_sift(sift_id: str, natural_language: str) -> list[dict]:
     """Run a natural language query over a sift's extracted records.
 
     Args:
         sift_id: The sift identifier
         natural_language: The question to answer (e.g. "What is the total by client?")
     """
-    return _get_client().get_sift(sift_id).query(natural_language)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        return await handle.query(natural_language)
 
 
 @mcp.tool()
-def list_folders(limit: int = 100, offset: int = 0) -> dict:
+async def list_folders(limit: int = 100, offset: int = 0) -> dict:
     """List folders with their name and document count.
 
     Args:
         limit: Maximum number of folders to return (default 100, max 200)
         offset: Number of folders to skip for pagination
     """
-    page = _get_client().list_folders(limit=min(limit, 200), offset=offset)
+    async with _get_client() as client:
+        page = await client.list_folders(limit=min(limit, 200), offset=offset)
     return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset}
 
 
 @mcp.tool()
-def get_folder(folder_path: str) -> dict:
+async def get_folder(folder_path: str) -> dict:
     """Get folder metadata, linked sifts, and document list for a specific folder.
 
     Args:
         folder_path: Folder path (e.g. '/invoices/2025')
     """
-    handle = _get_client().get_folder(folder_path)
-    docs_page = handle.documents(limit=200)
-    sifts_page = handle.sifts(limit=200)
+    async with _get_client() as client:
+        handle = await client.get_folder(folder_path)
+        docs_page = await handle.documents(limit=200)
+        sifts_page = await handle.sifts(limit=200)
     return {
         "path": handle.path,
         "id": handle.id,
@@ -117,14 +121,16 @@ def get_folder(folder_path: str) -> dict:
 
 
 @mcp.tool()
-def get_record_citations(sift_id: str, record_id: str) -> dict:
+async def get_record_citations(sift_id: str, record_id: str) -> dict:
     """Get per-field citation map for a record (page, bbox, source text for each field).
 
     Args:
         sift_id: The sift identifier
         record_id: The record identifier
     """
-    return _get_client().get_sift(sift_id).record(record_id).citations()
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        return await handle.record(record_id).citations()
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +138,7 @@ def get_record_citations(sift_id: str, record_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def create_sift(name: str, instructions: str, folder_path: str = "") -> dict:
+async def create_sift(name: str, instructions: str, folder_path: str = "") -> dict:
     """Create a new sift with the given extraction instructions.
 
     Args:
@@ -140,16 +146,16 @@ def create_sift(name: str, instructions: str, folder_path: str = "") -> dict:
         instructions: Natural language extraction instructions (e.g. "client, date, total")
         folder_path: Optional folder path to link (e.g. '/invoices/2025'); created if it doesn't exist
     """
-    client = _get_client()
-    handle = client.create_sift(name=name, instructions=instructions)
-    if folder_path:
-        folder = client.create_folder(folder_path)
-        folder.add_sift(handle)
+    async with _get_client() as client:
+        handle = await client.create_sift(name=name, instructions=instructions)
+        if folder_path:
+            folder = await client.create_folder(folder_path)
+            await folder.add_sift(handle)
     return handle._data
 
 
 @mcp.tool()
-def update_sift(sift_id: str, name: str = "", instructions: str = "") -> dict:
+async def update_sift(sift_id: str, name: str = "", instructions: str = "") -> dict:
     """Update an existing sift's name or instructions.
 
     Args:
@@ -162,24 +168,27 @@ def update_sift(sift_id: str, name: str = "", instructions: str = "") -> dict:
         kwargs["name"] = name
     if instructions:
         kwargs["instructions"] = instructions
-    handle = _get_client().get_sift(sift_id)
-    handle.update(**kwargs)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        await handle.update(**kwargs)
     return handle._data
 
 
 @mcp.tool()
-def delete_sift(sift_id: str) -> dict:
+async def delete_sift(sift_id: str) -> dict:
     """Delete a sift and all its records.
 
     Args:
         sift_id: The sift identifier
     """
-    _get_client().get_sift(sift_id).delete()
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        await handle.delete()
     return {"deleted": True}
 
 
 @mcp.tool()
-def upload_document(folder_path: str, filename: str, content_base64: str) -> dict:
+async def upload_document(folder_path: str, filename: str, content_base64: str) -> dict:
     """Upload a document to a folder. The folder is created if it doesn't exist.
     The document will be processed by all sifts linked to the folder.
 
@@ -191,32 +200,34 @@ def upload_document(folder_path: str, filename: str, content_base64: str) -> dic
     import base64
     import httpx
 
-    client = _get_client()
-    folder = client.create_folder(folder_path)
-    raw = base64.b64decode(content_base64)
-    with httpx.Client(timeout=300.0) as http:
-        r = http.post(
-            f"{_api_url}/api/folders/{folder.id}/documents",
-            headers=client._auth_headers(),
-            files={"file": (filename, raw, "application/octet-stream")},
-        )
-        r.raise_for_status()
-        return r.json()
+    async with _get_client() as client:
+        folder = await client.create_folder(folder_path)
+        raw = base64.b64decode(content_base64)
+        async with httpx.AsyncClient(timeout=300.0) as http:
+            r = await http.post(
+                f"{_api_url}/api/folders/{folder.id}/documents",
+                headers=client._auth_headers(),
+                files={"file": (filename, raw, "application/octet-stream")},
+            )
+            r.raise_for_status()
+            return r.json()
 
 
 @mcp.tool()
-def run_extraction(document_id: str, sift_id: str) -> dict:
+async def run_extraction(document_id: str, sift_id: str) -> dict:
     """Enqueue extraction for a document on a specific sift.
 
     Args:
         document_id: The document identifier
         sift_id: The sift to extract with
     """
-    return _get_client().get_sift(sift_id).extract(document_id)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        return await handle.extract(document_id)
 
 
 @mcp.tool()
-def get_extraction_status(document_id: str, sift_id: str) -> dict:
+async def get_extraction_status(document_id: str, sift_id: str) -> dict:
     """Check extraction status for a document on a sift.
 
     Args:
@@ -226,7 +237,9 @@ def get_extraction_status(document_id: str, sift_id: str) -> dict:
     Returns:
         {"status": "queued|running|completed|failed", "error": "..." (on failure)}
     """
-    status = _get_client().get_sift(sift_id).extraction_status(document_id)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        status = await handle.extraction_status(document_id)
     return {"status": status}
 
 
@@ -235,7 +248,7 @@ def get_extraction_status(document_id: str, sift_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def find_records(
+async def find_records(
     sift_id: str,
     filter: dict,
     sort: list = None,
@@ -254,17 +267,19 @@ def find_records(
     Returns:
         {"records": [...], "next_cursor": "..." | null}
     """
-    page = _get_client().get_sift(sift_id).find(
-        filter=filter,
-        sort=sort or None,
-        limit=min(limit, 200),
-        cursor=cursor or None,
-    )
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        page = await handle.find(
+            filter=filter,
+            sort=sort or None,
+            limit=min(limit, 200),
+            cursor=cursor or None,
+        )
     return {"records": page.items, "next_cursor": page.next_cursor, "total": page.total}
 
 
 @mcp.tool()
-def aggregate_sift(sift_id: str, pipeline: list) -> list:
+async def aggregate_sift(sift_id: str, pipeline: list) -> list:
     """Run a MongoDB aggregation pipeline against a sift's records.
 
     Args:
@@ -275,7 +290,9 @@ def aggregate_sift(sift_id: str, pipeline: list) -> list:
     Returns:
         Array of aggregated rows
     """
-    return _get_client().get_sift(sift_id).aggregate(pipeline)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        return await handle.aggregate(pipeline)
 
 
 # ---------------------------------------------------------------------------
@@ -283,10 +300,12 @@ def aggregate_sift(sift_id: str, pipeline: list) -> list:
 # ---------------------------------------------------------------------------
 
 @mcp.resource("sift://{sift_id}/records")
-def sift_records_resource(sift_id: str) -> str:
+async def sift_records_resource(sift_id: str) -> str:
     """First 100 extracted records for a sift. Check next_cursor to fetch more."""
     import json
-    page = _get_client().get_sift(sift_id).records(limit=100)
+    async with _get_client() as client:
+        handle = await client.get_sift(sift_id)
+        page = await handle.find(limit=100)
     return json.dumps(
         {"items": page.items, "total": page.total, "next_cursor": page.next_cursor},
         default=str,
