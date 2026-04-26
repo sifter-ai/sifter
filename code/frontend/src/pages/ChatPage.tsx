@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Sparkles, Plus, Database, Trash2, MessageSquare,
-  ChevronDown, ChevronRight, CheckCircle2, Wrench, CornerDownLeft, Send,
+  ChevronDown, ChevronRight, CheckCircle2, Wrench, CornerDownLeft, Send, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -261,6 +261,78 @@ function SiftScopeItem({ sift }: { sift: Sift }) {
   );
 }
 
+// ── Session list ──────────────────────────────────────────────
+
+function SessionList({
+  sessionsLoading, sessions, groupedSessions, activeSessionId, onSelect, onDelete,
+}: {
+  sessionsLoading: boolean;
+  sessions: ChatSession[];
+  groupedSessions: Record<Bucket, ChatSession[]>;
+  activeSessionId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <nav className="flex-1 overflow-y-auto p-2">
+      {sessionsLoading && (
+        <div className="space-y-1.5 px-1 pt-2">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
+        </div>
+      )}
+      {!sessionsLoading && sessions.length === 0 && (
+        <div className="px-3 py-12 text-center space-y-2.5">
+          <MessageSquare className="h-5 w-5 mx-auto text-muted-foreground/40" strokeWidth={1.5} />
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-foreground/60">No chats yet</p>
+          <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+            Start a new conversation to<br />see it land here.
+          </p>
+        </div>
+      )}
+      {!sessionsLoading && sessions.length > 0 && (
+        <div className="space-y-3 pt-1">
+          {BUCKET_ORDER.map((bucket) => {
+            const items = groupedSessions[bucket];
+            if (!items.length) return null;
+            return (
+              <div key={bucket}>
+                <p className="px-2 pb-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+                  {BUCKET_LABEL[bucket]}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map((s) => {
+                    const isActive = activeSessionId === s.id;
+                    return (
+                      <div
+                        key={s.id}
+                        className={`group relative flex items-center gap-2 rounded-md pl-3 pr-1.5 py-1.5 cursor-pointer text-sm transition-colors ${
+                          isActive ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                        onClick={() => onSelect(s.id)}
+                      >
+                        {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />}
+                        <span className={`truncate flex-1 text-[12px] ${isActive ? "font-medium" : ""}`}>
+                          {s.title || "New chat"}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 rounded"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </nav>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────
 
 export function ChatPage() {
@@ -271,6 +343,7 @@ export function ChatPage() {
   const [welcomeInput, setWelcomeInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [showSessions, setShowSessions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -296,6 +369,7 @@ export function ChatPage() {
 
   const loadSession = async (id: string) => {
     setActiveSessionId(id);
+    setShowSessions(false);
     const { messages: msgs } = await fetchChatSession(id);
     setMessages(msgs);
     setInput("");
@@ -368,7 +442,8 @@ export function ChatPage() {
     <div className="flex flex-col h-full bg-background">
       {/* Top rail */}
       <header className="flex h-14 shrink-0 border-b">
-        <div className="w-56 shrink-0 flex items-center px-3 border-r bg-muted/20">
+        {/* Desktop: new chat button */}
+        <div className="hidden md:flex w-56 shrink-0 items-center px-3 border-r bg-muted/20">
           <button
             onClick={() => { setActiveSessionId(null); setMessages([]); setInput(""); }}
             className="group relative w-full h-9 rounded-lg overflow-hidden bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all hover:-translate-y-px active:translate-y-0 active:shadow-sm"
@@ -379,7 +454,16 @@ export function ChatPage() {
           </button>
         </div>
 
-        <div className="flex-1 flex items-center gap-3 px-5 min-w-0">
+        {/* Mobile: sessions toggle */}
+        <button
+          className="md:hidden h-14 w-14 shrink-0 flex items-center justify-center border-r text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          onClick={() => setShowSessions(true)}
+          aria-label="Open sessions"
+        >
+          <MessageSquare className="h-4.5 w-4.5" />
+        </button>
+
+        <div className="flex-1 flex items-center gap-3 px-4 sm:px-5 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/60 shrink-0">Chat</span>
             <span className="h-px w-5 bg-border shrink-0" aria-hidden />
@@ -413,65 +497,52 @@ export function ChatPage() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        {/* Session list — left sidebar */}
-        <aside className="w-56 shrink-0 border-r flex flex-col bg-muted/20">
-          <nav className="flex-1 overflow-y-auto p-2">
-            {sessionsLoading && (
-              <div className="space-y-1.5 px-1 pt-2">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-7 w-full" />)}
-              </div>
-            )}
-            {!sessionsLoading && sessions.length === 0 && (
-              <div className="px-3 py-12 text-center space-y-2.5">
-                <MessageSquare className="h-5 w-5 mx-auto text-muted-foreground/40" strokeWidth={1.5} />
-                <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-foreground/60">No chats yet</p>
-                <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-                  Start a new conversation to<br />see it land here.
-                </p>
-              </div>
-            )}
-            {!sessionsLoading && sessions.length > 0 && (
-              <div className="space-y-3 pt-1">
-                {BUCKET_ORDER.map((bucket) => {
-                  const items = groupedSessions[bucket];
-                  if (!items.length) return null;
-                  return (
-                    <div key={bucket}>
-                      <p className="px-2 pb-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
-                        {BUCKET_LABEL[bucket]}
-                      </p>
-                      <div className="space-y-0.5">
-                        {items.map((s) => {
-                          const isActive = activeSessionId === s.id;
-                          return (
-                            <div
-                              key={s.id}
-                              className={`group relative flex items-center gap-2 rounded-md pl-3 pr-1.5 py-1.5 cursor-pointer text-sm transition-colors ${
-                                isActive ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                              }`}
-                              onClick={() => loadSession(s.id)}
-                            >
-                              {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />}
-                              <span className={`truncate flex-1 text-[12px] ${isActive ? "font-medium" : ""}`}>
-                                {s.title || "New chat"}
-                              </span>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDeleteSessionId(s.id); }}
-                                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-1 rounded"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </nav>
+        {/* Session list — left sidebar (desktop) */}
+        <aside className="hidden md:flex w-56 shrink-0 border-r flex-col bg-muted/20">
+          <SessionList
+            sessionsLoading={sessionsLoading}
+            sessions={sessions}
+            groupedSessions={groupedSessions}
+            activeSessionId={activeSessionId}
+            onSelect={loadSession}
+            onDelete={(id) => setDeleteSessionId(id)}
+          />
         </aside>
+
+        {/* Session list — mobile overlay */}
+        {showSessions && (
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            <div className="w-72 bg-background border-r flex flex-col shadow-xl">
+              <div className="flex items-center justify-between px-3 py-3 border-b shrink-0">
+                <span className="font-semibold text-sm">Chats</span>
+                <button
+                  onClick={() => setShowSessions(false)}
+                  className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="px-3 py-2 border-b shrink-0">
+                <button
+                  onClick={() => { setActiveSessionId(null); setMessages([]); setInput(""); setShowSessions(false); }}
+                  className="group relative w-full h-9 rounded-lg overflow-hidden bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5 transition-transform group-hover:rotate-90" />
+                  <span>New chat</span>
+                </button>
+              </div>
+              <SessionList
+                sessionsLoading={sessionsLoading}
+                sessions={sessions}
+                groupedSessions={groupedSessions}
+                activeSessionId={activeSessionId}
+                onSelect={loadSession}
+                onDelete={(id) => { setShowSessions(false); setDeleteSessionId(id); }}
+              />
+            </div>
+            <div className="flex-1 bg-black/30" onClick={() => setShowSessions(false)} />
+          </div>
+        )}
 
         {/* Chat area */}
         <div className="flex-1 flex flex-col min-h-0 relative">
@@ -570,8 +641,8 @@ export function ChatPage() {
           )}
         </div>
 
-        {/* Scope panel — right side */}
-        <aside className="w-56 shrink-0 border-l border-border/70 flex flex-col bg-card/60">
+        {/* Scope panel — right side (desktop only) */}
+        <aside className="hidden lg:flex w-56 shrink-0 border-l border-border/70 flex-col bg-card/60">
           <div className="flex items-center gap-2 px-3 py-3 border-b border-border/60 shrink-0">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Scope</span>
             <span className="h-px flex-1 bg-border/50" aria-hidden />
