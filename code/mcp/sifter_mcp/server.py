@@ -14,6 +14,7 @@ import contextvars
 import os
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from sifter import AsyncSifter
 
 # Env-level defaults (used in stdio mode)
@@ -25,7 +26,19 @@ _request_api_key: contextvars.ContextVar[str] = contextvars.ContextVar(
     "sifter_request_api_key", default=""
 )
 
-mcp = FastMCP("sifter", streamable_http_path="/", stateless_http=True)
+# DNS rebinding protection: configurable via SIFTER_MCP_ALLOWED_HOSTS (comma-separated).
+# When running behind a reverse proxy / Cloud Run with Bearer auth the protection is
+# unnecessary; disable it by default so any Host header is accepted.
+_raw_allowed_hosts = os.environ.get("SIFTER_MCP_ALLOWED_HOSTS", "")
+if _raw_allowed_hosts.strip():
+    _transport_security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[h.strip() for h in _raw_allowed_hosts.split(",") if h.strip()],
+    )
+else:
+    _transport_security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+
+mcp = FastMCP("sifter", streamable_http_path="/", stateless_http=True, transport_security=_transport_security)
 
 
 def _get_client() -> AsyncSifter:
