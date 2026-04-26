@@ -126,7 +126,7 @@ export default function LoginPage() {
                 <span className="text-xs text-muted-foreground">or</span>
                 <div className="flex-1 border-t border-border" />
               </div>
-              <div ref={googleContainerRef} className="w-full overflow-hidden">
+              <div ref={googleContainerRef} className="w-full overflow-x-hidden">
                 <GoogleLogin
                   onSuccess={async (response) => {
                     if (!response.credential) return;

@@ -39,19 +39,17 @@ check_cmd uv
 check_cmd docker
 
 # ---- Load .env ----
-if [[ -f .env ]]; then
+if [[ -f .env.local ]]; then
+  info "Loading .env.local"
+  set -a; source .env.local; set +a
+elif [[ -f .env ]]; then
   info "Loading .env"
   set -a; source .env; set +a
 else
-  warn ".env not found — copying from .env.example"
-  cp .env.example .env
-  warn "Edit .env and set SIFTER_LLM_API_KEY, then re-run."
+  warn ".env.local and .env not found — copying from .env.example"
+  cp .env.example .env.local
+  warn "Edit .env.local and fill in the required values, then re-run."
   exit 1
-fi
-
-if [[ -z "${SIFTER_LLM_API_KEY:-}" ]]; then
-  warn "SIFTER_LLM_API_KEY is not set in .env"
-  warn "Extractions will fail without a valid API key."
 fi
 
 # ---- MongoDB ----

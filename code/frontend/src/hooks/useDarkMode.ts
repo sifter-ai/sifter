@@ -1,31 +1,43 @@
 import { useEffect, useState } from "react";
 
-const KEY = "sifter_dark_mode";
+const KEY = "sifter_theme";
+export type Theme = "light" | "dark" | "system";
 
 function systemPrefersDark() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 export function useDarkMode() {
-  const [dark, setDark] = useState<boolean>(() => {
+  const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem(KEY);
-    return stored !== null ? stored === "true" : systemPrefersDark();
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+    // Migrate legacy boolean key
+    const legacy = localStorage.getItem("sifter_dark_mode");
+    if (legacy !== null) return legacy === "true" ? "dark" : "light";
+    return "system";
   });
 
-  // Keep in sync with system changes (only when no manual override is stored)
   useEffect(() => {
+    const apply = (isDark: boolean) =>
+      document.documentElement.classList.toggle("dark", isDark);
+
+    if (theme !== "system") {
+      apply(theme === "dark");
+      return;
+    }
+
+    apply(systemPrefersDark());
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => {
-      if (localStorage.getItem(KEY) === null) setDark(e.matches);
-    };
+    const handler = (e: MediaQueryListEvent) => apply(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, []);
+  }, [theme]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem(KEY, String(dark));
-  }, [dark]);
+    localStorage.setItem(KEY, theme);
+  }, [theme]);
 
-  return { dark, toggle: () => setDark((d) => !d) };
+  const dark = theme === "dark" || (theme === "system" && systemPrefersDark());
+
+  return { dark, theme, setTheme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) };
 }

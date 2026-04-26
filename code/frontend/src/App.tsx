@@ -473,8 +473,8 @@ function AppRoutes() {
                 {mode === "cloud" && (
                   <Route path="/connectors/callback" element={<ConnectorCallbackPage />} />
                 )}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="/invite/accept" element={<AcceptInvitePage />} />
                 <Route path="/s/:slug" element={<PublicViewerPage />} />
                 <Route path="/privacy" element={<PrivacyPolicyPage />} />
