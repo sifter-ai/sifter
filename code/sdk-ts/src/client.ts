@@ -46,14 +46,14 @@ export class Sifter {
     return this._siftHandle(await res.json());
   }
 
-  async listSifts(limit = 50, offset = 0): Promise<SiftData[]> {
+  async listSifts(limit = 50, offset = 0): Promise<SiftHandle[]> {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     const res = await this._fetch(`${this._apiUrl}/api/sifts?${params}`, {
       headers: this._headers,
     });
     await assertOk(res);
     const data = await res.json() as { items: SiftData[] };
-    return data.items;
+    return (data.items ?? data).map((d: SiftData) => this._siftHandle(d as unknown as Record<string, unknown>));
   }
 
   // ---- One-liner ----
@@ -89,14 +89,14 @@ export class Sifter {
     return this._folderHandle(await res.json());
   }
 
-  async listFolders(limit = 50, offset = 0): Promise<FolderData[]> {
+  async listFolders(limit = 50, offset = 0): Promise<FolderHandle[]> {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     const res = await this._fetch(`${this._apiUrl}/api/folders?${params}`, {
       headers: this._headers,
     });
     await assertOk(res);
     const data = await res.json() as { items: FolderData[] };
-    return data.items;
+    return (data.items ?? data).map((d: FolderData) => this._folderHandle(d as unknown as Record<string, unknown>));
   }
 
   document(documentId: string): DocumentHandle {

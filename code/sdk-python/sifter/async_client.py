@@ -556,15 +556,12 @@ class AsyncSifter:
             )
             r.raise_for_status()
             data = r.json()
-        if isinstance(data, list):
-            return Page(items=data, total=len(data), limit=limit, offset=offset)
-        return Page(
-            items=data.get("items", []),
-            total=data.get("total", 0),
-            limit=data.get("limit", limit),
-            offset=data.get("offset", offset),
-            next_cursor=data.get("next_cursor"),
-        )
+        raw = data if isinstance(data, list) else data.get("items", [])
+        items = [AsyncSiftHandle(item, self) for item in raw]
+        total = len(raw) if isinstance(data, list) else data.get("total", 0)
+        return Page(items=items, total=total, limit=data.get("limit", limit) if isinstance(data, dict) else limit,
+                    offset=data.get("offset", offset) if isinstance(data, dict) else offset,
+                    next_cursor=data.get("next_cursor") if isinstance(data, dict) else None)
 
     # ---- Folder CRUD ----
 
@@ -597,15 +594,12 @@ class AsyncSifter:
             )
             r.raise_for_status()
             data = r.json()
-        if isinstance(data, list):
-            return Page(items=data, total=len(data), limit=limit, offset=offset)
-        return Page(
-            items=data.get("items", []),
-            total=data.get("total", 0),
-            limit=data.get("limit", limit),
-            offset=data.get("offset", offset),
-            next_cursor=data.get("next_cursor"),
-        )
+        raw = data if isinstance(data, list) else data.get("items", [])
+        items = [AsyncFolderHandle(item, self) for item in raw]
+        total = len(raw) if isinstance(data, list) else data.get("total", 0)
+        return Page(items=items, total=total, limit=data.get("limit", limit) if isinstance(data, dict) else limit,
+                    offset=data.get("offset", offset) if isinstance(data, dict) else offset,
+                    next_cursor=data.get("next_cursor") if isinstance(data, dict) else None)
 
     def document(self, document_id: str) -> AsyncDocumentHandle:
         return AsyncDocumentHandle(document_id=document_id, client=self)

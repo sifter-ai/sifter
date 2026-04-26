@@ -777,7 +777,7 @@ class Sifter:
             return SiftHandle(r.json(), self)
 
     def list_sifts(self, limit: int = 100, offset: int = 0) -> "Page":
-        """Return one page of sifts. Use iter_sifts() to exhaust all."""
+        """Return one page of sifts as SiftHandle objects."""
         import httpx
         with httpx.Client() as http:
             r = http.get(
@@ -787,15 +787,12 @@ class Sifter:
             )
             r.raise_for_status()
             data = r.json()
-        if isinstance(data, list):
-            return Page(items=data, total=len(data), limit=limit, offset=offset)
-        return Page(
-            items=data.get("items", []),
-            total=data.get("total", 0),
-            limit=data.get("limit", limit),
-            offset=data.get("offset", offset),
-            next_cursor=data.get("next_cursor"),
-        )
+        raw = data if isinstance(data, list) else data.get("items", [])
+        items = [SiftHandle(item, self) for item in raw]
+        total = len(raw) if isinstance(data, list) else data.get("total", 0)
+        return Page(items=items, total=total, limit=data.get("limit", limit) if isinstance(data, dict) else limit,
+                    offset=data.get("offset", offset) if isinstance(data, dict) else offset,
+                    next_cursor=data.get("next_cursor") if isinstance(data, dict) else None)
 
     # ---- Folder CRUD ----
 
@@ -826,7 +823,7 @@ class Sifter:
             return FolderHandle(r.json(), self)
 
     def list_folders(self, limit: int = 200, offset: int = 0) -> "Page":
-        """Return one page of folders. Use iter_folders() to exhaust all."""
+        """Return one page of folders as FolderHandle objects."""
         import httpx
         with httpx.Client() as http:
             r = http.get(
@@ -836,15 +833,12 @@ class Sifter:
             )
             r.raise_for_status()
             data = r.json()
-        if isinstance(data, list):
-            return Page(items=data, total=len(data), limit=limit, offset=offset)
-        return Page(
-            items=data.get("items", []),
-            total=data.get("total", 0),
-            limit=data.get("limit", limit),
-            offset=data.get("offset", offset),
-            next_cursor=data.get("next_cursor"),
-        )
+        raw = data if isinstance(data, list) else data.get("items", [])
+        items = [FolderHandle(item, self) for item in raw]
+        total = len(raw) if isinstance(data, list) else data.get("total", 0)
+        return Page(items=items, total=total, limit=data.get("limit", limit) if isinstance(data, dict) else limit,
+                    offset=data.get("offset", offset) if isinstance(data, dict) else offset,
+                    next_cursor=data.get("next_cursor") if isinstance(data, dict) else None)
 
     def document(self, document_id: str) -> DocumentHandle:
         """Return a handle to a document for accessing page images."""
