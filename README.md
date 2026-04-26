@@ -43,13 +43,11 @@ from sifter import Sifter
 s = Sifter(api_key="sk-...")
 
 sift = s.create_sift("Invoices", "client name, date, total amount")
-folder = s.create_folder("Q1")
-folder.add_sift(sift.id)
-folder.upload("./invoices/")
-
+sift.upload("./invoices/")
 sift.wait()
+
 for record in sift.records():
-    print(record)
+    print(record["extracted_data"])
 # {"client": "Acme Corp", "date": "2024-01-15", "total_amount": 1500.0}
 ```
 
@@ -60,12 +58,15 @@ npm install @sifter-ai/sdk
 ```
 
 ```typescript
-import { SifterClient } from "@sifter-ai/sdk";
+import { Sifter } from "@sifter-ai/sdk";
 
-const client = new SifterClient({ apiKey: "sk-..." });
+const client = new Sifter({ apiKey: "sk-..." });
 
-const sift = await client.sifts.get("sift_id");
-const records = await sift.records({ filter: { status: "unpaid" } });
+const sift = await client.createSift("Invoices", "client, date, total amount");
+await sift.upload("./invoices/");
+await sift.wait();
+
+const records = await sift.records();
 console.log(records);
 ```
 
@@ -87,7 +88,7 @@ console.log(records);
 
 Then ask Claude: *"What's the total unpaid across all invoices from last quarter?"*
 
-Want a remote MCP URL without running a local server? → [Sifter Cloud](https://cloud.sifter.ai)
+Want a remote MCP URL without running a local server? → [Sifter Cloud](https://sifter.run)
 
 ---
 
@@ -106,13 +107,13 @@ Want a remote MCP URL without running a local server? → [Sifter Cloud](https:/
 
 ## Don't want to run infrastructure?
 
-[**Sifter Cloud**](https://cloud.sifter.ai) is the managed version — no Mongo, no ops, remote MCP endpoint, Google Drive and email ingress. Free tier available.
+[**Sifter Cloud**](https://sifter.run) is the managed version — no Mongo, no ops, remote MCP endpoint, Google Drive and email ingress. Free tier available.
 
 ---
 
 ## Docs
 
-Full documentation at [sifterai.mintlify.app](https://sifterai.mintlify.app) — quickstart, SDK reference, MCP guide, cookbook, self-hosting.
+Full documentation at [docs.sifter.run](https://docs.sifter.run) — quickstart, SDK reference, MCP guide, cookbook, self-hosting.
 
 ---
 
