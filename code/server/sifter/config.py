@@ -94,7 +94,7 @@ class SifterConfig(BaseSettings):
     port: int = 8000
 
     # CORS
-    cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
+    cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:5173", "http://localhost:6274"])
 
     # Debug
     debug_llm: bool = False  # set SIFTER_DEBUG_LLM=true to log full LLM exchanges
