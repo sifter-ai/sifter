@@ -65,9 +65,8 @@ def list_records(sift_id: str, limit: int = 20, offset: int = 0, cursor: str = "
         cursor: Opaque pagination cursor from a previous call's next_cursor field
     """
     limit = min(limit, 100)
-    page = _get_client().get_sift(sift_id).records(
+    page = _get_client().get_sift(sift_id).find(
         limit=limit,
-        offset=offset,
         cursor=cursor or None,
     )
     return {"items": page.items, "total": page.total, "limit": page.limit, "offset": page.offset, "next_cursor": page.next_cursor}
