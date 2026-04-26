@@ -9,6 +9,7 @@ Flow:
 """
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import litellm
@@ -126,7 +127,8 @@ async def generate_widgets(
     runner = AgentToolRunner(db, org_id=org_id)
     trace: list[ToolCallTrace] = []
 
-    system = _SYSTEM_PROMPT
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    system = _SYSTEM_PROMPT + f"\n\nCurrent date and time: {now}"
     if sift_hint:
         system += f"\n\n## Hint\nThe user is focused on sift `{sift_hint}`. Prefer it unless the prompt says otherwise."
 

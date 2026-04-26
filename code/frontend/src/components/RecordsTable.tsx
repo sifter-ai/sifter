@@ -702,9 +702,10 @@ export function RecordsTable({ records: initialRecords, isLoading, siftId, showU
                       {record.has_uncertain_fields && (
                         <span
                           title="One or more fields have low confidence — click to review"
-                          className="text-amber-500 shrink-0"
+                          className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded shrink-0"
                         >
                           <AlertTriangle className="h-3 w-3" />
+                          uncertain
                         </span>
                       )}
                     </div>

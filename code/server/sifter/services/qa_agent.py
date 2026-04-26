@@ -4,6 +4,7 @@ Uses LiteLLM tool-calling to give the LLM access to sift query tools.
 """
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import litellm
@@ -50,7 +51,8 @@ async def chat(
     runner = AgentToolRunner(db, org_id=org_id)
     trace: list[ToolCallTrace] = []
 
-    system_content = _SYSTEM_PROMPT
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    system_content = _SYSTEM_PROMPT + f"\n\nCurrent date and time: {now}"
     if extraction_id:
         system_content += f"\n\nThe user is currently viewing sift with ID: {extraction_id}. Prefer this sift when relevant."
 
