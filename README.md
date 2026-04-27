@@ -1,7 +1,7 @@
 # Sifter
 
 [![CI](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml/badge.svg)](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/sifter-ai/sifter/branch/main/graph/badge.svg)](https://codecov.io/gh/sifter-ai/sifter)
+[![codecov](https://codecov.io/gh/sifter-ai/sifter/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/sifter-ai/sifter)
 [![PyPI](https://img.shields.io/pypi/v/sifter-ai)](https://pypi.org/project/sifter-ai/)
 [![npm](https://img.shields.io/npm/v/@sifter-ai/sdk)](https://www.npmjs.com/package/@sifter-ai/sdk)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
