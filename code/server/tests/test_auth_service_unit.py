@@ -334,3 +334,110 @@ async def test_create_org_success(mock_motor_db):
 
     assert org.name == "My Company"
     assert token == "jwt"
+
+
+# ── AuthService.list_orgs_for_user ────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_orgs_for_user(mock_motor_db):
+    user_id = str(ObjectId())
+    org_id = ObjectId()
+
+    members_cursor = MagicMock()
+    members_cursor.to_list = AsyncMock(return_value=[{"user_id": user_id, "org_id": str(org_id)}])
+    mock_motor_db["organization_members"].find = MagicMock(return_value=members_cursor)
+
+    orgs_cursor = MagicMock()
+    orgs_cursor.to_list = AsyncMock(return_value=[{"_id": org_id, "name": "Acme", "slug": "acme"}])
+    mock_motor_db["organizations"].find = MagicMock(return_value=orgs_cursor)
+
+    svc = AuthService(mock_motor_db)
+    orgs = await svc.list_orgs_for_user(user_id)
+    assert len(orgs) == 1
+    assert orgs[0].name == "Acme"
+
+
+# ── AuthService.get_org ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_org_found(mock_motor_db):
+    org_id = str(ObjectId())
+    user_id = str(ObjectId())
+    mock_motor_db["organization_members"].find_one = AsyncMock(return_value={"org_id": org_id, "user_id": user_id})
+    mock_motor_db["organizations"].find_one = AsyncMock(return_value={"_id": ObjectId(org_id), "name": "Acme", "slug": "acme"})
+
+    svc = AuthService(mock_motor_db)
+    org = await svc.get_org(org_id, user_id)
+    assert org is not None
+    assert org.name == "Acme"
+
+
+@pytest.mark.asyncio
+async def test_get_org_not_member(mock_motor_db):
+    mock_motor_db["organization_members"].find_one = AsyncMock(return_value=None)
+
+    svc = AuthService(mock_motor_db)
+    org = await svc.get_org("org1", "user1")
+    assert org is None
+
+
+# ── AuthService.list_members ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_members(mock_motor_db):
+    user_id = ObjectId()
+    org_id = str(ObjectId())
+
+    members_cursor = MagicMock()
+    members_cursor.to_list = AsyncMock(return_value=[{
+        "user_id": str(user_id),
+        "org_id": org_id,
+        "role": "member",
+    }])
+    mock_motor_db["organization_members"].find = MagicMock(return_value=members_cursor)
+    mock_motor_db["users"].find_one = AsyncMock(return_value={
+        "_id": user_id,
+        "email": "bob@example.com",
+        "full_name": "Bob",
+    })
+
+    svc = AuthService(mock_motor_db)
+    members = await svc.list_members(org_id)
+    assert len(members) == 1
+    assert members[0]["email"] == "bob@example.com"
+
+
+# ── AuthService.login multi-org sorting ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_login_multiple_orgs_picks_owner(mock_motor_db):
+    """login() returns the owner org when user belongs to multiple orgs."""
+    from sifter.auth import hash_password
+    user_id = ObjectId()
+    org_id_member = str(ObjectId())
+    org_id_owner = str(ObjectId())
+
+    user_doc = {
+        "_id": user_id,
+        "email": "alice@example.com",
+        "password_hash": hash_password("secret"),
+        "full_name": "Alice",
+    }
+    member_docs = [
+        {"user_id": str(user_id), "org_id": org_id_member, "role": "member"},
+        {"user_id": str(user_id), "org_id": org_id_owner, "role": "owner"},
+    ]
+
+    mock_motor_db["users"].find_one = AsyncMock(return_value=user_doc)
+    # find_one returns the first member found (used by existing login path)
+    mock_motor_db["organization_members"].find_one = AsyncMock(return_value=member_docs[0])
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=member_docs)
+    mock_motor_db["organization_members"].find = MagicMock(return_value=cursor)
+
+    with patch("sifter.services.auth_service.create_access_token", return_value="jwt") as mock_token:
+        svc = AuthService(mock_motor_db)
+        user, token = await svc.login("alice@example.com", "secret")
+
+    # Should have called create_access_token with the owner org
+    mock_token.assert_called_once_with(str(user_id), org_id_owner)

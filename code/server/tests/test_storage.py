@@ -6,6 +6,7 @@ S3/GCS backends are tested with mocks.
 import os
 import pytest
 import pytest_asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from sifter.storage import (
     FilesystemBackend,
@@ -153,3 +154,164 @@ def test_gcs_backend_client_missing_google_cloud(monkeypatch):
     backend = GCSBackend(bucket="my-bucket")
     with pytest.raises((RuntimeError, ImportError)):
         backend._client()
+
+
+# ── S3Backend operations ──────────────────────────────────────────────────────
+
+def _make_s3_session_mock():
+    """Build a layered async context-manager mock for aioboto3 session.client()."""
+    mock_s3 = AsyncMock()
+    mock_s3.put_object = AsyncMock()
+    mock_s3.get_object = AsyncMock(
+        return_value={"Body": AsyncMock(read=AsyncMock(return_value=b"file-data"))}
+    )
+    mock_s3.delete_object = AsyncMock()
+
+    cm = AsyncMock()
+    cm.__aenter__ = AsyncMock(return_value=mock_s3)
+    cm.__aexit__ = AsyncMock(return_value=False)
+
+    mock_session = MagicMock()
+    mock_session.client = MagicMock(return_value=cm)
+
+    return mock_session, mock_s3
+
+
+@pytest.mark.asyncio
+async def test_s3_save(monkeypatch):
+    mock_session, mock_s3 = _make_s3_session_mock()
+    backend = S3Backend(bucket="test-bucket")
+    with patch.object(backend, "_session", return_value=mock_session):
+        key = await backend.save("folder1", "doc.pdf", b"hello")
+    assert key == "folder1/doc.pdf"
+    mock_s3.put_object.assert_called_once_with(Bucket="test-bucket", Key="folder1/doc.pdf", Body=b"hello")
+
+
+@pytest.mark.asyncio
+async def test_s3_load(monkeypatch):
+    mock_session, mock_s3 = _make_s3_session_mock()
+    backend = S3Backend(bucket="test-bucket")
+    with patch.object(backend, "_session", return_value=mock_session):
+        data = await backend.load("folder1/doc.pdf")
+    assert data == b"file-data"
+    mock_s3.get_object.assert_called_once_with(Bucket="test-bucket", Key="folder1/doc.pdf")
+
+
+@pytest.mark.asyncio
+async def test_s3_delete(monkeypatch):
+    mock_session, mock_s3 = _make_s3_session_mock()
+    backend = S3Backend(bucket="test-bucket")
+    with patch.object(backend, "_session", return_value=mock_session):
+        await backend.delete("folder1/doc.pdf")
+    mock_s3.delete_object.assert_called_once_with(Bucket="test-bucket", Key="folder1/doc.pdf")
+
+
+def test_s3_session_with_credentials():
+    backend = S3Backend(
+        bucket="b", access_key_id="AKID", secret_access_key="SECRET", endpoint_url="http://localhost:9000"
+    )
+    mock_aioboto3 = MagicMock()
+    mock_aioboto3.Session.return_value = MagicMock()
+    with patch.dict("sys.modules", {"aioboto3": mock_aioboto3}):
+        backend._session()
+    call_kwargs = mock_aioboto3.Session.call_args[1]
+    assert call_kwargs["aws_access_key_id"] == "AKID"
+    assert call_kwargs["aws_secret_access_key"] == "SECRET"
+
+
+# ── GCSBackend operations ─────────────────────────────────────────────────────
+
+def _make_gcs_mock():
+    mock_blob = MagicMock()
+    mock_blob.download_as_bytes.return_value = b"gcs-data"
+    mock_bucket = MagicMock()
+    mock_bucket.blob.return_value = mock_blob
+    mock_client = MagicMock()
+    mock_client.bucket.return_value = mock_bucket
+    return mock_client, mock_bucket, mock_blob
+
+
+@pytest.mark.asyncio
+async def test_gcs_save(monkeypatch):
+    mock_client, mock_bucket, mock_blob = _make_gcs_mock()
+    backend = GCSBackend(bucket="my-bucket")
+    with patch.object(backend, "_client", return_value=mock_client):
+        key = await backend.save("folder1", "doc.pdf", b"data")
+    assert key == "folder1/doc.pdf"
+    mock_blob.upload_from_string.assert_called_once_with(b"data")
+
+
+@pytest.mark.asyncio
+async def test_gcs_load(monkeypatch):
+    mock_client, mock_bucket, mock_blob = _make_gcs_mock()
+    backend = GCSBackend(bucket="my-bucket")
+    with patch.object(backend, "_client", return_value=mock_client):
+        data = await backend.load("folder1/doc.pdf")
+    assert data == b"gcs-data"
+
+
+@pytest.mark.asyncio
+async def test_gcs_delete(monkeypatch):
+    mock_client, mock_bucket, mock_blob = _make_gcs_mock()
+    backend = GCSBackend(bucket="my-bucket")
+    with patch.object(backend, "_client", return_value=mock_client):
+        await backend.delete("folder1/doc.pdf")
+    mock_blob.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_gcs_delete_ignores_error(monkeypatch):
+    mock_client, mock_bucket, mock_blob = _make_gcs_mock()
+    mock_blob.delete.side_effect = Exception("not found")
+    backend = GCSBackend(bucket="my-bucket")
+    with patch.object(backend, "_client", return_value=mock_client):
+        await backend.delete("missing.pdf")  # must not raise
+
+
+def test_gcs_client_with_credentials_file(monkeypatch, tmp_path):
+    cred_file = str(tmp_path / "creds.json")
+    backend = GCSBackend(bucket="b", project="my-project", credentials_file=cred_file)
+    mock_gcs = MagicMock()
+    mock_gcs.Client.from_service_account_json.return_value = MagicMock()
+    with patch.dict("sys.modules", {"google.cloud": MagicMock(), "google.cloud.storage": mock_gcs, "google": MagicMock()}):
+        import importlib
+        import sifter.storage as storage_mod
+        with patch.object(backend, "_client", wraps=lambda: mock_gcs.Client.from_service_account_json(cred_file, project="my-project")):
+            result = backend._client()
+    assert result is not None
+
+
+# ── Factory: S3 and GCS variants ─────────────────────────────────────────────
+
+def test_get_storage_backend_s3(monkeypatch):
+    import sifter.storage as storage_mod
+    storage_mod._backend = None
+    monkeypatch.setenv("SIFTER_STORAGE_BACKEND", "s3")
+    monkeypatch.setenv("SIFTER_S3_BUCKET", "my-bucket")
+
+    import importlib
+    import sifter.config as cfg_mod
+    importlib.reload(cfg_mod)
+    storage_mod.config = cfg_mod.config
+    storage_mod._backend = None
+
+    backend = storage_mod.get_storage_backend()
+    assert isinstance(backend, S3Backend)
+    storage_mod._backend = None
+
+
+def test_get_storage_backend_gcs(monkeypatch):
+    import sifter.storage as storage_mod
+    storage_mod._backend = None
+    monkeypatch.setenv("SIFTER_STORAGE_BACKEND", "gcs")
+    monkeypatch.setenv("SIFTER_GCS_BUCKET", "my-gcs-bucket")
+
+    import importlib
+    import sifter.config as cfg_mod
+    importlib.reload(cfg_mod)
+    storage_mod.config = cfg_mod.config
+    storage_mod._backend = None
+
+    backend = storage_mod.get_storage_backend()
+    assert isinstance(backend, GCSBackend)
+    storage_mod._backend = None

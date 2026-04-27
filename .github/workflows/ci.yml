@@ -45,7 +45,7 @@ jobs:
         run: uv run pytest tests/ -q --cov=sifter --cov-report=xml
 
       - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: code/server/coverage.xml
           flags: backend
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: code/frontend
-        run: npm ci
+        run: npm install
 
       - name: Type check
         working-directory: code/frontend
@@ -78,7 +78,7 @@ jobs:
         run: npx vitest run --coverage
 
       - name: Upload frontend coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: code/frontend/coverage/lcov.info
           flags: frontend
