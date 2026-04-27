@@ -42,10 +42,17 @@ jobs:
         env:
           SIFTER_MONGODB_URI: mongodb://localhost:27017
           SIFTER_LLM_API_KEY: test-key
-        run: uv run pytest tests/ -q
+        run: uv run pytest tests/ -q --cov=sifter --cov-report=xml
 
-  typecheck:
-    name: TypeScript typecheck
+      - name: Upload Python coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: code/server/coverage.xml
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  frontend:
+    name: Frontend tests
     runs-on: ubuntu-latest
 
     steps:
@@ -65,3 +72,14 @@ jobs:
       - name: Type check
         working-directory: code/frontend
         run: npx tsc --noEmit
+
+      - name: Run tests
+        working-directory: code/frontend
+        run: npx vitest run --coverage
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: code/frontend/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
