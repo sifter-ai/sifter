@@ -1,0 +1,273 @@
+"""
+Unit tests for SiftService — MongoDB and sift_agent are mocked.
+"""
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from bson import ObjectId
+
+from sifter.models.sift import Sift, SiftStatus
+from sifter.models.sift_result import SiftResult
+from sifter.services.sift_service import SiftService, DocumentDiscardedError, _snake, _infer_schema
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _make_sift(sift_id="507f1f77bcf86cd799439011", schema=None, schema_fields=None, schema_version=1):
+    return Sift(
+        _id=sift_id,
+        name="Invoices",
+        instructions="Extract: client, amount",
+        schema=schema,
+        schema_fields=schema_fields or [],
+        schema_version=schema_version,
+        status=SiftStatus.ACTIVE,
+        org_id="default",
+        total_documents=1,
+        processed_documents=0,
+    )
+
+
+def _make_result(sift_id="sift1"):
+    r = SiftResult(
+        sift_id=sift_id,
+        document_id="doc1",
+        filename="invoice.pdf",
+        document_type="invoice",
+        confidence=0.95,
+        extracted_data={"client": "Acme", "amount": 100.0},
+    )
+    r.id = str(ObjectId())
+    return r
+
+
+# ── _snake / _infer_schema helpers ────────────────────────────────────────────
+
+def test_snake_converts_spaces():
+    assert _snake("Total Amount") == "total_amount"
+
+def test_snake_camel_case():
+    assert _snake("clientName") == "client_name"
+
+def test_snake_hyphens():
+    assert _snake("vat-number") == "vat_number"
+
+def test_snake_empty():
+    assert _snake("") == "field"
+
+def test_infer_schema_basic():
+    schema = _infer_schema({"client": "Acme", "amount": 99.5, "count": 3})
+    assert "client (string)" in schema
+    assert "amount (number)" in schema
+    assert "count (number)" in schema
+
+def test_infer_schema_null_is_string():
+    schema = _infer_schema({"x": None})
+    assert "x (string)" in schema
+
+def test_infer_schema_bool():
+    schema = _infer_schema({"paid": True})
+    assert "paid (boolean)" in schema
+
+def test_infer_schema_array_object():
+    schema = _infer_schema({"items": [], "meta": {}})
+    assert "items (array)" in schema
+    assert "meta (object)" in schema
+
+
+# ── process_single_document — success ────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_single_document_success(mock_motor_db):
+    from sifter.services.sift_agent import ExtractionAgentResult
+
+    sift = _make_sift()
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift.to_mongo() | {"_id": ObjectId(sift.id)})
+
+    updated_doc = sift.to_mongo() | {"_id": ObjectId(sift.id), "processed_documents": 1, "total_documents": 1}
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=updated_doc)
+
+    agent_result = ExtractionAgentResult(
+        document_type="invoice",
+        matches_filter=True,
+        filter_reason="",
+        confidence=0.95,
+        extracted_data=[{"client": "Acme", "amount": 100.0}],
+        page_blocks=[],
+        llm_citations={},
+    )
+
+    inserted_result = _make_result()
+    mock_results_service = MagicMock()
+    mock_results_service.insert_result = AsyncMock(return_value=inserted_result)
+    mock_results_service.ensure_indexes = AsyncMock()
+    mock_results_service.col = mock_motor_db["sift_results"]
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_results_service
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.services.webhook_service.WebhookService"):
+        mock_extract.return_value = agent_result
+
+        results = await svc.process_single_document(sift.id, b"pdf bytes", "invoice.pdf")
+
+    assert len(results) == 1
+    assert results[0].confidence == 0.95
+    mock_extract.assert_called_once()
+
+
+# ── process_single_document — sift not found ─────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_single_document_sift_not_found(mock_motor_db):
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=None)
+    svc = SiftService(mock_motor_db)
+    valid_oid = str(ObjectId())
+
+    with pytest.raises(ValueError, match="not found"):
+        await svc.process_single_document(valid_oid, b"pdf", "file.pdf")
+
+
+# ── process_single_document — document discarded ─────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_single_document_discarded(mock_motor_db):
+    from sifter.services.sift_agent import ExtractionAgentResult
+
+    sift = _make_sift()
+    mongo_doc = sift.to_mongo() | {"_id": ObjectId(sift.id)}
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=mongo_doc)
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(
+        return_value=mongo_doc | {"processed_documents": 1, "total_documents": 1}
+    )
+
+    agent_result = ExtractionAgentResult(
+        document_type="unknown",
+        matches_filter=False,
+        filter_reason="not an invoice",
+        confidence=0.1,
+        extracted_data=[],
+    )
+
+    svc = SiftService(mock_motor_db)
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract:
+        mock_extract.return_value = agent_result
+        with pytest.raises(DocumentDiscardedError) as exc_info:
+            await svc.process_single_document(sift.id, b"pdf", "doc.pdf")
+
+    assert "not an invoice" in exc_info.value.reason
+
+
+# ── mark_document_failed ──────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_mark_document_failed_increments_counter(mock_motor_db):
+    from bson import ObjectId as OID
+    sift_id = str(OID())
+    updated = {
+        "_id": OID(sift_id),
+        "processed_documents": 1,
+        "total_documents": 3,
+        "status": "indexing",
+    }
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=updated)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = MagicMock()
+    svc.results_service.col = mock_motor_db["sift_results"]
+
+    await svc.mark_document_failed(sift_id, "LLM error")
+    mock_motor_db["sifts"].find_one_and_update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_mark_document_failed_sets_error_when_last(mock_motor_db):
+    from bson import ObjectId as OID
+    sift_id = str(OID())
+    updated = {
+        "_id": OID(sift_id),
+        "processed_documents": 1,
+        "total_documents": 1,
+    }
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=updated)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+    mock_motor_db["sift_results"].count_documents = AsyncMock(return_value=0)
+
+    svc = SiftService(mock_motor_db)
+    mock_rss = MagicMock()
+    mock_rss.col = mock_motor_db["sift_results"]
+    svc.results_service = mock_rss
+
+    await svc.mark_document_failed(sift_id, "permanent error")
+    update_call = mock_motor_db["sifts"].update_one.call_args[0][1]
+    assert update_call["$set"]["status"] == SiftStatus.ERROR
+
+
+# ── _update_schema_if_changed ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_schema_no_change(mock_motor_db):
+    sift = _make_sift(schema="client (string)", schema_fields=[{"name": "client", "type": "string"}])
+    svc = SiftService(mock_motor_db)
+
+    # Same data → no DB write expected
+    with patch("sifter.services.webhook_service.WebhookService"):
+        await svc._update_schema_if_changed(sift, {"client": "Acme"})
+
+    mock_motor_db["sifts"].update_one.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_schema_first_time(mock_motor_db):
+    sift = _make_sift(schema=None, schema_fields=[])
+    mock_motor_db["sifts"].update_one = AsyncMock()
+    mongo_doc = sift.to_mongo() | {"_id": ObjectId(sift.id)}
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=mongo_doc)
+
+    svc = SiftService(mock_motor_db)
+    with patch("sifter.services.webhook_service.WebhookService"):
+        await svc._update_schema_if_changed(sift, {"client": "Acme", "amount": 100.0})
+
+    mock_motor_db["sifts"].update_one.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_schema_changed_fires_webhook(mock_motor_db):
+    old_fields = [{"name": "client", "type": "string"}]
+    sift = _make_sift(
+        schema="client (string)",
+        schema_fields=old_fields,
+        schema_version=1,
+    )
+    mock_motor_db["sifts"].update_one = AsyncMock()
+    mongo_doc = sift.to_mongo() | {"_id": ObjectId(sift.id)}
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=mongo_doc)
+
+    svc = SiftService(mock_motor_db)
+    with patch("sifter.services.webhook_service.WebhookService") as MockWH:
+        mock_wh = MagicMock()
+        mock_wh.dispatch = AsyncMock()
+        MockWH.return_value = mock_wh
+        # New field added → schema changed
+        await svc._update_schema_if_changed(sift, {"client": "Acme", "amount": 100.0})
+
+    mock_wh.dispatch.assert_called_once()
+
+
+# ── get_records ───────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_records_returns_list(mock_motor_db):
+    r = _make_result()
+    mock_rss = MagicMock()
+    mock_rss.get_results = AsyncMock(return_value=([r], 1))
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_rss
+
+    records, total = await svc.get_records("sift1")
+    assert total == 1
+    assert records[0]["confidence"] == 0.95
+    assert records[0]["extracted_data"]["client"] == "Acme"

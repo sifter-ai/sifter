@@ -1,0 +1,155 @@
+"""
+Unit tests for storage backends.
+FilesystemBackend uses a real tmp directory.
+S3/GCS backends are tested with mocks.
+"""
+import os
+import pytest
+import pytest_asyncio
+
+from sifter.storage import (
+    FilesystemBackend,
+    GCSBackend,
+    S3Backend,
+    get_storage_backend,
+    local_path,
+    reset_storage_backend,
+)
+
+
+# ── FilesystemBackend ─────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_filesystem_save_and_load(tmp_path):
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    path = await backend.save("folder1", "test.pdf", b"hello bytes")
+    assert os.path.exists(path)
+    data = await backend.load(path)
+    assert data == b"hello bytes"
+
+
+@pytest.mark.asyncio
+async def test_filesystem_save_creates_subdirs(tmp_path):
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    path = await backend.save("nested/folder", "file.txt", b"data")
+    assert os.path.exists(path)
+
+
+@pytest.mark.asyncio
+async def test_filesystem_delete(tmp_path):
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    path = await backend.save("f", "doc.pdf", b"content")
+    await backend.delete(path)
+    assert not os.path.exists(path)
+
+
+@pytest.mark.asyncio
+async def test_filesystem_delete_missing_is_silent(tmp_path):
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    await backend.delete(str(tmp_path / "nonexistent.pdf"))  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_filesystem_overwrite(tmp_path):
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    path = await backend.save("f", "doc.pdf", b"v1")
+    await backend.save("f", "doc.pdf", b"v2")
+    data = await backend.load(path)
+    assert data == b"v2"
+
+
+# ── local_path helper ─────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_local_path_filesystem_yields_directly(tmp_path, monkeypatch):
+    """For FilesystemBackend, local_path should yield the path as-is without I/O."""
+    backend = FilesystemBackend(base_path=str(tmp_path))
+    path = await backend.save("f", "doc.pdf", b"content")
+
+    monkeypatch.setattr("sifter.storage._backend", backend)
+    async with local_path(path) as p:
+        assert p == path
+        assert os.path.exists(p)
+
+
+@pytest.mark.asyncio
+async def test_local_path_non_filesystem_downloads_to_tmp(monkeypatch):
+    """For non-FilesystemBackend, local_path downloads and cleans up."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_backend = MagicMock(spec=[])  # not a FilesystemBackend instance
+    mock_backend.load = AsyncMock(return_value=b"pdf content")
+
+    monkeypatch.setattr("sifter.storage._backend", mock_backend)
+
+    yielded_path = None
+    async with local_path("remote/doc.pdf") as p:
+        yielded_path = p
+        assert os.path.exists(p)
+        with open(p, "rb") as f:
+            assert f.read() == b"pdf content"
+
+    assert not os.path.exists(yielded_path)
+
+
+# ── Factory ───────────────────────────────────────────────────────────────────
+
+def test_get_storage_backend_filesystem(monkeypatch, tmp_path):
+    reset_storage_backend()
+    monkeypatch.setenv("SIFTER_STORAGE_BACKEND", "filesystem")
+    monkeypatch.setenv("SIFTER_STORAGE_PATH", str(tmp_path))
+
+    # Reload config so env vars are picked up
+    import importlib
+    import sifter.config as cfg_mod
+    importlib.reload(cfg_mod)
+    import sifter.storage as storage_mod
+    storage_mod.config = cfg_mod.config
+    storage_mod._backend = None
+
+    backend = storage_mod.get_storage_backend()
+    assert isinstance(backend, FilesystemBackend)
+    storage_mod._backend = None  # clean up
+
+
+def test_reset_storage_backend(monkeypatch, tmp_path):
+    import sifter.storage as storage_mod
+    storage_mod._backend = FilesystemBackend(str(tmp_path))
+    reset_storage_backend()
+    assert storage_mod._backend is None
+
+
+# ── S3Backend constructor ─────────────────────────────────────────────────────
+
+def test_s3_backend_session_missing_aioboto3(monkeypatch):
+    """S3Backend._session() raises RuntimeError when aioboto3 is not installed."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "aioboto3":
+            raise ImportError("no aioboto3")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+    backend = S3Backend(bucket="my-bucket")
+    with pytest.raises(RuntimeError, match="aioboto3"):
+        backend._session()
+
+
+# ── GCSBackend constructor ────────────────────────────────────────────────────
+
+def test_gcs_backend_client_missing_google_cloud(monkeypatch):
+    """GCSBackend._client() raises RuntimeError when google-cloud-storage is not installed."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "google.cloud":
+            raise ImportError("no google.cloud")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+    backend = GCSBackend(bucket="my-bucket")
+    with pytest.raises((RuntimeError, ImportError)):
+        backend._client()
