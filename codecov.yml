@@ -14,7 +14,3 @@ flags:
     paths:
       - code/server/
     carryforward: true
-  frontend:
-    paths:
-      - code/frontend/
-    carryforward: true

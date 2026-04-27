@@ -75,11 +75,4 @@ jobs:
 
       - name: Run tests
         working-directory: code/frontend
-        run: npx vitest run --coverage
-
-      - name: Upload frontend coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: code/frontend/coverage/lcov.info
-          flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
+        run: npx vitest run
