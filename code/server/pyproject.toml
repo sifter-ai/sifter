@@ -79,3 +79,14 @@ sifter-mcp = { path = "../mcp", editable = true }
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["sifter"]
+omit = ["tests/*", "sifter/prompts/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
