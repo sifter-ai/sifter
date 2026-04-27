@@ -12,7 +12,7 @@
     "dark": "#18181B"
   },
   "topbarLinks": [
-    { "name": "GitHub", "url": "https://github.com/bfortunato/sifter" }
+    { "name": "GitHub", "url": "https://github.com/sifter-ai/sifter" }
   ],
   "topbarCtaButton": {
     "name": "Get Started",
@@ -82,6 +82,6 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/bfortunato/sifter"
+    "github": "https://github.com/sifter-ai/sifter"
   }
 }

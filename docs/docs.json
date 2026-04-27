@@ -87,7 +87,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/bfortunato/sifter"
+        "href": "https://github.com/sifter-ai/sifter"
       }
     ],
     "primary": {
@@ -98,7 +98,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/bfortunato/sifter"
+      "github": "https://github.com/sifter-ai/sifter"
     }
   }
 }
