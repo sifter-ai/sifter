@@ -1,5 +1,8 @@
 # sifter-ai
 
+[![CI](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml/badge.svg)](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sifter-ai/sifter/branch/main/graph/badge.svg)](https://codecov.io/gh/sifter-ai/sifter)
+
 Python SDK for [Sifter](https://github.com/sifter-ai/sifter) — AI-powered document extraction.
 
 ```bash
