@@ -104,3 +104,25 @@ def test_correction_rule_from_mongo():
 def test_correction_rule_from_mongo_none():
     from sifter.models.correction_rule import CorrectionRule
     assert CorrectionRule.from_mongo(None) is None
+
+
+# ── config CORS normalization (lines 117-119) ─────────────────────────────────
+
+def test_normalise_cors_env_comma_separated():
+    """Comma-separated CORS origins are converted to JSON array (lines 117-119)."""
+    import os
+    from sifter.config import _normalise_cors_env
+
+    original = os.environ.get("SIFTER_CORS_ORIGINS")
+    os.environ["SIFTER_CORS_ORIGINS"] = "http://localhost:3000, https://app.example.com"
+    try:
+        _normalise_cors_env()
+        import json
+        result = json.loads(os.environ["SIFTER_CORS_ORIGINS"])
+        assert "http://localhost:3000" in result
+        assert "https://app.example.com" in result
+    finally:
+        if original is None:
+            os.environ.pop("SIFTER_CORS_ORIGINS", None)
+        else:
+            os.environ["SIFTER_CORS_ORIGINS"] = original

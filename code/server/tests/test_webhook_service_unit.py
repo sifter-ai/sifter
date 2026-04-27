@@ -137,3 +137,135 @@ async def test_dispatch_matching_hook_does_not_raise(mock_motor_db):
     svc = WebhookService(mock_motor_db)
     # Connection error is swallowed — we just verify no exception propagates
     await svc.dispatch("sift.document.processed", {"status": "ok"}, org_id="default")
+
+
+# ── _matches_pattern edge cases ───────────────────────────────────────────────
+
+def test_double_star_no_match_required_suffix():
+    """**.b with a.x → False — covers the return False inside ** branch (line 34)."""
+    assert _matches_pattern("**.b", "a.x") is False
+
+
+def test_pattern_too_deep():
+    """a.b with a → False — covers return False when ep exhausted (line 36)."""
+    assert _matches_pattern("a.b", "a") is False
+
+
+def test_double_star_prefix_no_match():
+    """a.**.b with a.x → False when b can't match."""
+    assert _matches_pattern("a.**.b", "a.x") is False
+
+
+# ── dispatch with sift_id filter ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_dispatch_skips_different_sift_id(mock_motor_db):
+    """Webhook with specific sift_id is skipped when dispatching for a different sift."""
+    from sifter.models.webhook import Webhook
+
+    wh = Webhook(events=["sift.*"], url="https://example.com/hook",
+                 sift_id="sift_A", org_id="default")
+    wh.id = str(ObjectId())
+    raw_doc = wh.to_mongo()
+    raw_doc["_id"] = ObjectId(wh.id)
+
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[raw_doc])
+    mock_motor_db["webhooks"].find = MagicMock(return_value=cursor)
+
+    svc = WebhookService(mock_motor_db)
+    # Dispatch for sift_B — sift_A webhook should be skipped
+    await svc.dispatch("sift.document.processed", {"status": "ok"},
+                       sift_id="sift_B", org_id="default")
+    # No HTTP calls made since the webhook was skipped
+
+
+@pytest.mark.asyncio
+async def test_dispatch_with_matching_sift_id_attempts_delivery(mock_motor_db):
+    """Webhook for same sift_id fires HTTP request (swallowed on error)."""
+    from sifter.models.webhook import Webhook
+    from unittest.mock import patch
+
+    wh = Webhook(events=["sift.*"], url="https://example.com/hook",
+                 sift_id="sift_X", org_id="default")
+    wh.id = str(ObjectId())
+    raw_doc = wh.to_mongo()
+    raw_doc["_id"] = ObjectId(wh.id)
+
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[raw_doc])
+    mock_motor_db["webhooks"].find = MagicMock(return_value=cursor)
+
+    svc = WebhookService(mock_motor_db)
+    # Same sift_id — the request should be attempted and any error swallowed
+    await svc.dispatch("sift.document.processed", {"status": "ok"},
+                       sift_id="sift_X", org_id="default")
+    # No error raised
+
+
+@pytest.mark.asyncio
+async def test_dispatch_successful_delivery_logs_info(mock_motor_db):
+    """If HTTP delivery succeeds, logs info (not warning)."""
+    from sifter.models.webhook import Webhook
+    from unittest.mock import patch, MagicMock, AsyncMock
+
+    wh = Webhook(events=["sift.done"], url="https://hook.example.com/", org_id="default")
+    wh.id = str(ObjectId())
+    raw_doc = wh.to_mongo()
+    raw_doc["_id"] = ObjectId(wh.id)
+
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[raw_doc])
+    mock_motor_db["webhooks"].find = MagicMock(return_value=cursor)
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    async def _aenter(self):
+        return mock_client
+
+    async def _aexit(self, *args):
+        pass
+
+    svc = WebhookService(mock_motor_db)
+    with patch("httpx.AsyncClient.__aenter__", _aenter), \
+         patch("httpx.AsyncClient.__aexit__", _aexit):
+        await svc.dispatch("sift.done", {"status": "done"}, org_id="default")
+    mock_client.post.assert_called_once()
+
+
+# ── dispatch with delivery failure (line 109) ─────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_dispatch_delivery_failure_logs_warning(mock_motor_db):
+    """When HTTP delivery raises, the exception is captured and warning is logged (line 109)."""
+    from unittest.mock import patch
+    from sifter.models.webhook import Webhook
+
+    wh = Webhook(events=["sift.done"], url="https://hook.example.com/", org_id="default")
+    wh.id = str(ObjectId())
+    raw_doc = wh.to_mongo()
+    raw_doc["_id"] = ObjectId(wh.id)
+
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[raw_doc])
+    mock_motor_db["webhooks"].find = MagicMock(return_value=cursor)
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(side_effect=ConnectionError("connection refused"))
+
+    async def _aenter(self):
+        return mock_client
+
+    async def _aexit(self, *args):
+        pass
+
+    svc = WebhookService(mock_motor_db)
+    with patch("httpx.AsyncClient.__aenter__", _aenter), \
+         patch("httpx.AsyncClient.__aexit__", _aexit):
+        # Should not raise — exception is swallowed and warning logged
+        await svc.dispatch("sift.done", {"status": "done"}, org_id="default")
+    mock_client.post.assert_called_once()

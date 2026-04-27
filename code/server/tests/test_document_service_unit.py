@@ -392,3 +392,448 @@ async def test_get_subfolder_ids_with_children(mock_motor_db):
     svc = DocumentService(mock_motor_db)
     ids = await svc.get_subfolder_ids("parent_id")
     assert str(child_id) in ids
+
+
+# ── list_folders with parent_id filter (line 98) ──────────────────────────────
+
+@pytest.mark.asyncio
+async def test_list_folders_with_parent_id_filter(mock_motor_db):
+    """list_folders with parent_id != 'ALL' adds parent_id to query (line 98)."""
+    mock_motor_db["folders"].count_documents = AsyncMock(return_value=0)
+    cursor = MagicMock()
+    cursor.skip.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(return_value=[])
+    mock_motor_db["folders"].find = MagicMock(return_value=cursor)
+
+    svc = DocumentService(mock_motor_db)
+    folders, total = await svc.list_folders(parent_id=None)
+    assert total == 0
+
+    # Verify parent_id=None was included in the query
+    call_args = mock_motor_db["folders"].find.call_args[0][0]
+    assert "parent_id" in call_args
+
+
+# ── get_folder_path parent not found (line 120) ───────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_folder_path_parent_not_found(mock_motor_db):
+    """When parent folder is missing, path traversal stops early (line 120)."""
+    from sifter.models.document import Folder
+    folder_id = str(ObjectId())
+    parent_id = str(ObjectId())
+
+    child = Folder(name="Child", description="", path="/child",
+                   parent_id=parent_id, org_id="default")
+    child_raw = child.to_mongo()
+    child_raw["_id"] = ObjectId(folder_id)
+
+    call_count = 0
+
+    async def find_one(q, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        oid = str(q.get("_id"))
+        if oid == folder_id:
+            return child_raw
+        return None  # parent not found
+
+    mock_motor_db["folders"].find_one = AsyncMock(side_effect=find_one)
+    svc = DocumentService(mock_motor_db)
+    path = await svc.get_folder_path(folder_id)
+    assert path == []  # parent missing → empty path
+
+
+# ── get_or_create_folder_by_path (lines 134, 140) ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_or_create_folder_without_leading_slash(mock_motor_db):
+    """Path without leading slash is normalized (line 134)."""
+    from sifter.models.document import Folder
+    folder_id = ObjectId()
+    folder = Folder(name="docs", description="", path="/docs", org_id="default")
+    raw = folder.to_mongo()
+    raw["_id"] = folder_id
+
+    mock_motor_db["folders"].find_one = AsyncMock(return_value=raw)
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.get_or_create_folder_by_path("docs")  # no leading slash
+    assert result.path == "/docs"
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_folder_existing_returns_early(mock_motor_db):
+    """Existing folder is returned without insert (line 140)."""
+    from sifter.models.document import Folder
+    folder_id = ObjectId()
+    folder = Folder(name="exist", description="", path="/exist", org_id="default")
+    raw = folder.to_mongo()
+    raw["_id"] = folder_id
+
+    mock_motor_db["folders"].find_one = AsyncMock(return_value=raw)
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.get_or_create_folder_by_path("/exist")
+    mock_motor_db["folders"].insert_one.assert_not_called()
+    assert result.path == "/exist"
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_folder_creates_new(mock_motor_db):
+    """Non-existent path triggers insert (lines 148-156)."""
+    inserted_id = ObjectId()
+    mock_motor_db["folders"].find_one = AsyncMock(return_value=None)
+    mock_motor_db["folders"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=inserted_id)
+    )
+    cursor = MagicMock()
+    cursor.to_list = AsyncMock(return_value=[])
+    mock_motor_db["folder_extractors"].find = MagicMock(return_value=cursor)
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.get_or_create_folder_by_path("/newpath")
+    assert result.path == "/newpath"
+    mock_motor_db["folders"].insert_one.assert_called_once()
+
+
+# ── _delete_document_files (lines 401, 406-407) ──────────────────────────────
+
+@pytest.mark.asyncio
+async def test_delete_document_files_no_storage_path(mock_motor_db):
+    """No storage_path → returns early without calling backend (line 401)."""
+    svc = DocumentService(mock_motor_db)
+    await svc._delete_document_files({})  # no storage_path key
+
+
+@pytest.mark.asyncio
+async def test_delete_document_files_backend_exception_swallowed(mock_motor_db):
+    """Backend.delete exception is swallowed (lines 406-407)."""
+    svc = DocumentService(mock_motor_db)
+    with patch("sifter.storage.FilesystemBackend.delete",
+               new_callable=AsyncMock,
+               side_effect=Exception("backend down")):
+        await svc._delete_document_files({"storage_path": "/uploads/x.pdf"})
+
+
+# ── reset_sift_status (line 425) ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_reset_sift_status(mock_motor_db):
+    mock_motor_db["document_sift_statuses"].update_one = AsyncMock()
+    svc = DocumentService(mock_motor_db)
+    await svc.reset_sift_status("doc1", "sift1")
+    mock_motor_db["document_sift_statuses"].update_one.assert_called_once()
+
+
+# ── create_extraction_status legacy alias (line 440) ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_create_extraction_status_alias(mock_motor_db):
+    inserted_id = ObjectId()
+    mock_motor_db["document_sift_statuses"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=inserted_id)
+    )
+    svc = DocumentService(mock_motor_db)
+    status = await svc.create_extraction_status("doc1", "sift1")
+    assert status.document_id == "doc1"
+
+
+# ── update_sift_status optional fields (lines 458, 460, 462) ─────────────────
+
+@pytest.mark.asyncio
+async def test_update_sift_status_with_all_optional_fields(mock_motor_db):
+    mock_motor_db["document_sift_statuses"].update_one = AsyncMock()
+    svc = DocumentService(mock_motor_db)
+    await svc.update_sift_status(
+        "doc1", "sift1", DocumentSiftStatusEnum.ERROR,
+        error_message="oops",
+        sift_record_id="rec123",
+        filter_reason="duplicate",
+    )
+    call_kwargs = mock_motor_db["document_sift_statuses"].update_one.call_args[0][1]
+    updates = call_kwargs["$set"]
+    assert updates.get("error_message") == "oops"
+    assert updates.get("sift_record_id") == "rec123"
+    assert updates.get("filter_reason") == "duplicate"
+
+
+# ── update_extraction_status legacy alias (line 477) ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_extraction_status_alias(mock_motor_db):
+    mock_motor_db["document_sift_statuses"].update_one = AsyncMock()
+    svc = DocumentService(mock_motor_db)
+    await svc.update_extraction_status("doc1", "sift1", DocumentSiftStatusEnum.DONE)
+    mock_motor_db["document_sift_statuses"].update_one.assert_called_once()
+
+
+# ── delete_folder with org_id not found (line 175) ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_delete_folder_org_id_not_found(mock_motor_db):
+    """When org_id is passed and folder not found → return False (line 175)."""
+    mock_motor_db["folders"].find_one = AsyncMock(return_value=None)
+    svc = DocumentService(mock_motor_db)
+    result = await svc.delete_folder(str(ObjectId()), org_id="default")
+    assert result is False
+
+
+# ── delete_folder with children (line 179) ───────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_delete_folder_with_children(mock_motor_db):
+    """delete_folder recursively deletes children (line 179)."""
+    from unittest.mock import call as mock_call
+    parent_id = ObjectId()
+    child_id = ObjectId()
+
+    child_doc = {"_id": child_id, "name": "child", "parent_id": str(parent_id)}
+
+    def make_cursor(results):
+        c = MagicMock()
+        c.to_list = AsyncMock(return_value=results)
+        return c
+
+    find_call_count = {"n": 0}
+
+    def folders_find(query):
+        find_call_count["n"] += 1
+        if query.get("parent_id") == str(parent_id):
+            return make_cursor([child_doc])
+        return make_cursor([])
+
+    mock_motor_db["folders"].find = MagicMock(side_effect=folders_find)
+    mock_motor_db["documents"].find = MagicMock(return_value=make_cursor([]))
+    mock_motor_db["documents"].delete_many = AsyncMock()
+    mock_motor_db["folder_extractors"].delete_many = AsyncMock()
+    mock_motor_db["folders"].delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.delete_folder(str(parent_id))
+    assert result is True
+    assert mock_motor_db["folders"].delete_one.call_count >= 2
+
+
+# ── delete_folder with documents needing cleanup (lines 183-186) ─────────────
+
+@pytest.mark.asyncio
+async def test_delete_folder_with_documents(mock_motor_db):
+    """delete_folder deletes docs and their statuses (lines 183-186)."""
+    folder_id = ObjectId()
+    doc_id = ObjectId()
+
+    doc = {"_id": doc_id, "folder_id": str(folder_id), "storage_path": None}
+
+    mock_motor_db["folders"].find = MagicMock(
+        return_value=MagicMock(to_list=AsyncMock(return_value=[]))
+    )
+    mock_motor_db["documents"].find = MagicMock(
+        return_value=MagicMock(to_list=AsyncMock(return_value=[doc]))
+    )
+    mock_motor_db["document_sift_statuses"].delete_many = AsyncMock()
+    mock_motor_db["processing_queue"] = MagicMock()
+    mock_motor_db["processing_queue"].delete_many = AsyncMock()
+    mock_motor_db["documents"].delete_many = AsyncMock()
+    mock_motor_db["folder_extractors"].delete_many = AsyncMock()
+    mock_motor_db["folders"].delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.delete_folder(str(folder_id))
+    assert result is True
+    mock_motor_db["document_sift_statuses"].delete_many.assert_called_once_with(
+        {"document_id": str(doc_id)}
+    )
+
+
+# ── list_inherited_extractors with parent (lines 227, 231-239) ───────────────
+
+@pytest.mark.asyncio
+async def test_list_inherited_extractors_with_parent(mock_motor_db):
+    """folder has a parent with linked sifts → returns inherited (lines 227, 231-239)."""
+    child_id = str(ObjectId())
+    parent_id = str(ObjectId())
+
+    child_folder_raw = {
+        "_id": ObjectId(child_id),
+        "name": "child",
+        "description": "",
+        "parent_id": parent_id,
+        "path": "/parent/child",
+    }
+    parent_folder_raw = {
+        "_id": ObjectId(parent_id),
+        "name": "parent",
+        "description": "",
+        "parent_id": None,
+        "path": "/parent",
+    }
+    parent_link_raw = {
+        "_id": ObjectId(),
+        "folder_id": parent_id,
+        "sift_id": "sift-from-parent",
+    }
+
+    def find_one_side_effect(query):
+        fid = query.get("_id")
+        if fid == ObjectId(child_id):
+            return child_folder_raw
+        if fid == ObjectId(parent_id):
+            return parent_folder_raw
+        return None
+
+    def find_side_effect(query):
+        fid = query.get("folder_id")
+        if fid == parent_id:
+            return MagicMock(to_list=AsyncMock(return_value=[parent_link_raw]))
+        return MagicMock(to_list=AsyncMock(return_value=[]))
+
+    mock_motor_db["folders"].find_one = AsyncMock(side_effect=find_one_side_effect)
+    mock_motor_db["folder_extractors"].find = MagicMock(side_effect=find_side_effect)
+
+    svc = DocumentService(mock_motor_db)
+    inherited = await svc.list_inherited_extractors(child_id)
+    assert len(inherited) == 1
+    assert inherited[0].sift_id == "sift-from-parent"
+
+
+# ── collect_effective_sift_ids traverses ancestors (lines 207-217) ───────────
+
+@pytest.mark.asyncio
+async def test_collect_effective_sift_ids_with_ancestor(mock_motor_db):
+    """folder has parent with sifts → ancestor sifts collected (lines 207-217)."""
+    child_id = str(ObjectId())
+    parent_id = str(ObjectId())
+
+    child_folder_raw = {
+        "_id": ObjectId(child_id),
+        "name": "child",
+        "description": "",
+        "parent_id": parent_id,
+        "path": "/parent/child",
+    }
+    parent_folder_raw = {
+        "_id": ObjectId(parent_id),
+        "name": "parent",
+        "description": "",
+        "parent_id": None,
+        "path": "/parent",
+    }
+    parent_link_raw = {
+        "_id": ObjectId(),
+        "folder_id": parent_id,
+        "sift_id": "ancestor-sift",
+    }
+
+    def find_one_side_effect(query):
+        fid = query.get("_id")
+        if fid == ObjectId(child_id):
+            return child_folder_raw
+        if fid == ObjectId(parent_id):
+            return parent_folder_raw
+        return None
+
+    def find_side_effect(query):
+        fid = query.get("folder_id")
+        if fid == parent_id:
+            return MagicMock(to_list=AsyncMock(return_value=[parent_link_raw]))
+        return MagicMock(to_list=AsyncMock(return_value=[]))
+
+    mock_motor_db["folders"].find_one = AsyncMock(side_effect=find_one_side_effect)
+    mock_motor_db["folder_extractors"].find = MagicMock(side_effect=find_side_effect)
+
+    svc = DocumentService(mock_motor_db)
+    sift_ids = await svc.collect_effective_sift_ids(child_id)
+    assert "ancestor-sift" in sift_ids
+
+
+# ── get_or_create_folder propagates parent sifts to subfolder (line 155) ──────
+
+@pytest.mark.asyncio
+async def test_get_or_create_folder_propagates_parent_sifts(mock_motor_db):
+    """Creating subfolder with parent that has sifts → link_extractor called (line 155)."""
+    parent_id = ObjectId()
+    child_id = ObjectId()
+    sift_link_raw = {"_id": ObjectId(), "folder_id": str(parent_id), "sift_id": "sift-parent"}
+
+    call_count = {"find_one": 0, "insert": 0, "fe_find": 0, "fe_insert": 0}
+
+    async def find_one_side_effect(query):
+        call_count["find_one"] += 1
+        if query.get("path") == "/parent":
+            raw = {
+                "_id": parent_id,
+                "name": "parent",
+                "description": "",
+                "parent_id": None,
+                "path": "/parent",
+            }
+            return raw if call_count["find_one"] == 1 else raw
+        return None  # /parent/child doesn't exist
+
+    def fe_find_side_effect(query):
+        call_count["fe_find"] += 1
+        if query.get("folder_id") == str(parent_id):
+            return MagicMock(to_list=AsyncMock(return_value=[sift_link_raw]))
+        return MagicMock(to_list=AsyncMock(return_value=[]))
+
+    mock_motor_db["folders"].find_one = AsyncMock(side_effect=find_one_side_effect)
+    mock_motor_db["folders"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=child_id)
+    )
+    mock_motor_db["folder_extractors"].find = MagicMock(side_effect=fe_find_side_effect)
+    mock_motor_db["folder_extractors"].find_one = AsyncMock(return_value=None)
+    mock_motor_db["folder_extractors"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=ObjectId())
+    )
+
+    svc = DocumentService(mock_motor_db)
+    result = await svc.get_or_create_folder_by_path("/parent/child")
+    assert result is not None
+    # link_extractor should have been called for the child folder
+    mock_motor_db["folder_extractors"].insert_one.assert_called()
+
+
+# ── list_inherited_extractors with grandparent (line 239) ────────────────────
+
+@pytest.mark.asyncio
+async def test_list_inherited_extractors_with_grandparent(mock_motor_db):
+    """3-level hierarchy: grandparent has sifts → continues loop (line 239)."""
+    child_id = str(ObjectId())
+    parent_id = str(ObjectId())
+    grandparent_id = str(ObjectId())
+
+    child_raw = {
+        "_id": ObjectId(child_id), "name": "child", "description": "",
+        "parent_id": parent_id, "path": "/gp/parent/child",
+    }
+    parent_raw = {
+        "_id": ObjectId(parent_id), "name": "parent", "description": "",
+        "parent_id": grandparent_id, "path": "/gp/parent",
+    }
+    grandparent_raw = {
+        "_id": ObjectId(grandparent_id), "name": "gp", "description": "",
+        "parent_id": None, "path": "/gp",
+    }
+    gp_link = {"_id": ObjectId(), "folder_id": grandparent_id, "sift_id": "gp-sift"}
+
+    def find_one_side_effect(query):
+        fid = query.get("_id")
+        if fid == ObjectId(child_id): return child_raw
+        if fid == ObjectId(parent_id): return parent_raw
+        if fid == ObjectId(grandparent_id): return grandparent_raw
+        return None
+
+    def find_side_effect(query):
+        fid = query.get("folder_id")
+        if fid == grandparent_id:
+            return MagicMock(to_list=AsyncMock(return_value=[gp_link]))
+        return MagicMock(to_list=AsyncMock(return_value=[]))
+
+    mock_motor_db["folders"].find_one = AsyncMock(side_effect=find_one_side_effect)
+    mock_motor_db["folder_extractors"].find = MagicMock(side_effect=find_side_effect)
+
+    svc = DocumentService(mock_motor_db)
+    inherited = await svc.list_inherited_extractors(child_id)
+    assert any(i.sift_id == "gp-sift" for i in inherited)

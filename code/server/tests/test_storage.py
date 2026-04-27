@@ -315,3 +315,78 @@ def test_get_storage_backend_gcs(monkeypatch):
     backend = storage_mod.get_storage_backend()
     assert isinstance(backend, GCSBackend)
     storage_mod._backend = None
+
+
+# ── GCS _client with project kwarg (lines 150-157) ───────────────────────────
+
+def _make_gcs_import_mock(mock_gcs_module):
+    """Return a __import__ that returns mock_gcs_module for google.cloud imports."""
+    import builtins
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "google.cloud":
+            import types
+            mod = types.ModuleType("google.cloud")
+            mod.storage = mock_gcs_module
+            return mod
+        return real_import(name, *args, **kwargs)
+
+    return fake_import
+
+
+def test_gcs_client_with_project(monkeypatch):
+    """GCS client with project set (line 152) and without credentials_file (line 157)."""
+    import builtins
+    backend = GCSBackend(bucket="my-bucket", project="my-project")
+    mock_gcs_module = MagicMock()
+    mock_client_instance = MagicMock()
+    mock_gcs_module.Client.return_value = mock_client_instance
+
+    monkeypatch.setattr(builtins, "__import__", _make_gcs_import_mock(mock_gcs_module))
+    client = backend._client()
+    mock_gcs_module.Client.assert_called_once_with(project="my-project")
+
+
+def test_gcs_client_with_credentials_file_directly(monkeypatch, tmp_path):
+    """GCS client calls from_service_account_json when credentials_file set (lines 153-156)."""
+    import builtins
+    cred_file = str(tmp_path / "creds.json")
+    backend = GCSBackend(bucket="my-bucket", credentials_file=cred_file)
+    mock_gcs_module = MagicMock()
+    mock_client_instance = MagicMock()
+    mock_gcs_module.Client.from_service_account_json.return_value = mock_client_instance
+
+    monkeypatch.setattr(builtins, "__import__", _make_gcs_import_mock(mock_gcs_module))
+    client = backend._client()
+    mock_gcs_module.Client.from_service_account_json.assert_called_once_with(cred_file)
+
+
+# ── local_path FileNotFoundError in finally (lines 276-277) ──────────────────
+
+@pytest.mark.asyncio
+async def test_local_path_file_not_found_in_finally(tmp_path, monkeypatch):
+    """FileNotFoundError during os.remove in finally is silenced (lines 276-277)."""
+    import os
+    import sifter.storage as storage_mod
+
+    # Use an S3-like backend (non-FilesystemBackend) so it downloads to a temp file
+    mock_backend = AsyncMock()
+    mock_backend.load = AsyncMock(return_value=b"content")
+
+    # Make isinstance(backend, FilesystemBackend) return False
+    monkeypatch.setattr(storage_mod, "get_storage_backend", lambda: mock_backend)
+
+    call_count = {"n": 0}
+
+    def mock_remove(path):
+        call_count["n"] += 1
+        raise FileNotFoundError("already gone")
+
+    monkeypatch.setattr(os, "remove", mock_remove)
+
+    from sifter.storage import local_path
+    async with local_path("folder/doc.txt") as path:
+        assert path.endswith(".txt")
+    # FileNotFoundError was swallowed, no exception propagated
+    assert call_count["n"] == 1

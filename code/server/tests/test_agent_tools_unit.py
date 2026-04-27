@@ -151,3 +151,38 @@ async def test_dispatch_unknown_tool(mock_motor_db):
     runner = AgentToolRunner(mock_motor_db)
     with pytest.raises(ValueError, match="Unknown tool"):
         await runner._dispatch("nonexistent_tool", {})
+
+
+# ── call() wrapper (lines 133-137) ───────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_call_returns_trace(mock_motor_db):
+    """call() wraps _dispatch and returns (result, ToolCallTrace) (lines 133-137)."""
+    runner = AgentToolRunner(mock_motor_db)
+    runner._dispatch = AsyncMock(return_value={"error": "no pipeline"})
+
+    result, trace = await runner.call("aggregate_sift", {"sift_id": "s1"})
+    assert result == {"error": "no pipeline"}
+    assert trace.tool == "aggregate_sift"
+    assert trace.duration_ms >= 0
+
+
+# ── query_sift dispatch (lines 180-183) ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_dispatch_query_sift(mock_motor_db):
+    """query_sift path returns results and pipeline (lines 180-183)."""
+    runner = AgentToolRunner(mock_motor_db)
+    runner.agg_svc = MagicMock()
+    runner.agg_svc.live_query = AsyncMock(return_value=(
+        [{"client": "Acme", "total": 1000}],
+        [{"$group": {"_id": "$client", "total": {"$sum": "$amount"}}}],
+    ))
+
+    result = await runner._dispatch("query_sift", {
+        "sift_id": "sift1",
+        "natural_language": "total per client",
+    })
+    assert result["count"] == 1
+    assert result["results"][0]["client"] == "Acme"
+    assert "pipeline" in result

@@ -106,6 +106,6 @@ class WebhookService:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for wh, res in zip(matching, results):
                 if isinstance(res, Exception):
-                    logger.warning("webhook_delivery_failed", url=wh.url, event=event, error=str(res))
+                    logger.warning("webhook_delivery_failed", url=wh.url, webhook_event=event, error=str(res))
                 else:
-                    logger.info("webhook_delivered", url=wh.url, event=event, status=res.status_code)
+                    logger.info("webhook_delivered", url=wh.url, webhook_event=event, status=res.status_code)

@@ -148,3 +148,51 @@ async def test_session_persists_messages(client):
     assert len(messages) == 2  # user + assistant
     assert messages[0]["role"] == "user"
     assert messages[1]["role"] == "assistant"
+
+
+# ── _oid() invalid id (lines 66-67) ──────────────────────────────────────────
+
+async def test_get_session_invalid_id(client):
+    """Invalid ObjectId string → 400 (lines 66-67)."""
+    r = await client.get("/api/chat/sessions/not-a-valid-id")
+    assert r.status_code == 400
+
+
+async def test_delete_session_invalid_id(client):
+    r = await client.delete("/api/chat/sessions/not-a-valid-id")
+    assert r.status_code == 400
+
+
+# ── message limit reached (line 169) ─────────────────────────────────────────
+
+async def test_send_message_limit_reached(client):
+    """Exceeding MAX_MESSAGES_PER_SESSION → 400 (line 169)."""
+    from unittest.mock import patch, AsyncMock
+    import sifter.api.chat_sessions as cs_module
+
+    # Create a session
+    r = await client.post("/api/chat/sessions", json={"org_id": "default"})
+    session_id = r.json()["id"]
+
+    with patch.object(cs_module, "MAX_MESSAGES_PER_SESSION", 0):
+        r_msg = await client.post(f"/api/chat/sessions/{session_id}/messages",
+                                  json={"content": "hello"})
+    assert r_msg.status_code == 400
+    assert "limit" in r_msg.json()["detail"].lower()
+
+
+# ── send_message server error (lines 199-201) ─────────────────────────────────
+
+async def test_send_message_server_error(client):
+    """qa_chat exception → 500 (lines 199-201)."""
+    from unittest.mock import AsyncMock, patch
+
+    r = await client.post("/api/chat/sessions", json={"org_id": "default"})
+    session_id = r.json()["id"]
+
+    with patch("sifter.api.chat_sessions.qa_chat",
+               new_callable=AsyncMock,
+               side_effect=Exception("LLM unavailable")):
+        r_msg = await client.post(f"/api/chat/sessions/{session_id}/messages",
+                                  json={"content": "hello"})
+    assert r_msg.status_code == 500

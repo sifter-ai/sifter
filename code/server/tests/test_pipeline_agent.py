@@ -93,3 +93,38 @@ async def test_generate_pipeline_not_array():
                 query="total by client",
                 sample_records=[],
             )
+
+
+def test_infer_type_list():
+    assert _infer_type([1, 2, 3]) == "array"
+
+
+def test_infer_type_dict():
+    assert _infer_type({"key": "value"}) == "object"
+
+
+def test_build_field_schema_null_sample():
+    """Null sample → 'null' string (line 41)."""
+    records = [{"extracted_data": {"missing_field": None}}]
+    result = _build_field_schema(records)
+    assert "null" in result
+
+
+def test_build_field_schema_string_sample():
+    """String sample → single-quoted format (line 43)."""
+    records = [{"extracted_data": {"client": "Acme Corp"}}]
+    result = _build_field_schema(records)
+    assert "'Acme Corp'" in result
+
+
+@pytest.mark.asyncio
+async def test_generate_pipeline_non_dict_stage():
+    """Pipeline stage is not a dict → ValueError (line 114)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps(["$group"])
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        with pytest.raises(ValueError, match="Each pipeline stage must be an object"):
+            await generate_pipeline(query="total", sample_records=[])

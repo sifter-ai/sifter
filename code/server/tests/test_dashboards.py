@@ -356,3 +356,177 @@ async def test_dashboard_service_reorder_preserves_unknown_tiles():
     assert ids_after[0] == c
     assert ids_after[1] == a
     assert b in ids_after
+
+
+# ── 404 paths ─────────────────────────────────────────────────────────────────
+
+async def test_get_dashboard_not_found(client):
+    r = await client.get("/api/dashboards/000000000000000000000000")
+    assert r.status_code == 404
+
+
+async def test_update_dashboard_not_found(client):
+    r = await client.patch("/api/dashboards/000000000000000000000000",
+                           json={"name": "Updated"})
+    assert r.status_code == 404
+
+
+async def test_delete_dashboard_not_found(client):
+    r = await client.delete("/api/dashboards/000000000000000000000000")
+    assert r.status_code == 404
+
+
+async def test_add_tile_dashboard_not_found(client):
+    r = await client.post("/api/dashboards/000000000000000000000000/tiles", json={
+        "sift_id": "s", "kind": "kpi", "title": "T", "pipeline": []
+    })
+    assert r.status_code == 404
+
+
+async def test_update_layout_dashboard_not_found(client):
+    r = await client.patch("/api/dashboards/000000000000000000000000/layout",
+                           json={"layouts": []})
+    assert r.status_code == 404
+
+
+# ── regenerate dashboard ───────────────────────────────────────────────────────
+
+async def test_regenerate_dashboard_no_spec(client):
+    r = await client.post("/api/dashboards/create-for-test/regenerate",
+                          json={"spec": ""})
+    assert r.status_code == 400
+
+
+async def test_regenerate_dashboard_value_error(client):
+    r_create = await client.post("/api/dashboards", json={"name": "RegenerateDash"})
+    assert r_create.status_code == 200
+    dash_id = r_create.json()["_id"]
+
+    with patch("sifter.services.dashboard_service.DashboardService.regenerate_from_spec",
+               new_callable=AsyncMock,
+               side_effect=ValueError("no sift found")):
+        r = await client.post(f"/api/dashboards/{dash_id}/regenerate",
+                               json={"spec": "show invoices by client"})
+    assert r.status_code == 400
+
+
+async def test_regenerate_dashboard_server_error(client):
+    r_create = await client.post("/api/dashboards", json={"name": "RegenerateErrorDash"})
+    dash_id = r_create.json()["_id"]
+
+    with patch("sifter.services.dashboard_service.DashboardService.regenerate_from_spec",
+               new_callable=AsyncMock,
+               side_effect=Exception("LLM unavailable")):
+        r = await client.post(f"/api/dashboards/{dash_id}/regenerate",
+                               json={"spec": "show some chart"})
+    assert r.status_code == 500
+
+
+# ── create with spec error ────────────────────────────────────────────────────
+
+async def test_create_dashboard_with_spec_value_error(client):
+    with patch("sifter.services.dashboard_service.DashboardService.regenerate_from_spec",
+               new_callable=AsyncMock,
+               side_effect=ValueError("no sifts")):
+        r = await client.post("/api/dashboards",
+                               json={"name": "SpecError", "spec": "show revenue"})
+    assert r.status_code == 400
+
+
+async def test_create_dashboard_with_spec_server_error(client):
+    with patch("sifter.services.dashboard_service.DashboardService.regenerate_from_spec",
+               new_callable=AsyncMock,
+               side_effect=Exception("LLM timeout")):
+        r = await client.post("/api/dashboards",
+                               json={"name": "SpecServerError", "spec": "show revenue"})
+    assert r.status_code == 500
+
+
+# ── update_layout success (line 212) ─────────────────────────────────────────
+
+async def test_update_layout_success(client):
+    r_create = await client.post("/api/dashboards", json={"name": "LayoutSuccDash"})
+    dash_id = r_create.json()["_id"]
+    r = await client.patch(f"/api/dashboards/{dash_id}/layout", json={"layouts": []})
+    assert r.status_code == 200
+
+
+# ── reorder_tiles not found (line 225) ────────────────────────────────────────
+
+async def test_reorder_tiles_not_found(client):
+    r = await client.patch("/api/dashboards/000000000000000000000000/tiles/reorder",
+                           json={"tile_ids": []})
+    assert r.status_code == 404
+
+
+# ── update_tile not found (line 241) ──────────────────────────────────────────
+
+async def test_update_tile_not_found(client):
+    r = await client.patch("/api/dashboards/000000000000000000000000/tiles/tile-x",
+                           json={"title": "New"})
+    assert r.status_code == 404
+
+
+# ── delete_tile not found (line 255) ──────────────────────────────────────────
+
+async def test_delete_tile_not_found(client):
+    r = await client.delete("/api/dashboards/000000000000000000000000/tiles/tile-x")
+    assert r.status_code == 404
+
+
+# ── refresh_tile endpoint (lines 266-273) ─────────────────────────────────────
+
+async def test_refresh_tile_not_found_via_api(client):
+    """refresh_tile returns 404 when dashboard or tile not found (lines 271-272)."""
+    r = await client.post("/api/dashboards/000000000000000000000000/tiles/any/refresh")
+    assert r.status_code == 404
+
+
+async def test_refresh_tile_server_error(client):
+    """refresh_tile returns 500 on exception (lines 266-270)."""
+    r_create = await client.post("/api/dashboards", json={"name": "RefreshErrDash"})
+    dash_id = r_create.json()["_id"]
+    with patch("sifter.services.dashboard_service.DashboardService.refresh_tile",
+               new_callable=AsyncMock,
+               side_effect=Exception("db down")):
+        r = await client.post(f"/api/dashboards/{dash_id}/tiles/t1/refresh")
+    assert r.status_code == 500
+
+
+# ── generate_tiles exception handlers (lines 293-297) ────────────────────────
+
+async def test_generate_tiles_value_error(client):
+    r_create = await client.post("/api/dashboards", json={"name": "GenVEDash"})
+    dash_id = r_create.json()["_id"]
+    with patch("sifter.services.dashboard_service.DashboardService.generate_tiles",
+               new_callable=AsyncMock,
+               side_effect=ValueError("no widgets")):
+        r = await client.post(f"/api/dashboards/{dash_id}/generate",
+                              json={"prompt": "show charts"})
+    assert r.status_code == 400
+
+
+async def test_generate_tiles_server_error(client):
+    r_create = await client.post("/api/dashboards", json={"name": "GenErrDash"})
+    dash_id = r_create.json()["_id"]
+    with patch("sifter.services.dashboard_service.DashboardService.generate_tiles",
+               new_callable=AsyncMock,
+               side_effect=Exception("LLM timeout")):
+        r = await client.post(f"/api/dashboards/{dash_id}/generate",
+                              json={"prompt": "show charts"})
+    assert r.status_code == 500
+
+
+# ── refresh_tile success path (line 273) ─────────────────────────────────────
+
+async def test_refresh_tile_success(client):
+    """refresh_tile returns snapshot when successful (line 273)."""
+    r_create = await client.post("/api/dashboards", json={"name": "RefreshSuccessDash"})
+    dash_id = r_create.json()["_id"]
+    mock_snapshot = {"tile_id": "t1", "data": [{"value": 42}]}
+    with patch("sifter.services.dashboard_service.DashboardService.refresh_tile",
+               new_callable=AsyncMock,
+               return_value=mock_snapshot):
+        r = await client.post(f"/api/dashboards/{dash_id}/tiles/t1/refresh")
+    assert r.status_code == 200
+    assert r.json()["tile_id"] == "t1"

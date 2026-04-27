@@ -243,3 +243,18 @@ async def test_smtp_sender_async_send_calls_thread(monkeypatch):
     with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
         await sender._async_send("to@example.com", "Subject", "<p>Body</p>")
     mock_thread.assert_called_once_with(sender._send, "to@example.com", "Subject", "<p>Body</p>")
+
+
+def test_smtp_sender_ssl_with_login(monkeypatch):
+    """SMTP_SSL path with smtp_user set → s.login() called (line 87)."""
+    sender = _make_smtp_sender(monkeypatch)
+    import sifter.config as cfg_mod
+    monkeypatch.setattr(cfg_mod.config, "smtp_tls", False)
+    monkeypatch.setattr(cfg_mod.config, "smtp_user", "user@example.com")
+    monkeypatch.setattr(cfg_mod.config, "smtp_password", "secret")
+    mock_smtp_ssl = MagicMock()
+    mock_smtp_ssl.__enter__ = MagicMock(return_value=mock_smtp_ssl)
+    mock_smtp_ssl.__exit__ = MagicMock(return_value=False)
+    with patch("smtplib.SMTP_SSL", return_value=mock_smtp_ssl):
+        sender._send("to@example.com", "Subject", "<p>Body</p>")
+    mock_smtp_ssl.login.assert_called_once_with("user@example.com", "secret")

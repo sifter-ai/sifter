@@ -441,3 +441,56 @@ async def test_login_multiple_orgs_picks_owner(mock_motor_db):
 
     # Should have called create_access_token with the owner org
     mock_token.assert_called_once_with(str(user_id), org_id_owner)
+
+
+# ── create_org slug collision (lines 127-128) ─────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_create_org_slug_collision(mock_motor_db):
+    """When the base slug already exists, a counter suffix is added (lines 127-128)."""
+    existing_org_id = ObjectId()
+    existing_org = {
+        "_id": existing_org_id,
+        "name": "Test Org",
+        "slug": "test-org",
+    }
+    new_org_id = ObjectId()
+
+    call_count = {"n": 0}
+
+    async def find_one_side_effect(query):
+        call_count["n"] += 1
+        if call_count["n"] == 1 and query.get("slug") == "test-org":
+            return existing_org  # first slug taken
+        return None  # second slug (test-org-1) free
+
+    mock_motor_db["organizations"].find_one = AsyncMock(side_effect=find_one_side_effect)
+    mock_motor_db["organizations"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=new_org_id)
+    )
+    mock_motor_db["organization_members"].insert_one = AsyncMock(
+        return_value=MagicMock(inserted_id=ObjectId())
+    )
+
+    with patch("sifter.services.auth_service.create_access_token", return_value="jwt"):
+        svc = AuthService(mock_motor_db)
+        org, token = await svc.create_org("Test Org", str(ObjectId()))
+
+    assert org.slug == "test-org-1"
+
+
+# ── ensure_indexes (lines 208-210) ───────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ensure_indexes(mock_motor_db):
+    """ensure_indexes creates all required indexes (lines 208-210)."""
+    mock_motor_db["users"].create_index = AsyncMock()
+    mock_motor_db["api_keys"].create_index = AsyncMock()
+    mock_motor_db["organization_members"].create_index = AsyncMock()
+
+    svc = AuthService(mock_motor_db)
+    await svc.ensure_indexes()
+
+    mock_motor_db["users"].create_index.assert_called_once_with("email", unique=True)
+    mock_motor_db["api_keys"].create_index.assert_called_once_with("key_hash")
+    mock_motor_db["organization_members"].create_index.assert_called_once()

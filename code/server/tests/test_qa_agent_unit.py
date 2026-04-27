@@ -105,3 +105,62 @@ async def test_chat_tool_error_is_swallowed(mock_motor_db):
         result = await chat(None, "Show sift details", [], mock_motor_db)
 
     assert "Could not retrieve" in result.response
+
+
+# ── invalid JSON in tool arguments (lines 101-102) ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_chat_invalid_json_in_tool_args(mock_motor_db):
+    """Invalid JSON in tool arguments → args = {} fallback (lines 101-102)."""
+    tool_call = MagicMock()
+    tool_call.id = "tc1"
+    tool_call.function.name = "list_sifts"
+    tool_call.function.arguments = "NOT VALID JSON{"
+
+    tool_resp = _make_llm_response(None, tool_calls=[tool_call])
+    final_resp = _make_llm_response("Done.", tool_calls=None)
+
+    mock_runner = MagicMock()
+    mock_runner.call = AsyncMock(return_value=(
+        [],
+        MagicMock(tool="list_sifts", args={}, result_preview="0 items", duration_ms=1),
+    ))
+
+    with patch("sifter.services.qa_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.qa_agent.AgentToolRunner", return_value=mock_runner):
+        mock_llm.side_effect = [tool_resp, final_resp]
+        result = await chat(None, "Any sifts?", [], mock_motor_db)
+
+    assert result.response == "Done."
+    # runner.call was invoked with {} as args (fallback from invalid JSON)
+    mock_runner.call.assert_called_once()
+    assert mock_runner.call.call_args[0][1] == {}
+
+
+# ── tool result with "pipeline" key (lines 110-112) ──────────────────────────
+
+@pytest.mark.asyncio
+async def test_chat_tool_result_with_pipeline(mock_motor_db):
+    """Tool returns dict with 'results' AND 'pipeline' keys → last_pipeline updated (lines 110-112)."""
+    tool_call = MagicMock()
+    tool_call.id = "tc1"
+    tool_call.function.name = "query_sift"
+    tool_call.function.arguments = '{"sift_id": "s1", "natural_language": "total"}'
+
+    tool_resp = _make_llm_response(None, tool_calls=[tool_call])
+    final_resp = _make_llm_response("Total is 500.", tool_calls=None)
+
+    mock_runner = MagicMock()
+    mock_runner.call = AsyncMock(return_value=(
+        {"results": [{"total": 500}], "pipeline": [{"$group": {"_id": None, "total": {"$sum": "$amount"}}}]},
+        MagicMock(tool="query_sift", args={}, result_preview="1 results", duration_ms=10),
+    ))
+
+    with patch("sifter.services.qa_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.qa_agent.AgentToolRunner", return_value=mock_runner):
+        mock_llm.side_effect = [tool_resp, final_resp]
+        result = await chat("sift1", "What is the total?", [], mock_motor_db)
+
+    assert result.response == "Total is 500."
+    assert result.data == [{"total": 500}]
+    assert result.pipeline is not None

@@ -143,3 +143,166 @@ async def test_extract_no_citations_key(tmp_path):
         )
 
     assert result.llm_citations == {}
+
+
+# ── URI source path (line 66) ─────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_uri_source():
+    """source is a string URI → process_uri path (line 66)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.9,
+        "extractedData": {"amount": "100"},
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source="gs://my-bucket/path/invoice.pdf",
+            filename="invoice.pdf",
+            instructions="Extract amount",
+        )
+
+    assert result.document_type == "invoice"
+    call_messages = mock_llm.call_args.kwargs["messages"]
+    user_content = call_messages[1]["content"]
+    assert any(
+        isinstance(p, dict) and p.get("type") == "image_url"
+        for p in user_content
+    )
+
+
+# ── multi_record=True with dict extractedData (line 132) ────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_multi_record_dict_response():
+    """multi_record=True but extractedData is a dict (not list) → wrap in list (line 132)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.9,
+        "extractedData": {"amount": "100"},
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"text",
+            filename="invoice.txt",
+            instructions="Extract amounts",
+            multi_record=True,
+        )
+
+    assert len(result.extracted_data) == 1
+    assert result.extracted_data[0]["amount"] == "100"
+
+
+# ── multi_record=True path (line 74) ─────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_multi_record():
+    """multi_record=True → array format instruction appended (line 74)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.9,
+        "extractedData": [{"amount": "100"}, {"amount": "200"}],
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"some invoice text",
+            filename="invoice.txt",
+            instructions="Extract amounts",
+            multi_record=True,
+        )
+
+    assert len(result.extracted_data) == 2
+    call_messages = mock_llm.call_args.kwargs["messages"]
+    user_text = call_messages[1]["content"][0]["text"]
+    assert "array" in user_text.lower()
+
+
+# ── schema param (line 84) ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_with_schema():
+    """schema provided → appended to user content (line 84)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.9,
+        "extractedData": {"amount": "100"},
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"text",
+            filename="invoice.txt",
+            instructions="Extract",
+            schema="amount: number",
+        )
+
+    call_messages = mock_llm.call_args.kwargs["messages"]
+    user_text = call_messages[1]["content"][0]["text"]
+    assert "Expected Schema" in user_text
+    assert result.document_type == "invoice"
+
+
+# ── LLM error re-raised (lines 113-115) ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_llm_error_is_reraised():
+    """If litellm raises, the error is logged and re-raised (lines 113-115)."""
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.side_effect = RuntimeError("LLM unavailable")
+        with pytest.raises(RuntimeError, match="LLM unavailable"):
+            await extract(
+                source=b"text",
+                filename="invoice.txt",
+                instructions="Extract",
+            )
+
+
+# ── extractedData as list when multi_record=False (lines 134-135) ────────────
+
+@pytest.mark.asyncio
+async def test_extract_single_record_list_response():
+    """LLM returns a list for extractedData but multi_record=False → take first (lines 134-135)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.9,
+        "extractedData": [{"amount": "100"}, {"amount": "200"}],
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"text",
+            filename="invoice.txt",
+            instructions="Extract",
+            multi_record=False,
+        )
+
+    assert len(result.extracted_data) == 1
+    assert result.extracted_data[0]["amount"] == "100"

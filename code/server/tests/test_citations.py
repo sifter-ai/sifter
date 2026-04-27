@@ -84,3 +84,56 @@ def test_unresolvable_citation_still_included():
     c = result["total"]
     assert "page" not in c
     assert "inferred" not in c
+
+
+# ── edge cases for missing coverage (lines 41, 44, 49-50, 78, 86) ─────────────
+
+def test_non_dict_llm_entry_skipped():
+    """llm_citations entry that's not a dict is skipped (line 41)."""
+    from sifter.services.citation_resolver import resolve_citations
+    result = resolve_citations(
+        "doc1",
+        {"amount": "100"},
+        {"amount": "just a string"},  # not a dict → line 41 continue
+        [],
+    )
+    assert "amount" not in result
+
+
+def test_empty_source_text_skipped():
+    """llm_citation with empty source_text is skipped (line 44)."""
+    from sifter.services.citation_resolver import resolve_citations
+    result = resolve_citations(
+        "doc1",
+        {"amount": "100"},
+        {"amount": {"source_text": ""}},  # empty → line 44 continue
+        [],
+    )
+    assert "amount" not in result
+
+
+def test_invalid_confidence_coercion():
+    """Non-numeric confidence is set to None (lines 49-50)."""
+    from sifter.services.citation_resolver import resolve_citations
+    result = resolve_citations(
+        "doc1",
+        {"amount": "100"},
+        {"amount": {"source_text": "100", "confidence": "not-a-number"}},
+        [],
+    )
+    assert "amount" in result  # citation still included, confidence is None
+
+
+def test_fuzzy_empty_text_tokens():
+    """_find_fuzzy with empty tokens returns (None, False) immediately (line 78)."""
+    from sifter.services.citation_resolver import _find_fuzzy
+    page, inferred = _find_fuzzy("", [{"page": 1, "text": "some text"}])
+    assert page is None
+    assert inferred is False
+
+
+def test_fuzzy_empty_block_tokens():
+    """_find_fuzzy skips blocks with empty text (line 86)."""
+    from sifter.services.citation_resolver import _find_fuzzy
+    page, inferred = _find_fuzzy("hello", [{"page": 1, "text": ""}])
+    assert page is None

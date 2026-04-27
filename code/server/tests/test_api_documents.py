@@ -124,3 +124,105 @@ async def test_download_document(client):
 async def test_download_document_not_found(client):
     r = await client.get("/api/documents/000000000000000000000000/download")
     assert r.status_code == 404
+
+
+# ── get document with gmail metadata (line 43) ─────────────────────────────────
+
+async def test_get_document_gmail_connector_source(client):
+    """Document with gmail metadata exposes connector_source (line 43)."""
+    from sifter.db import get_db
+    from sifter.models.document import Document
+    rf = await client.post("/api/folders", json={"name": "Gmail Folder", "description": ""})
+    folder_id = rf.json()["id"]
+
+    db = get_db()
+    doc = Document(
+        folder_id=folder_id,
+        filename="email.pdf",
+        original_filename="email.pdf",
+        content_type="application/pdf",
+        size_bytes=512,
+        storage_path="/uploads/email.pdf",
+        org_id="default",
+    )
+    result = await db["documents"].insert_one(doc.to_mongo())
+    doc_id = str(result.inserted_id)
+    # Inject gmail metadata
+    await db["documents"].update_one(
+        {"_id": result.inserted_id},
+        {"$set": {"metadata": {"gmail_message_id": "msg-abc-123"}}}
+    )
+
+    r = await client.get(f"/api/documents/{doc_id}")
+    assert r.status_code == 200
+    assert r.json()["connector_source"] == "gmail:msg-abc-123"
+
+
+# ── delete document not found (line 103) ──────────────────────────────────────
+
+async def test_delete_document_not_found(client):
+    r = await client.delete("/api/documents/000000000000000000000000")
+    assert r.status_code == 404
+
+
+# ── reprocess not found (line 116) ───────────────────────────────────────────
+
+async def test_reprocess_document_not_found(client):
+    r = await client.post("/api/documents/000000000000000000000000/reprocess",
+                          json={"sift_id": "s1"})
+    assert r.status_code == 404
+
+
+# ── reprocess with no sift_id and no sifts linked (lines 121, 124) ───────────
+
+async def test_reprocess_document_no_sifts_linked(client):
+    """No sift_id in body and no folder extractors → 400."""
+    _, doc_id = await _create_folder_and_document(client)
+    r = await client.post(f"/api/documents/{doc_id}/reprocess", json={})
+    assert r.status_code == 400
+    assert "No sifts" in r.json()["detail"]
+
+
+# ── list document pages endpoints (lines 143-153, 179-199) ───────────────────
+
+async def test_list_document_pages_not_found(client):
+    r = await client.get("/api/documents/000000000000000000000000/pages")
+    assert r.status_code == 404
+
+
+async def test_list_document_pages_no_fitz(client):
+    """When pymupdf not installed → 501 (line 153)."""
+    _, doc_id = await _create_folder_and_document(client)
+    import sys
+    fitz_backup = sys.modules.get("fitz")
+    # Ensure fitz cannot be imported
+    sys.modules["fitz"] = None  # type: ignore
+    try:
+        r = await client.get(f"/api/documents/{doc_id}/pages")
+    finally:
+        if fitz_backup is None:
+            del sys.modules["fitz"]
+        else:
+            sys.modules["fitz"] = fitz_backup
+    assert r.status_code == 501
+
+
+async def test_get_document_page_image_not_found(client):
+    r = await client.get("/api/documents/000000000000000000000000/pages/1/image")
+    assert r.status_code == 404
+
+
+async def test_get_document_page_image_no_fitz(client):
+    """When pymupdf not installed → 501 (line 199)."""
+    _, doc_id = await _create_folder_and_document(client)
+    import sys
+    fitz_backup = sys.modules.get("fitz")
+    sys.modules["fitz"] = None  # type: ignore
+    try:
+        r = await client.get(f"/api/documents/{doc_id}/pages/1/image")
+    finally:
+        if fitz_backup is None:
+            del sys.modules["fitz"]
+        else:
+            sys.modules["fitz"] = fitz_backup
+    assert r.status_code == 501

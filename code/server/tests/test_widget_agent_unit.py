@@ -228,3 +228,180 @@ async def test_generate_widgets_returns_empty_on_max_iterations(mock_motor_db):
         result = await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
 
     assert result.widgets == []
+
+
+# ── debug_llm logging (lines 142, 175) ───────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_generate_widgets_debug_llm_logging(mock_motor_db):
+    """debug_llm=True triggers LLM request/response logging (lines 142, 175)."""
+    from unittest.mock import patch as _patch
+    import sifter.services.widget_agent as wa_module
+
+    widget = _valid_widget()
+    propose_args = json.dumps({"widgets": [widget]})
+
+    tool_call = MagicMock()
+    tool_call.id = "tc1"
+    tool_call.function.name = "propose_widgets"
+    tool_call.function.arguments = propose_args
+
+    llm_msg = MagicMock()
+    llm_msg.content = None
+    llm_msg.tool_calls = [tool_call]
+
+    llm_response = MagicMock()
+    llm_response.choices = [MagicMock()]
+    llm_response.choices[0].message = llm_msg
+
+    mock_cfg = MagicMock()
+    mock_cfg.debug_llm = True
+    mock_cfg.dashboard_model = "openai/gpt-4o"
+
+    with patch("sifter.services.widget_agent.config", mock_cfg), \
+         patch("sifter.services.widget_agent.api_kwargs_for", return_value={}), \
+         patch("sifter.services.widget_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.widget_agent.AgentToolRunner"):
+        mock_llm.return_value = llm_response
+        result = await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
+
+    assert len(result.widgets) == 1
+
+
+# ── invalid JSON in tool arguments (lines 204-205) ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_generate_widgets_invalid_json_tool_args(mock_motor_db):
+    """Tool call with invalid JSON arguments → args = {} (lines 204-205)."""
+    widget = _valid_widget()
+    propose_args = json.dumps({"widgets": [widget]})
+
+    bad_tool_call = MagicMock()
+    bad_tool_call.id = "tc0"
+    bad_tool_call.function.name = "list_sifts"
+    bad_tool_call.function.arguments = "INVALID JSON{"
+
+    propose_tool_call = MagicMock()
+    propose_tool_call.id = "tc1"
+    propose_tool_call.function.name = "propose_widgets"
+    propose_tool_call.function.arguments = propose_args
+
+    msg_with_bad = MagicMock()
+    msg_with_bad.content = None
+    msg_with_bad.tool_calls = [bad_tool_call]
+
+    msg_with_propose = MagicMock()
+    msg_with_propose.content = None
+    msg_with_propose.tool_calls = [propose_tool_call]
+
+    resp_bad = MagicMock()
+    resp_bad.choices = [MagicMock()]
+    resp_bad.choices[0].message = msg_with_bad
+
+    resp_propose = MagicMock()
+    resp_propose.choices = [MagicMock()]
+    resp_propose.choices[0].message = msg_with_propose
+
+    mock_runner = MagicMock()
+    mock_runner.call = AsyncMock(return_value=(
+        [{"id": "s1", "name": "Invoices"}],
+        MagicMock(tool="list_sifts", args={}, result_preview="1 items", duration_ms=1),
+    ))
+
+    with patch("sifter.services.widget_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.widget_agent.AgentToolRunner", return_value=mock_runner):
+        mock_llm.side_effect = [resp_bad, resp_propose]
+        result = await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
+
+    assert len(result.widgets) == 1
+
+
+# ── all widgets rejected — propose_retry path (lines 216-246) ────────────────
+
+@pytest.mark.asyncio
+async def test_generate_widgets_all_rejected_retry(mock_motor_db):
+    """All proposed widgets fail validation → feedback sent and retry (lines 216-246)."""
+    bad_widget = {"sift_id": "sift1", "kind": "heatmap", "title": "Bad"}
+    good_widget = _valid_widget()
+
+    bad_propose = json.dumps({"widgets": [bad_widget]})
+    good_propose = json.dumps({"widgets": [good_widget]})
+
+    tool_call_bad = MagicMock()
+    tool_call_bad.id = "tc1"
+    tool_call_bad.function.name = "propose_widgets"
+    tool_call_bad.function.arguments = bad_propose
+
+    tool_call_good = MagicMock()
+    tool_call_good.id = "tc2"
+    tool_call_good.function.name = "propose_widgets"
+    tool_call_good.function.arguments = good_propose
+
+    msg_bad = MagicMock()
+    msg_bad.content = None
+    msg_bad.tool_calls = [tool_call_bad]
+
+    msg_good = MagicMock()
+    msg_good.content = None
+    msg_good.tool_calls = [tool_call_good]
+
+    resp_bad = MagicMock()
+    resp_bad.choices = [MagicMock()]
+    resp_bad.choices[0].message = msg_bad
+
+    resp_good = MagicMock()
+    resp_good.choices = [MagicMock()]
+    resp_good.choices[0].message = msg_good
+
+    with patch("sifter.services.widget_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.widget_agent.AgentToolRunner"):
+        mock_llm.side_effect = [resp_bad, resp_good]
+        result = await generate_widgets("Show data", sift_hint="sift1", db=mock_motor_db)
+
+    assert len(result.widgets) == 1
+    assert result.widgets[0]["kind"] == "kpi"
+
+
+# ── tool call exception swallowed (lines 235-237) ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_generate_widgets_tool_error_swallowed(mock_motor_db):
+    """Non-propose tool raises → error captured and loop continues (lines 235-237)."""
+    widget = _valid_widget()
+    propose_args = json.dumps({"widgets": [widget]})
+
+    list_tool_call = MagicMock()
+    list_tool_call.id = "tc0"
+    list_tool_call.function.name = "list_sifts"
+    list_tool_call.function.arguments = "{}"
+
+    propose_tool_call = MagicMock()
+    propose_tool_call.id = "tc1"
+    propose_tool_call.function.name = "propose_widgets"
+    propose_tool_call.function.arguments = propose_args
+
+    msg_list = MagicMock()
+    msg_list.content = None
+    msg_list.tool_calls = [list_tool_call]
+
+    msg_propose = MagicMock()
+    msg_propose.content = None
+    msg_propose.tool_calls = [propose_tool_call]
+
+    resp_list = MagicMock()
+    resp_list.choices = [MagicMock()]
+    resp_list.choices[0].message = msg_list
+
+    resp_propose = MagicMock()
+    resp_propose.choices = [MagicMock()]
+    resp_propose.choices[0].message = msg_propose
+
+    mock_runner = MagicMock()
+    mock_runner.call = AsyncMock(side_effect=RuntimeError("tool exploded"))
+
+    with patch("sifter.services.widget_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.widget_agent.AgentToolRunner", return_value=mock_runner):
+        mock_llm.side_effect = [resp_list, resp_propose]
+        result = await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
+
+    assert len(result.widgets) == 1
