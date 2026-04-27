@@ -10,7 +10,7 @@
 
 **Structure any document. Query it like a database. Build on top via API.**
 
-Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python SDK. Self-hostable under MIT.
+Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python and TypeScript SDKs. Self-hostable under MIT.
 
 ![Sifter demo](docs/images/sifter-demo.gif)
 
@@ -105,7 +105,7 @@ Want a remote MCP URL without running a local server? → [Sifter Cloud](https:/
 - **Schema-driven extraction** — describe what to extract in natural language; schema is inferred automatically and exported as Pydantic / TypeScript types
 - **NL query** — ask questions in plain language; Sifter generates inspectable MongoDB aggregation pipelines
 - **MCP server** — stdio transport, read + write tools, zero custom integration code
-- **REST API + Python SDK** — full OpenAPI spec, typed async client
+- **REST API + SDKs** — full OpenAPI spec, typed clients for Python and TypeScript
 - **Webhooks** — HMAC-signed HTTP callbacks on every extraction event
 - **Spec-driven dashboards** — short NL spec → auto-generated board (KPI, breakdown, table, time series)
 - **CLI** — `sifter extract`, `sifter records`, `sifter sifts` for terminal workflows and CI
