@@ -84,7 +84,7 @@ describe("createFolder", () => {
       "/api/folders",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ name: "Contracts", description: "Legal docs" }),
+        body: JSON.stringify({ name: "Contracts", description: "Legal docs", parent_id: null }),
       })
     );
   });
@@ -95,7 +95,7 @@ describe("createFolder", () => {
     expect(fetch).toHaveBeenCalledWith(
       "/api/folders",
       expect.objectContaining({
-        body: JSON.stringify({ name: "Misc", description: "" }),
+        body: JSON.stringify({ name: "Misc", description: "", parent_id: null }),
       })
     );
   });
