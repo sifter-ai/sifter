@@ -262,3 +262,102 @@ async def test_process_task_error_marks_error_on_max_attempts(mock_motor_db):
 
     call_kwargs = mock_motor_db["processing_queue"].update_one.call_args_list[0][0][1]
     assert call_kwargs["$set"]["status"] == "error"
+
+
+# ── ensure_indexes ────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ensure_indexes(mock_motor_db):
+    await dp.ensure_indexes(mock_motor_db)
+    assert mock_motor_db["processing_queue"].create_index.call_count >= 2
+
+
+# ── start_workers ─────────────────────────────────────────────────────────────
+
+def test_start_workers_creates_tasks(mock_motor_db):
+    import asyncio
+
+    async def _run():
+        tasks = dp.start_workers(2, mock_motor_db)
+        assert len(tasks) == 2
+        for t in tasks:
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+
+    asyncio.run(_run())
+
+
+# ── _process_task — sift not found error ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_task_sift_not_found_skips_mark_failed(mock_motor_db):
+    """When sift is not found, mark_document_failed is NOT called."""
+    task_doc = _make_task_doc(attempts=3, max_attempts=3)
+    doc_svc = MagicMock()
+    doc_svc.update_sift_status = AsyncMock()
+    ext_svc = MagicMock()
+    sift_id = "sift_missing"
+    ext_svc.process_single_document = AsyncMock(
+        side_effect=ValueError(f"Sift {sift_id} not found")
+    )
+    ext_svc.mark_document_failed = AsyncMock()
+
+    with patch(_PATCH_STORAGE) as mock_storage, \
+         patch(_PATCH_LIMITER) as mock_limiter, \
+         patch("sifter.services.document_processor._dispatch_webhook", new_callable=AsyncMock):
+
+        mock_storage.return_value.load = AsyncMock(return_value=b"pdf")
+        mock_limiter.return_value.check_extraction = AsyncMock()
+
+        await dp._process_task(
+            db=mock_motor_db,
+            task_doc=task_doc,
+            document_id="doc1",
+            sift_id=sift_id,
+            storage_path="/uploads/f/doc.pdf",
+            sift_org_id="default",
+            attempts=3,
+            max_attempts=3,
+            doc_svc=doc_svc,
+            ext_svc=ext_svc,
+        )
+
+    ext_svc.mark_document_failed.assert_not_called()
+
+
+# ── _process_task — mark_document_failed raises ───────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_task_mark_failed_exception_is_swallowed(mock_motor_db):
+    """mark_document_failed raising should not surface to caller."""
+    task_doc = _make_task_doc(attempts=3, max_attempts=3)
+    doc_svc = MagicMock()
+    doc_svc.update_sift_status = AsyncMock()
+    ext_svc = MagicMock()
+    ext_svc.process_single_document = AsyncMock(side_effect=RuntimeError("fail"))
+    ext_svc.mark_document_failed = AsyncMock(side_effect=Exception("db down"))
+
+    with patch(_PATCH_STORAGE) as mock_storage, \
+         patch(_PATCH_LIMITER) as mock_limiter, \
+         patch("sifter.services.document_processor._dispatch_webhook", new_callable=AsyncMock):
+
+        mock_storage.return_value.load = AsyncMock(return_value=b"pdf")
+        mock_limiter.return_value.check_extraction = AsyncMock()
+
+        discard = await dp._process_task(
+            db=mock_motor_db,
+            task_doc=task_doc,
+            document_id="doc1",
+            sift_id="sift1",
+            storage_path="/uploads/f/doc.pdf",
+            sift_org_id="default",
+            attempts=3,
+            max_attempts=3,
+            doc_svc=doc_svc,
+            ext_svc=ext_svc,
+        )
+
+    assert discard is False  # should still complete without raising

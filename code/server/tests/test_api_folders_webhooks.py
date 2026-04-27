@@ -346,3 +346,119 @@ async def test_delete_webhook(client):
 async def test_delete_webhook_not_found(client):
     r = await client.delete("/api/webhooks/000000000000000000000000")
     assert r.status_code == 404
+
+
+# ───────────────────────────────────────────
+# Folder by-path
+# ───────────────────────────────────────────
+
+async def test_get_folder_by_path_existing(client):
+    await client.post("/api/folders", json={"name": "PathTest"})
+    r = await client.get("/api/folders/by-path", params={"path": "/pathtest"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "PathTest"
+
+
+async def test_get_folder_by_path_not_found(client):
+    r = await client.get("/api/folders/by-path", params={"path": "/nonexistent-path-xyz"})
+    assert r.status_code == 404
+
+
+async def test_get_folder_by_path_create(client):
+    r = await client.get("/api/folders/by-path", params={"path": "/auto/created/path", "create": "true"})
+    assert r.status_code == 200
+    assert "path" in r.json()
+
+
+async def test_update_folder_by_path(client):
+    await client.post("/api/folders", json={"name": "ToUpdateByPath"})
+    r = await client.patch("/api/folders/by-path", params={"path": "/toupdatebypath"}, json={"name": "UpdatedByPath"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "UpdatedByPath"
+
+
+async def test_update_folder_by_path_not_found(client):
+    r = await client.patch("/api/folders/by-path", params={"path": "/ghost"}, json={"name": "Ghost"})
+    assert r.status_code == 404
+
+
+async def test_delete_folder_by_path(client):
+    await client.post("/api/folders", json={"name": "ToDeleteByPath"})
+    r = await client.delete("/api/folders/by-path", params={"path": "/todeletebypath"})
+    assert r.status_code == 204
+
+
+async def test_delete_folder_by_path_not_found(client):
+    r = await client.delete("/api/folders/by-path", params={"path": "/ghost-path"})
+    assert r.status_code == 404
+
+
+# ───────────────────────────────────────────
+# Folder path (breadcrumbs)
+# ───────────────────────────────────────────
+
+async def test_get_folder_path_root(client):
+    r = await client.post("/api/folders", json={"name": "AncestorTest"})
+    fid = r.json()["id"]
+    r2 = await client.get(f"/api/folders/{fid}/path")
+    assert r2.status_code == 200
+    assert isinstance(r2.json(), list)
+
+
+# ───────────────────────────────────────────
+# Folder ↔ Sift links via /sifts route
+# ───────────────────────────────────────────
+
+async def test_list_sifts_for_folder(client):
+    fid = await _make_folder(client, "SiftList")
+    eid = await _make_extraction(client, "SiftListE")
+    await client.post(f"/api/folders/{fid}/extractors", json={"extraction_id": eid})
+
+    r = await client.get(f"/api/folders/{fid}/sifts")
+    assert r.status_code == 200
+    assert len(r.json()["items"]) >= 1
+
+
+async def test_list_sifts_for_folder_not_found(client):
+    r = await client.get("/api/folders/000000000000000000000000/sifts")
+    assert r.status_code == 404
+
+
+async def test_link_sift_via_sifts_route(client):
+    fid = await _make_folder(client, "LinkViaSifts")
+    eid = await _make_extraction(client, "LinkViaSiftsE")
+
+    r = await client.post(f"/api/folders/{fid}/sifts", json={"sift_id": eid})
+    assert r.status_code == 201
+    assert r.json()["sift_id"] == eid
+
+
+async def test_unlink_sift_via_sifts_route(client):
+    fid = await _make_folder(client, "UnlinkSift")
+    eid = await _make_extraction(client, "UnlinkSiftE")
+    await client.post(f"/api/folders/{fid}/sifts", json={"sift_id": eid})
+
+    r = await client.delete(f"/api/folders/{fid}/sifts/{eid}")
+    assert r.status_code == 204
+
+
+async def test_unlink_sift_not_found(client):
+    fid = await _make_folder(client, "UnlinkNotFound")
+    r = await client.delete(f"/api/folders/{fid}/sifts/000000000000000000000000")
+    assert r.status_code == 404
+
+
+# ───────────────────────────────────────────
+# Folder documents list
+# ───────────────────────────────────────────
+
+async def test_list_folder_documents(client):
+    fid = await _make_folder(client, "DocListF")
+    r = await client.get(f"/api/folders/{fid}/documents")
+    assert r.status_code == 200
+    assert "items" in r.json()
+
+
+async def test_list_folder_documents_not_found(client):
+    r = await client.get("/api/folders/000000000000000000000000/documents")
+    assert r.status_code == 404
