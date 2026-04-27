@@ -45,7 +45,7 @@ const DEMO_OUTPUT = `{
 export default function LandingPage() {
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
 
       {/* ── Navbar ── */}
       <header className="bg-background/80 backdrop-blur border-b sticky top-0 z-50">
@@ -78,14 +78,14 @@ export default function LandingPage() {
       {/* ── Hero ── */}
       <section className="py-16 md:py-24 overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-[1fr_1.1fr] gap-10 items-center">
+          <div className="grid md:grid-cols-[1fr_1.1fr] gap-10 items-center w-full min-w-0">
 
             {/* Left: text + code */}
-            <div>
+            <div className="min-w-0">
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide font-mono uppercase">
                 Document intelligence, open source.
               </span>
-              <h1 className="text-[2rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
+              <h1 className="text-[1.75rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
                 Structure any document.<br />
                 <span className="text-primary">Query it like</span>{" "}
                 <span className="text-primary">a database.</span>
