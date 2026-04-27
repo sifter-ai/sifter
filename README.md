@@ -1,5 +1,8 @@
 # Sifter
 
+[![CI](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml/badge.svg)](https://github.com/sifter-ai/sifter/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sifter-ai/sifter/branch/main/graph/badge.svg)](https://codecov.io/gh/sifter-ai/sifter)
+
 **Structure any document. Query it like a database. Build on top via API.**
 
 Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python SDK. Self-hostable under MIT.
