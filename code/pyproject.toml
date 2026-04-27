@@ -61,8 +61,8 @@ dev = [
 sifter = "sifter.server:run"
 
 [project.urls]
-Homepage = "https://github.com/bfortunato/sifter"
-Repository = "https://github.com/bfortunato/sifter"
+Homepage = "https://github.com/sifter-ai/sifter"
+Repository = "https://github.com/sifter-ai/sifter"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sifter"]

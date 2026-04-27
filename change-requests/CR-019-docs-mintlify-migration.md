@@ -88,7 +88,7 @@ Resources
   "redirects": [{ "source": "/", "destination": "/overview/introduction" }],
   "navigation": { "groups": [...] },
   "navbar": {
-    "links": [{ "label": "GitHub", "href": "https://github.com/bfortunato/sifter" }],
+    "links": [{ "label": "GitHub", "href": "https://github.com/sifter-ai/sifter" }],
     "primary": { "type": "button", "label": "Get Started", "href": "https://sifter.ai/register" }
   }
 }
