@@ -271,3 +271,125 @@ async def test_get_records_returns_list(mock_motor_db):
     assert total == 1
     assert records[0]["confidence"] == 0.95
     assert records[0]["extracted_data"]["client"] == "Acme"
+
+
+# ── process_documents ─────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_documents_success(mock_motor_db):
+    from sifter.services.sift_agent import ExtractionAgentResult
+
+    sift_id = str(ObjectId())
+    sift = _make_sift(sift_id=sift_id)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    agent_result = ExtractionAgentResult(
+        document_type="invoice",
+        matches_filter=True,
+        filter_reason="",
+        confidence=0.9,
+        extracted_data=[{"client": "Acme", "amount": 100.0}],
+    )
+
+    mock_results_service = MagicMock()
+    mock_results_service.insert_result = AsyncMock(return_value=_make_result(sift_id))
+    mock_results_service.ensure_indexes = AsyncMock()
+    mock_results_service.col = mock_motor_db["sift_results"]
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_results_service
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.storage.get_storage_backend") as mock_storage_factory, \
+         patch("sifter.services.webhook_service.WebhookService"):
+        mock_extract.return_value = agent_result
+        mock_backend = MagicMock()
+        mock_backend.load = AsyncMock(return_value=b"file bytes")
+        mock_storage_factory.return_value = mock_backend
+
+        await svc.process_documents(sift_id, ["/uploads/doc.pdf"])
+
+    mock_extract.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_documents_sift_not_found(mock_motor_db):
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=None)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    svc = SiftService(mock_motor_db)
+    # Should return early without error
+    await svc.process_documents(str(ObjectId()), ["/doc.pdf"])
+
+
+@pytest.mark.asyncio
+async def test_process_documents_with_error(mock_motor_db):
+    sift_id = str(ObjectId())
+    sift = _make_sift(sift_id=sift_id)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = MagicMock()
+    svc.results_service.insert_result = AsyncMock()
+    svc.results_service.col = mock_motor_db["sift_results"]
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.storage.get_storage_backend") as mock_storage_factory:
+        mock_extract.side_effect = Exception("LLM error")
+        mock_backend = MagicMock()
+        mock_backend.load = AsyncMock(return_value=b"bytes")
+        mock_storage_factory.return_value = mock_backend
+
+        await svc.process_documents(sift_id, ["/uploads/doc.pdf"])
+
+    # All failed — update should be called with ERROR status
+    calls = mock_motor_db["sifts"].update_one.call_args_list
+    assert any(
+        call.args[1].get("$set", {}).get("status") == "error"
+        for call in calls
+    )
+
+
+# ── mark_document_failed sift not found ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_mark_document_failed_sift_not_found(mock_motor_db):
+    """If sift is deleted between enqueue and completion, just return without error."""
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=None)
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = MagicMock()
+    svc.results_service.col = mock_motor_db["sift_results"]
+
+    # Should not raise
+    await svc.mark_document_failed(str(ObjectId()), "processing failed")
+
+
+# ── _update_schema_if_changed webhook path ────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_schema_if_changed_dispatches_webhook_on_change(mock_motor_db):
+    sift_id = str(ObjectId())
+    sift = _make_sift(sift_id=sift_id, schema="old_field (string)", schema_fields=[{"name": "old_field", "type": "string"}], schema_version=1)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].update_one = AsyncMock()
+    # find_one returns updated doc with new schema
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw | {"schema": "new_field (string)", "schema_fields": [{"name": "new_field", "type": "string"}], "schema_version": 2})
+
+    svc = SiftService(mock_motor_db)
+
+    with patch("sifter.services.webhook_service.WebhookService") as mock_wh_cls:
+        mock_wh = MagicMock()
+        mock_wh.dispatch = AsyncMock()
+        mock_wh_cls.return_value = mock_wh
+
+        await svc._update_schema_if_changed(sift, {"new_field": "value"})
+
+    mock_wh.dispatch.assert_called_once()
