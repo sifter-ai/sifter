@@ -63,6 +63,10 @@ export default function LandingPage() {
               className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               GitHub
             </a>
+            <a href="mailto:support@sifter.run"
+              className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
+              Support
+            </a>
             <a href="https://app.sifter.run/login"
               className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2">
               Sign in
@@ -83,28 +87,41 @@ export default function LandingPage() {
             {/* Left: text + code */}
             <div className="min-w-0">
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide font-mono uppercase">
-                Document intelligence, open source.
+                MIT open source · Bring your own LLM
               </span>
               <h1 className="text-[1.75rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
-                Structure any document.<br />
-                <span className="text-primary">Query it like</span>{" "}
-                <span className="text-primary">a database.</span>
+                Turn documents into<br />
+                <span className="text-primary">queryable data.</span>
               </h1>
               <p className="text-muted-foreground mt-5 leading-relaxed max-w-full md:max-w-sm text-[15px]">
-                Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
+                Extract structured records from PDFs, invoices, contracts, and emails. Filter, aggregate, and query with API, SDK, or MCP. No templates. No layout rules.
               </p>
-              <div className="mt-7 flex gap-3 flex-wrap sm:flex-nowrap">
+
+              {/* Retrieval vs aggregation teaser */}
+              <div className="mt-5 rounded-xl border bg-muted/30 divide-y text-[12px] font-mono overflow-hidden max-w-sm">
+                <div className="flex items-start gap-3 px-4 py-2.5">
+                  <span className="text-red-400/80 shrink-0 mt-0.5">✗</span>
+                  <span className="text-muted-foreground">"Find my January bill"<span className="ml-2 text-[10px] not-italic font-sans text-muted-foreground/60">→ retrieval, use search</span></span>
+                </div>
+                <div className="flex items-start gap-3 px-4 py-2.5">
+                  <span className="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                  <span className="text-foreground">"How much did I spend on energy last year?"<span className="ml-2 text-[10px] not-italic font-sans text-primary/70">→ Sifter</span></span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3 flex-wrap sm:flex-nowrap">
                 <a href="https://app.sifter.run/register"
                   className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-5 py-2.5 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 text-sm">
-                  Try Sifter free <ArrowRight className="h-3.5 w-3.5" />
+                  Try Sifter Cloud <ArrowRight className="h-3.5 w-3.5" />
                 </a>
-                <a href={DOCS_URL + "/self-hosting/docker-compose"} target="_blank" rel="noopener noreferrer"
+                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
                   className="w-full sm:w-auto justify-center border border-input px-5 py-2.5 rounded-md text-sm font-medium hover:bg-muted/60 transition-colors inline-flex items-center gap-2">
-                  Self-host with Docker <ExternalLink className="h-3.5 w-3.5" />
+                  View on GitHub <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
               <p className="text-[11px] text-muted-foreground mt-3">
-                Free tier forever. No credit card required.
+                Free tier forever. No credit card required.{" "}
+                <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Read the docs →</a>
               </p>
 
               {/* Code snippet */}
@@ -476,25 +493,41 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center mb-12">Any homogeneous document collection.</h2>
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { icon: "🧾", title: "Invoices", desc: "Extract supplier, amounts, VAT, line items from any invoice format." },
-              { icon: "📄", title: "CVs / Resumes", desc: "Turn a folder of candidates into a queryable talent database — works across any CV layout." },
-              { icon: "📋", title: "Contracts", desc: "Pull parties, dates, governing law, and key obligations from contracts of any structure." },
-              { icon: "💡", title: "Utility bills", desc: "Parse electricity, gas, water, and phone bills across all providers into a single dataset." },
-              { icon: "🧾", title: "Receipts", desc: "Capture merchant, items, totals, and payment method from paper or digital receipts." },
-              { icon: "🏦", title: "Bank statements", desc: "Extract transactions, balances, and period from statements regardless of bank format." },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} className="border rounded-xl p-5 bg-card flex gap-4 items-start">
-                <span className="text-2xl shrink-0">{icon}</span>
-                <div>
-                  <h3 className="font-semibold text-sm">{title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
+              { icon: "🧾", title: "Invoices", desc: "Documents become records: vendor, amount, VAT, line items. Query unpaid totals by supplier.", example: "Unpaid total per vendor this quarter?" },
+              { icon: "📄", title: "CVs / Resumes", desc: "Turn a folder of candidates into a queryable talent database — works across any CV layout.", example: "Candidates with Python and 5+ years exp?" },
+              { icon: "📋", title: "Contracts", desc: "Extract parties, renewal dates, obligations, and governing law from contracts of any structure.", example: "Contracts expiring in the next 60 days?" },
+              { icon: "💡", title: "Utility bills", desc: "Parse electricity, gas, water, and phone bills across all providers into a single dataset.", example: "Total energy spend by month last year?" },
+              { icon: "🧾", title: "Receipts", desc: "Capture merchant, category, totals, and payment method from paper or digital receipts.", example: "Category spend over the last 3 months?" },
+            ].map(({ icon, title, desc, example }) => (
+              <div key={title} className="border rounded-xl p-5 bg-card flex flex-col gap-3">
+                <div className="flex gap-4 items-start">
+                  <span className="text-2xl shrink-0">{icon}</span>
+                  <div>
+                    <h3 className="font-semibold text-sm">{title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>
+                  </div>
+                </div>
+                <div className="font-mono text-[10px] text-primary/80 bg-primary/5 border border-primary/15 rounded-md px-3 py-2">
+                  "{example}"
                 </div>
               </div>
             ))}
+            {/* Catch-all card */}
+            <div className="border-2 border-dashed border-primary/25 rounded-xl p-5 bg-primary/3 flex flex-col gap-3 hover:border-primary/40 transition-colors">
+              <div className="flex gap-4 items-start">
+                <span className="text-2xl shrink-0">📂</span>
+                <div>
+                  <h3 className="font-semibold text-sm">Your documents</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    If you have a collection of similar documents and want to query across them, Sifter works. Describe what to extract in plain language — no templates, no training.
+                  </p>
+                </div>
+              </div>
+              <div className="font-mono text-[10px] text-primary/80 bg-primary/5 border border-primary/15 rounded-md px-3 py-2">
+                "What field do you want to extract?"
+              </div>
+            </div>
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            Any homogeneous document collection works — these are just the most common.
-          </p>
         </div>
       </section>
 
@@ -745,24 +778,35 @@ export default function LandingPage() {
             backgroundSize: "32px 32px",
           }} />
         <div className="max-w-2xl mx-auto px-6 text-center relative">
-          <h2 className="text-3xl md:text-4xl font-bold">Start extracting in minutes.</h2>
+          <p className="text-primary text-sm font-mono tracking-wide mb-3">Stop retrieving chunks.</p>
+          <h2 className="text-3xl md:text-4xl font-bold">Start querying data.</h2>
           <p className="text-white/45 mt-3 text-sm">
             Free tier forever. Self-host anytime. No credit card required.
           </p>
           <div className="mt-8 flex gap-3 justify-center flex-wrap">
             <a href="https://app.sifter.run/register"
               className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2">
-              Try Sifter free <ArrowRight className="h-4 w-4" />
+              Try Sifter Cloud <ArrowRight className="h-4 w-4" />
+            </a>
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"
+              className="border border-white/20 text-white/80 px-6 py-3 rounded-md font-medium hover:bg-white/5 transition-colors inline-flex items-center gap-2">
+              View on GitHub <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
+          <div className="mt-5 flex gap-5 justify-center">
+            <a href={DOCS_URL} target="_blank" rel="noopener noreferrer"
+              className="text-sm text-white/40 hover:text-white/60 transition-colors inline-flex items-center gap-1.5">
+              Read the docs <ExternalLink className="h-3.5 w-3.5" />
             </a>
             <Link to="/enterprise"
-              className="border border-white/20 text-white/80 px-6 py-3 rounded-md font-medium hover:bg-white/5 transition-colors inline-flex items-center gap-2">
-              Book a demo <ExternalLink className="h-4 w-4" />
+              className="text-sm text-white/40 hover:text-white/60 transition-colors inline-flex items-center gap-1.5">
+              Book a demo <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           <p className="mt-6 text-white/25 text-xs">
             Questions?{" "}
-            <a href="mailto:hello@sifter.ai" className="text-white/40 hover:text-white/60 transition-colors">
-              hello@sifter.ai
+            <a href="mailto:support@sifter.run" className="text-white/40 hover:text-white/60 transition-colors">
+              support@sifter.run
             </a>
           </p>
         </div>
@@ -824,6 +868,7 @@ export default function LandingPage() {
                   { label: "Twitter ↗", href: "https://twitter.com/sifterai" },
                   { label: "Discord ↗", href: "https://discord.gg/sifter" },
                   { label: "Blog", href: DOCS_URL + "/resources/changelog" },
+                  { label: "Support", href: "mailto:support@sifter.run" },
                 ].map((l) => (
                   <FooterLink key={l.label} {...l} />
                 ))}
@@ -848,8 +893,8 @@ export default function LandingPage() {
           <div className="border-t pt-6 flex items-center justify-between flex-wrap gap-3">
             <p className="text-xs text-muted-foreground">© 2025 Sifter. MIT Licensed.</p>
             <p className="text-xs text-muted-foreground">
-              <a href="mailto:hello@sifter.ai" className="hover:text-foreground transition-colors">
-                hello@sifter.ai
+              <a href="mailto:support@sifter.run" className="hover:text-foreground transition-colors">
+                support@sifter.run
               </a>
             </p>
           </div>

@@ -6,6 +6,7 @@ import {
   BookOpen,
   Bot,
   Building2,
+  LifeBuoy,
   Check,
   ChevronUp,
   FileText,
@@ -345,6 +346,13 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
             <BookOpen className="h-4 w-4 shrink-0" />
             Docs
             <span className="ml-auto text-[10px] text-muted-foreground/50">↗</span>
+          </a>
+          <a
+            href="mailto:support@sifter.run"
+            className={`${navItemBase} text-muted-foreground hover:text-foreground hover:bg-muted/60 border-l-2 border-transparent pl-[10px]`}
+          >
+            <LifeBuoy className="h-4 w-4 shrink-0" />
+            Support
           </a>
           <NavLink to="/settings" end className={navLinkClass} onClick={onClose}>
             <Settings className="h-4 w-4 shrink-0" />
