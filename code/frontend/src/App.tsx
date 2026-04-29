@@ -399,10 +399,10 @@ function ConnectorsRoute() {
 
 function AppRoutes() {
   const { isAuthenticated, isLoading } = useAuthContext();
-  const { mode } = useConfig();
+  const { mode, isLoaded: configLoaded } = useConfig();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (isLoading) {
+  if (isLoading || !configLoaded) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground text-sm">Loading…</div>
