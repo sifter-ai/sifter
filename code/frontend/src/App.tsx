@@ -499,7 +499,7 @@ function AppRoutes() {
   return (
     <div className="min-h-screen bg-background">
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={mode === "cloud" ? <LandingPage /> : <Navigate to="/login" replace />} />
         <Route path="/enterprise" element={<EnterprisePage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsOfServicePage />} />
