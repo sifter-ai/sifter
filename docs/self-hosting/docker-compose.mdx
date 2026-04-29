@@ -10,8 +10,8 @@ description: Run Sifter on your own infrastructure with a single command.
 ```bash
 git clone https://github.com/sifter-ai/sifter.git
 cd sifter/code
-cp .env.example .env
-# Edit .env — set SIFTER_LLM_API_KEY at minimum
+cp server/.env.example server/.env.local
+# Edit server/.env.local — set SIFTER_DEFAULT_API_KEY and SIFTER_DEFAULT_MODEL at minimum
 docker compose up -d
 ```
 
