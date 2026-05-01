@@ -876,13 +876,6 @@ export function SiftDetailPage() {
             </div>
           </section>
 
-          {uploadMutation.isError && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {(uploadMutation.error as Error)?.message || "Upload failed."}
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Details strip — records hero + compact vitals, click to expand full spec */}
           {(() => {

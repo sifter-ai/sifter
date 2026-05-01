@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchJson } from "../lib/apiFetch";
+import { apiFetch, apiFetchJson, parseApiError } from "../lib/apiFetch";
 import {
   Document,
   DocumentSiftStatus,
@@ -99,8 +99,7 @@ export async function uploadDocument(
     body: formData,
   });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Upload failed: ${response.status}`);
+    throw await parseApiError(response);
   }
   return response.json();
 }
