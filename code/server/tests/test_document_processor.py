@@ -173,6 +173,7 @@ async def test_process_task_discard(mock_motor_db):
         mock_storage.return_value = mock_backend
         mock_lim = MagicMock()
         mock_lim.check_extraction = AsyncMock()
+        mock_lim.record_processed = AsyncMock()
         mock_limiter.return_value = mock_lim
 
         discard = await dp._process_task(
