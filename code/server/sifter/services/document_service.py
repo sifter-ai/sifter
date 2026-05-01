@@ -383,16 +383,53 @@ class DocumentService:
         doc = await self.db["documents"].find_one(query)
         if not doc:
             return False
+
+        # Capture per-sift state before we wipe statuses, so we can adjust counters.
+        statuses = await self.db["document_sift_statuses"].find(
+            {"document_id": document_id}
+        ).to_list(length=None)
+
         await self._delete_document_files(doc)
         await self.db["document_sift_statuses"].delete_many({"document_id": document_id})
         from .sift_results import SiftResultsService
         await SiftResultsService(self.db).delete_by_document_id(document_id)
+        # Drop pending/processing queue items so workers don't try to load a missing file.
+        await self.db["processing_queue"].delete_many({
+            "document_id": document_id,
+            "status": {"$in": ["pending", "processing"]},
+        })
         result = await self.db["documents"].delete_one({"_id": ObjectId(document_id)})
         if result.deleted_count > 0:
             await self.db["folders"].update_one(
                 {"_id": ObjectId(doc["folder_id"])},
                 {"$inc": {"document_count": -1}},
             )
+            # Keep each linked sift's counters in sync. PENDING/PROCESSING statuses
+            # only affect total_documents; DONE/ERROR/DISCARDED also reduce
+            # processed_documents. Transition the sift to ACTIVE if it just became
+            # fully processed.
+            terminal = {"done", "error", "discarded"}
+            for s in statuses:
+                sift_id = s.get("sift_id")
+                if not sift_id:
+                    continue
+                inc: dict = {"total_documents": -1}
+                if (s.get("status") or "") in terminal:
+                    inc["processed_documents"] = -1
+                updated = await self.db["sifts"].find_one_and_update(
+                    {"_id": ObjectId(sift_id)},
+                    {"$inc": inc},
+                    return_document=True,
+                )
+                if (
+                    updated
+                    and updated.get("status") == "indexing"
+                    and updated.get("processed_documents", 0) >= updated.get("total_documents", 0)
+                ):
+                    await self.db["sifts"].update_one(
+                        {"_id": ObjectId(sift_id)},
+                        {"$set": {"status": "active"}},
+                    )
         return result.deleted_count > 0
 
     async def _delete_document_files(self, doc: dict):

@@ -323,7 +323,11 @@ async def test_delete_document_success(mock_motor_db):
     mock_motor_db["documents"].find_one = AsyncMock(return_value=doc_raw)
     mock_motor_db["documents"].delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
     mock_motor_db["documents"].find = MagicMock(return_value=MagicMock(to_list=AsyncMock(return_value=[])))
+    mock_motor_db["document_sift_statuses"].find = MagicMock(
+        return_value=MagicMock(to_list=AsyncMock(return_value=[]))
+    )
     mock_motor_db["document_sift_statuses"].delete_many = AsyncMock()
+    mock_motor_db["processing_queue"].delete_many = AsyncMock()
     mock_motor_db["folders"].update_one = AsyncMock()
 
     mock_motor_db["sift_results"].delete_many = AsyncMock()
@@ -340,6 +344,52 @@ async def test_delete_document_not_found(mock_motor_db):
     svc = DocumentService(mock_motor_db)
     result = await svc.delete_document(str(ObjectId()))
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_delete_document_decrements_sift_counters_and_clears_queue(mock_motor_db):
+    doc_id = str(ObjectId())
+    folder_id = str(ObjectId())
+    sift_pending_id = str(ObjectId())
+    sift_done_id = str(ObjectId())
+    doc_raw = {"_id": ObjectId(doc_id), "folder_id": folder_id, "storage_path": "/uploads/doc.pdf"}
+
+    mock_motor_db["documents"].find_one = AsyncMock(return_value=doc_raw)
+    mock_motor_db["documents"].delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
+    mock_motor_db["documents"].find = MagicMock(return_value=MagicMock(to_list=AsyncMock(return_value=[])))
+    mock_motor_db["document_sift_statuses"].find = MagicMock(
+        return_value=MagicMock(to_list=AsyncMock(return_value=[
+            {"sift_id": sift_pending_id, "status": "pending"},
+            {"sift_id": sift_done_id, "status": "done"},
+        ]))
+    )
+    mock_motor_db["document_sift_statuses"].delete_many = AsyncMock()
+    mock_motor_db["processing_queue"].delete_many = AsyncMock()
+    mock_motor_db["folders"].update_one = AsyncMock()
+    mock_motor_db["sift_results"].delete_many = AsyncMock()
+
+    sift_after_inc = {"status": "indexing", "processed_documents": 1, "total_documents": 1}
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=sift_after_inc)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    with patch("sifter.storage.FilesystemBackend.delete", new_callable=AsyncMock):
+        svc = DocumentService(mock_motor_db)
+        result = await svc.delete_document(doc_id)
+
+    assert result is True
+    # processing_queue is purged of pending/processing entries for this doc
+    mock_motor_db["processing_queue"].delete_many.assert_awaited_once()
+    purge_filter = mock_motor_db["processing_queue"].delete_many.await_args.args[0]
+    assert purge_filter["document_id"] == doc_id
+    assert "pending" in purge_filter["status"]["$in"]
+
+    # Two sifts → two find_one_and_update calls (one per sift_id)
+    assert mock_motor_db["sifts"].find_one_and_update.await_count == 2
+    pending_call, done_call = mock_motor_db["sifts"].find_one_and_update.await_args_list
+    # Pending status: only total_documents decrements
+    assert pending_call.args[1]["$inc"] == {"total_documents": -1}
+    # Done status: both counters decrement
+    assert done_call.args[1]["$inc"] == {"total_documents": -1, "processed_documents": -1}
 
 
 # ── create_sift_status ────────────────────────────────────────────────────────
