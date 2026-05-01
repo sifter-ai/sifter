@@ -173,6 +173,7 @@ export const useUploadDocuments = (siftId: string) => {
       qc.refetchQueries({ queryKey: ["sifts-infinite"] });
       qc.refetchQueries({ queryKey: ["sift-records", siftId] });
       qc.refetchQueries({ queryKey: ["sift-documents", siftId] });
+      qc.refetchQueries({ queryKey: ["folders"] });
     },
   });
 };

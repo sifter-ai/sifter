@@ -239,6 +239,8 @@ async def _process_task(
                 {"_id": task_doc["_id"]},
                 {"$set": {"status": "done", "completed_at": datetime.now(timezone.utc)}},
             )
+            from .limits import get_usage_limiter
+            await get_usage_limiter().record_processed(org_id=sift_org_id, doc_count=1)
             logger.info("document_discarded", document_id=document_id, sift_id=sift_id, reason=e.reason)
             await _dispatch_webhook(
                 db=db,
