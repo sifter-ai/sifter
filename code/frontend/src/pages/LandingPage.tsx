@@ -28,18 +28,13 @@ const DOCS_URL = "https://docs.sifter.run";
 const GITHUB_URL = "https://github.com/sifter-ai/sifter";
 
 const DEMO_OUTPUT = `{
-  "vendor": "Acme Corp",
-  "amount": 4200.00,
-  "currency": "EUR",
-  "date": "2024-03-15",
-  "line_items": [
-    {
-      "description": "Consulting services",
-      "qty": 3,
-      "unit_price": 1400.00
-    }
-  ],
-  "status": "unpaid"
+  "brand": "Caterpillar",
+  "model": "320 GC",
+  "serial_number": "CAT0320GC00482",
+  "year": 2019,
+  "condition": "good",
+  "location": "Warehouse B – Bay 4",
+  "last_service": "2024-02-10"
 }`;
 
 export default function LandingPage() {
@@ -90,11 +85,12 @@ export default function LandingPage() {
                 MIT open source · Bring your own LLM
               </span>
               <h1 className="text-[1.75rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
-                Turn documents into<br />
-                <span className="text-primary">queryable data.</span>
+                Your documents are<br />
+                <span className="text-primary">a dark database.</span>
               </h1>
-              <p className="text-muted-foreground mt-5 leading-relaxed max-w-full md:max-w-sm text-[15px]">
-                Extract structured records from PDFs, invoices, contracts, and emails. Filter, aggregate, and query with API, SDK, or MCP. No templates. No layout rules.
+              <p className="text-muted-foreground mt-2 text-sm font-medium">Here is how to turn the lights on.</p>
+              <p className="text-muted-foreground mt-4 leading-relaxed max-w-full md:max-w-sm text-[15px]">
+                Extract structured records from any file — PDFs, contracts, photos, receipts, scans, images. Filter, aggregate, and query with API, SDK, or MCP. No templates. No layout rules.
               </p>
 
               {/* Retrieval vs aggregation teaser */}
@@ -138,12 +134,13 @@ export default function LandingPage() {
                     {"s = Sifter(api_key="}
                     <span className="text-emerald-400">"sk-..."</span>
                     {")\n"}
+                    <span className="text-zinc-500">{"# PDFs, photos, scans — any file\n"}</span>
                     {"records = s.sift("}
-                    <span className="text-emerald-400">"./invoices/"</span>
+                    <span className="text-emerald-400">"./documents/"</span>
                     {", "}
-                    <span className="text-amber-300">"client, date, total"</span>
+                    <span className="text-amber-300">"brand, model, condition, location"</span>
                     {")\n"}
-                    <span className="text-zinc-400">{"# [{\"client\": \"Acme\", \"date\": \"2024-01\", ...}]"}</span>
+                    <span className="text-zinc-400">{"# [{\"brand\": \"CAT\", \"model\": \"320 GC\", ...}]"}</span>
                   </code>
                 </pre>
               </div>
@@ -229,13 +226,13 @@ export default function LandingPage() {
                     <FileText className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">invoice_acme_2024-03.pdf</p>
-                    <p className="text-xs text-muted-foreground">2 pages · 184 KB</p>
+                    <p className="text-sm font-medium">warehouse_b_machine_047.jpg</p>
+                    <p className="text-xs text-muted-foreground">photo · 2.1 MB</p>
                   </div>
                 </div>
                 <div className="bg-muted/40 rounded-lg p-3 font-mono text-xs text-muted-foreground">
                   <p className="text-foreground font-medium mb-1">Schema</p>
-                  <p>Extract: vendor, amount, currency, date, line_items, payment_status</p>
+                  <p>Extract: brand, model, serial_number, year, condition, location</p>
                 </div>
                 <a
                   href="https://app.sifter.run/register"
@@ -466,7 +463,7 @@ export default function LandingPage() {
               Link folders to multiple extractors. Every upload triggers all linked sifts automatically.
             </FeatureCard>
             <FeatureCard icon={<Database />} title="NL query">
-              Query extracted records in plain English. "Show invoices from last month above €1000."
+              Query extracted records in plain English. "Contracts expiring in 90 days." "Machines in poor condition by location."
             </FeatureCard>
             <FeatureCard icon={<Code2 />} title="Python + TypeScript SDK">
               Full async Python SDK and TypeScript client with typed schemas generated per sift.
@@ -493,11 +490,11 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold text-center mb-12">Any homogeneous document collection.</h2>
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { icon: "🧾", title: "Invoices", desc: "Documents become records: vendor, amount, VAT, line items. Query unpaid totals by supplier.", example: "Unpaid total per vendor this quarter?" },
-              { icon: "📄", title: "CVs / Resumes", desc: "Turn a folder of candidates into a queryable talent database — works across any CV layout.", example: "Candidates with Python and 5+ years exp?" },
               { icon: "📋", title: "Contracts", desc: "Extract parties, renewal dates, obligations, and governing law from contracts of any structure.", example: "Contracts expiring in the next 60 days?" },
+              { icon: "📷", title: "Equipment photos", desc: "Photograph machines, vehicles, or assets in the field. Sifter extracts brand, model, serial, condition, and location from each photo.", example: "Machines in poor condition in Warehouse B?" },
+              { icon: "📄", title: "CVs / Resumes", desc: "Turn a folder of candidates into a queryable talent database — works across any CV layout.", example: "Candidates with Python and 5+ years exp?" },
+              { icon: "🧾", title: "Receipts & expenses", desc: "Capture merchant, category, totals from paper or digital receipts — any language, any format.", example: "Category spend over the last 3 months?" },
               { icon: "💡", title: "Utility bills", desc: "Parse electricity, gas, water, and phone bills across all providers into a single dataset.", example: "Total energy spend by month last year?" },
-              { icon: "🧾", title: "Receipts", desc: "Capture merchant, category, totals, and payment method from paper or digital receipts.", example: "Category spend over the last 3 months?" },
             ].map(({ icon, title, desc, example }) => (
               <div key={title} className="border rounded-xl p-5 bg-card flex flex-col gap-3">
                 <div className="flex gap-4 items-start">
@@ -778,8 +775,8 @@ export default function LandingPage() {
             backgroundSize: "32px 32px",
           }} />
         <div className="max-w-2xl mx-auto px-6 text-center relative">
-          <p className="text-primary text-sm font-mono tracking-wide mb-3">Stop retrieving chunks.</p>
-          <h2 className="text-3xl md:text-4xl font-bold">Start querying data.</h2>
+          <p className="text-primary text-sm font-mono tracking-wide mb-3">Your documents are a dark database.</p>
+          <h2 className="text-3xl md:text-4xl font-bold">Here is how to turn the lights on.</h2>
           <p className="text-white/45 mt-3 text-sm">
             Free tier forever. Self-host anytime. No credit card required.
           </p>
