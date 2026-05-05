@@ -2,7 +2,7 @@
 title: "Landing page + enterprise contact"
 status: synced
 version: "1.2"
-last-modified: "2026-05-05T00:00:00.000Z"
+last-modified: "2026-05-05T12:00:00.000Z"
 ---
 
 # Landing Page + Enterprise Contact
@@ -48,22 +48,31 @@ Two-column layout (`md:grid-cols-[1fr_1.1fr]`).
 
 **Left column**
 
-Badge (pill, monospace, uppercase): `Document intelligence, open source.`
+Badge (pill, monospace, uppercase): `MIT open source · Bring your own LLM`
 
 **Headline:**
-> Structure any document.
-> Query it like a **database**.
+> Your documents are
+> **a dark database.**
 
-(`"a database."` and `"Query it like"` are in `text-primary`.)
+(`"a dark database."` is in `text-primary`.)
 
-**Sub:**
-> Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
+**Sub (two lines):**
+
+First line (small, `font-medium`):
+> Here is how to turn the lights on.
+
+Second line (body):
+> Extract structured records from any file — PDFs, contracts, photos, receipts, scans, images. Filter, aggregate, and query with API, SDK, or MCP. No templates. No layout rules.
+
+**Teaser box** (retrieval vs aggregation, `border rounded-xl bg-muted/30`, font mono `text-[12px]`):
+- ✗ `"Find my January bill"` → `retrieval, use search`
+- ✓ `"How much did I spend on energy last year?"` → `Sifter`
 
 **CTAs:**
-- Primary: **"Try Sifter free →"** → `https://app.sifter.run/register`
-- Secondary: **"Self-host with Docker ↗"** → `https://docs.sifter.run/self-hosting/docker-compose`
+- Primary: **"Try Sifter Cloud →"** → `https://app.sifter.run/register`
+- Secondary: **"View on GitHub ↗"** → `https://github.com/sifter-ai/sifter`
 
-Under CTAs: `Free tier forever. No credit card required.`
+Under CTAs: `Free tier forever. No credit card required. Read the docs →`
 
 **Code snippet** (Python only, no tab switcher, dark `#111113` bg):
 
@@ -71,8 +80,9 @@ Under CTAs: `Free tier forever. No credit card required.`
 from sifter import Sifter
 
 s = Sifter(api_key="sk-...")
-records = s.sift("./invoices/", "client, date, total")
-# [{"client": "Acme", "date": "2024-01", ...}]
+# PDFs, photos, scans — any file
+records = s.sift("./documents/", "brand, model, condition, location")
+# [{"brand": "CAT", "model": "320 GC", ...}]
 ```
 
 **Right column**
@@ -124,20 +134,21 @@ Full-width card (`border rounded-2xl`), `border-b`.
 Two-panel layout (`md:grid-cols-2 divide-x`):
 
 **Left — Input:**
-- File: `invoice_acme_2024-03.pdf` / `2 pages · 184 KB`
-- Schema box: `Extract: vendor, amount, currency, date, line_items, payment_status`
+- File: `warehouse_b_machine_047.jpg` / `photo · 2.1 MB`
+- Schema box: `Extract: brand, model, serial_number, year, condition, location`
 - CTA: **"Try free →"**
 
 **Right — Output** (dark `#111113` bg):
 JSON preview:
 ```json
 {
-  "vendor": "Acme Corp",
-  "amount": 4200.00,
-  "currency": "EUR",
-  "date": "2024-03-15",
-  "line_items": [{"description": "Consulting services", "qty": 3, "unit_price": 1400.00}],
-  "status": "unpaid"
+  "brand": "Caterpillar",
+  "model": "320 GC",
+  "serial_number": "CAT0320GC00482",
+  "year": 2019,
+  "condition": "good",
+  "location": "Warehouse B – Bay 4",
+  "last_service": "2024-02-10"
 }
 ```
 Label: `7 fields`
@@ -215,7 +226,7 @@ Nine-card grid (`md:grid-cols-3`), `border-t`.
 | Shield | Verifiable citations | Every extracted field is anchored to a page number and source text. No hallucinations you can't trace. |
 | Cpu | Multi-LLM support | Works with OpenAI, Anthropic, Gemini, Mistral, and 50+ providers via LiteLLM. Bring your own key. |
 | Folder | Multi-document pipelines | Link folders to multiple extractors. Every upload triggers all linked sifts automatically. |
-| Database | NL query | Query extracted records in plain English. "Show invoices from last month above €1000." |
+| Database | NL query | Query extracted records in plain English. "Contracts expiring in 90 days." "Machines in poor condition by location." |
 | Code2 | Python + TypeScript SDK | Full async Python SDK and TypeScript client with typed schemas generated per sift. |
 | Terminal | MCP native | Sifter speaks MCP out of the box. Connect Claude Desktop, Cursor, or any MCP-compatible tool. |
 | Webhook | Webhooks + dashboards | Trigger automations on every extraction. Visualize results in real-time dashboards. |
@@ -225,21 +236,26 @@ Nine-card grid (`md:grid-cols-3`), `border-t`.
 
 ### 10. Use cases
 
-Six-card grid (`md:grid-cols-3`), `border-t bg-muted/20`.
+Five use-case cards + 1 catch-all card (`md:grid-cols-3`), `border-t bg-muted/20`.
+
+Each card has icon, title, description, and a mono example query box.
 
 **Label:** `Use cases`
 **Heading:** `Any homogeneous document collection.`
 
-| Icon | Title | Description |
-|------|-------|-------------|
-| 🧾 | Invoices | Extract supplier, amounts, VAT, line items from any invoice format. |
-| 📄 | CVs / Resumes | Turn a folder of candidates into a queryable talent database — works across any CV layout. |
-| 📋 | Contracts | Pull parties, dates, governing law, and key obligations from contracts of any structure. |
-| 💡 | Utility bills | Parse electricity, gas, water, and phone bills across all providers into a single dataset. |
-| 🧾 | Receipts | Capture merchant, items, totals, and payment method from paper or digital receipts. |
-| 🏦 | Bank statements | Extract transactions, balances, and period from statements regardless of bank format. |
+| Icon | Title | Description | Example query |
+|------|-------|-------------|---------------|
+| 📋 | Contracts | Extract parties, renewal dates, obligations, and governing law from contracts of any structure. | "Contracts expiring in the next 60 days?" |
+| 📷 | Equipment photos | Photograph machines, vehicles, or assets in the field. Sifter extracts brand, model, serial, condition, and location from each photo. | "Machines in poor condition in Warehouse B?" |
+| 📄 | CVs / Resumes | Turn a folder of candidates into a queryable talent database — works across any CV layout. | "Candidates with Python and 5+ years exp?" |
+| 🧾 | Receipts & expenses | Capture merchant, category, totals from paper or digital receipts — any language, any format. | "Category spend over the last 3 months?" |
+| 💡 | Utility bills | Parse electricity, gas, water, and phone bills across all providers into a single dataset. | "Total energy spend by month last year?" |
 
-Footer note: `Any homogeneous document collection works — these are just the most common.`
+**Catch-all card** (dashed border `border-2 border-dashed border-primary/25`):
+- Icon: 📂
+- Title: `Your documents`
+- Body: If you have a collection of similar documents and want to query across them, Sifter works. Describe what to extract in plain language — no templates, no training.
+- Query box: `"What field do you want to extract?"`
 
 ---
 
@@ -340,12 +356,13 @@ Two-card layout (`md:grid-cols-2`), `border-t bg-muted/20`.
 
 Dark section (`bg-[#0a0a0b] text-white`), dot-grid overlay, `border-t`.
 
-**Heading:** `Start extracting in minutes.`
+**Label (mono, `text-primary`):** `Your documents are a dark database.`
+**Heading:** `Here is how to turn the lights on.`
 **Sub:** `Free tier forever. Self-host anytime. No credit card required.`
 
 **CTAs:**
-- Primary: **"Try Sifter free →"** → `https://app.sifter.run/register`
-- Secondary: **"Book a demo ↗"** → `/enterprise`
+- Primary: **"Try Sifter Cloud →"** → `https://app.sifter.run/register`
+- Secondary: **"View on GitHub ↗"** → `https://github.com/sifter-ai/sifter`
 
 Contact: `hello@sifter.ai`
 
