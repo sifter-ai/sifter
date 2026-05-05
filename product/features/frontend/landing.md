@@ -1,8 +1,8 @@
 ---
 title: "Landing page + enterprise contact"
 status: synced
-version: "1.1"
-last-modified: "2026-04-24T00:00:00.000Z"
+version: "1.2"
+last-modified: "2026-05-05T00:00:00.000Z"
 ---
 
 # Landing Page + Enterprise Contact
@@ -12,45 +12,361 @@ The public landing page and enterprise contact page for Sifter.
 ## LandingPage (`/`)
 
 Sections in order:
-1. **Navbar** — Logo, Docs, GitHub, Sign in, Get Started (primary CTA)
-2. **Hero** — Headline + sub, code snippet (Python/cURL tab switcher), "Get Started" + "Read the Docs" CTAs
-3. **Why LLM extraction** — short callout explaining the structural advantage over template-based extractors (see below)
-4. **How it works** — 3-step horizontal flow
-5. **Use cases** — concrete examples of heterogeneous collections that Sifter handles well (see below)
-6. **Pricing** — Free / Starter / Pro / Business / Scale cards (Stripe self-serve)
-7. **Enterprise banner** — SSO, BYOK LLM, on-prem, custom SLA → `/enterprise`
-8. **Footer** — GitHub, Docs, Pricing, Enterprise, Privacy, Terms
 
-### Hero copy
+1. **Navbar**
+2. **Hero**
+3. **Social proof bar**
+4. **Why LLM extraction**
+5. **See it in action**
+6. **Why not RAG**
+7. **How it works**
+8. **USP — Chat / Query / Build**
+9. **Features**
+10. **Use cases**
+11. **MCP / Integrations**
+12. **OSS section**
+13. **Pricing**
+14. **Two ways to run**
+15. **Final CTA**
+16. **Footer**
 
-**Headline:** *"Structure any document. Query it like a database."*
+---
 
-**Sub:** *"Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules."*
+### 1. Navbar
 
-### Why LLM extraction section
+Sticky, blurred background, `z-50`.
 
-A short 2-column layout (text left, visual right) placed between Hero and How it works:
+- Left: logo icon + "Sifter" wordmark
+- Right links (hidden on mobile): Docs → `https://docs.sifter.run`, GitHub → `https://github.com/sifter-ai/sifter`, Sign in → `https://app.sifter.run/login`
+- Primary CTA button: **"Try free →"** → `https://app.sifter.run/register`
 
-**Heading:** *"Works on real-world documents, not ideal ones."*
+---
+
+### 2. Hero
+
+Two-column layout (`md:grid-cols-[1fr_1.1fr]`).
+
+**Left column**
+
+Badge (pill, monospace, uppercase): `Document intelligence, open source.`
+
+**Headline:**
+> Structure any document.
+> Query it like a **database**.
+
+(`"a database."` and `"Query it like"` are in `text-primary`.)
+
+**Sub:**
+> Upload invoices, CVs, contracts, utility bills — any document collection. Sifter extracts structured data with an LLM, stores it in MongoDB, and gives you a REST API, Python/TypeScript SDKs, and natural-language queries. No template configuration. No layout rules.
+
+**CTAs:**
+- Primary: **"Try Sifter free →"** → `https://app.sifter.run/register`
+- Secondary: **"Self-host with Docker ↗"** → `https://docs.sifter.run/self-hosting/docker-compose`
+
+Under CTAs: `Free tier forever. No credit card required.`
+
+**Code snippet** (Python only, no tab switcher, dark `#111113` bg):
+
+```python
+from sifter import Sifter
+
+s = Sifter(api_key="sk-...")
+records = s.sift("./invoices/", "client, date, total")
+# [{"client": "Acme", "date": "2024-01", ...}]
+```
+
+**Right column**
+
+Hero image: `/images/hero.png` (white card, `rounded-2xl`, `shadow-2xl`).
+
+Floating badge bottom-left (visible `md+`):
+- Label: `Works via`
+- Value: `UI · API · SDK · MCP`
+
+---
+
+### 3. Social proof bar
+
+Thin strip, `border-t border-b bg-muted/20`.
+
+```
+Open source · MIT licensed · Self-hostable
+```
+
+Monospace, uppercase, small tracking.
+
+---
+
+### 4. Why LLM extraction
+
+Two-column layout (`md:grid-cols-2`), `border-t`.
+
+**Label (mono, uppercase):** `Why LLM extraction`
+
+**Heading:** `Works on real-world documents, not ideal ones.`
 
 **Body:** Traditional extractors break when the layout changes — a new invoice supplier, a CV with an unusual format, a contract with non-standard clause ordering. Sifter uses an LLM as the extraction engine, so it reads documents contextually, like a human would. The same sift handles 50 CVs from 50 different candidates, or utility bills from 10 different providers, without per-layout configuration.
 
-**Visual:** a simple before/after — "Template extractor: layout A ✓, layout B ✗" vs "Sifter: layout A ✓, layout B ✓".
+**Right visual (two cards):**
+- 🔴 Template extractor — `Layout A ✓ · Layout B ✗ · Layout C ✗`
+- 🟢 Sifter — `Layout A ✓ · Layout B ✓ · Layout C ✓`
 
-### Use cases section
+---
 
-Replaces or augments the "How it works" section. A grid of 6 use-case cards, each with an icon, a one-line title, and a 2-line description:
+### 5. See it in action
+
+Full-width card (`border rounded-2xl`), `border-b`.
+
+**Label (mono, uppercase):** `See it in action`
+
+**Heading:** `Drop a document. Get structured data.`
+
+Two-panel layout (`md:grid-cols-2 divide-x`):
+
+**Left — Input:**
+- File: `invoice_acme_2024-03.pdf` / `2 pages · 184 KB`
+- Schema box: `Extract: vendor, amount, currency, date, line_items, payment_status`
+- CTA: **"Try free →"**
+
+**Right — Output** (dark `#111113` bg):
+JSON preview:
+```json
+{
+  "vendor": "Acme Corp",
+  "amount": 4200.00,
+  "currency": "EUR",
+  "date": "2024-03-15",
+  "line_items": [{"description": "Consulting services", "qty": 3, "unit_price": 1400.00}],
+  "status": "unpaid"
+}
+```
+Label: `7 fields`
+
+---
+
+### 6. Why not RAG
+
+Full-width dark section (`bg-[#0a0a0b] text-white`), dot-grid pattern overlay.
+
+**Label (mono, amber):** `Why not RAG?`
+
+**Heading:**
+> RAG fails on
+> homogeneous collections.
+
+**Body:** You have 500 invoices. They all look alike to a similarity search. Now ask a real business question.
+
+**Diagram card** (white bg): image `/images/why-nor-rag.png` with captions `RAG · similarity, uncertain` and `Sifter · structured, exact`.
+
+**Example query bar (mono):**
+> "How much did I invoice to Acme Corp in September 2026?"
+
+**Two panels side by side:**
+
+| | RAG · similarity search | Sifter · structured aggregation |
+|---|---|---|
+| Status | 🔴 animate-pulse | 🟢 |
+| Result | Chunk snippets with wrong clients/months | Table: client, date, total → exact SUM |
+| Answer | "Approximately €12,400–€20,000 based on available context" | `✓ exact · complete · filter(client=Acme Corp, month=2026-09)` |
+
+Footer note: `"Total invoiced per client per month" is an aggregation query, not a retrieval query. RAG was built for retrieval. Sifter was built for this.`
+
+---
+
+### 7. How it works
+
+Three-step horizontal flow with connecting line (`border-t`).
+
+**Label:** `How it works`
+**Heading:** `Up and running in minutes`
+
+| # | Title | Description |
+|---|-------|-------------|
+| 1 | Describe | Name a sift and describe what to extract in natural language. |
+| 2 | Upload | Drag documents or connect a folder — every upload is processed automatically. |
+| 3 | Query & export | Filter, aggregate, and export — or ask questions in natural language. |
+
+---
+
+### 8. USP — Chat / Query / Build
+
+Three-card grid (`md:grid-cols-3`), `border-t bg-muted/20`.
+
+**Heading:** `Everything you need to work with documents at scale.`
+
+| Card | Icon | Title | Body |
+|------|------|-------|------|
+| 1 | MessageSquare | Chat | Ask questions about your documents in plain language. Get structured answers, not just text blobs. Works with Claude, ChatGPT, or any MCP-compatible client. |
+| 2 (accent/primary bg) | Search | Query | Define a schema. Sifter extracts exactly those fields — every time. Filter, sort, export. Your documents, like a database. |
+| 3 | Plug | Build | Python SDK. REST API. Webhooks. MCP server. Integrate Sifter into any stack, any language, any workflow. Open source, self-hostable, no vendor lock-in. |
+
+---
+
+### 9. Features
+
+Nine-card grid (`md:grid-cols-3`), `border-t`.
+
+**Label:** `Features`
+**Heading:** `Built for developers. Usable by everyone.`
 
 | Icon | Title | Description |
 |------|-------|-------------|
-| 🧾 | **Invoices** | Extract supplier, amounts, VAT, line items from any invoice format. |
-| 📄 | **CVs / Resumes** | Turn a folder of candidates into a queryable talent database — works across any CV layout. |
-| 📋 | **Contracts** | Pull parties, dates, governing law, and key obligations from contracts of any structure. |
-| 💡 | **Utility bills** | Parse electricity, gas, water, and phone bills across all providers into a single dataset. |
-| 🧾 | **Receipts** | Capture merchant, items, totals, and payment method from paper or digital receipts. |
-| 🏦 | **Bank statements** | Extract transactions, balances, and period from statements regardless of bank format. |
+| Filter | Schema-driven extraction | Define your data model in natural language or JSON. Sifter extracts exactly those fields — every time. |
+| Shield | Verifiable citations | Every extracted field is anchored to a page number and source text. No hallucinations you can't trace. |
+| Cpu | Multi-LLM support | Works with OpenAI, Anthropic, Gemini, Mistral, and 50+ providers via LiteLLM. Bring your own key. |
+| Folder | Multi-document pipelines | Link folders to multiple extractors. Every upload triggers all linked sifts automatically. |
+| Database | NL query | Query extracted records in plain English. "Show invoices from last month above €1000." |
+| Code2 | Python + TypeScript SDK | Full async Python SDK and TypeScript client with typed schemas generated per sift. |
+| Terminal | MCP native | Sifter speaks MCP out of the box. Connect Claude Desktop, Cursor, or any MCP-compatible tool. |
+| Webhook | Webhooks + dashboards | Trigger automations on every extraction. Visualize results in real-time dashboards. |
+| Server | Self-hostable | Full Docker Compose stack. Your data, your infrastructure, your keys. MIT licensed. |
 
-These are illustrative, not exhaustive. Copy should make clear that any homogeneous document collection works.
+---
+
+### 10. Use cases
+
+Six-card grid (`md:grid-cols-3`), `border-t bg-muted/20`.
+
+**Label:** `Use cases`
+**Heading:** `Any homogeneous document collection.`
+
+| Icon | Title | Description |
+|------|-------|-------------|
+| 🧾 | Invoices | Extract supplier, amounts, VAT, line items from any invoice format. |
+| 📄 | CVs / Resumes | Turn a folder of candidates into a queryable talent database — works across any CV layout. |
+| 📋 | Contracts | Pull parties, dates, governing law, and key obligations from contracts of any structure. |
+| 💡 | Utility bills | Parse electricity, gas, water, and phone bills across all providers into a single dataset. |
+| 🧾 | Receipts | Capture merchant, items, totals, and payment method from paper or digital receipts. |
+| 🏦 | Bank statements | Extract transactions, balances, and period from statements regardless of bank format. |
+
+Footer note: `Any homogeneous document collection works — these are just the most common.`
+
+---
+
+### 11. MCP / Integrations
+
+Two-column layout (`md:grid-cols-2`), `border-t`.
+
+**Badge:** `MCP native`
+**Heading:** `Your LLM can now read your documents.`
+**Body:** Sifter exposes an MCP server — the protocol that lets Claude, ChatGPT, Cursor, and other AI tools access external data. Point it at Sifter Cloud and your LLM gets instant, structured access to every document you've uploaded.
+
+**Integration tags:** Claude Desktop · ChatGPT · Cursor · Continue · Zed
+
+**Links:**
+- "Get your MCP URL →" → `https://app.sifter.run/register`
+- "Read the MCP guide ↗" → `https://docs.sifter.run/integrations/mcp-server`
+
+**Right: code block** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "sifter": {
+      "type": "http",
+      "url": "https://api.sifter.run/mcp/sk-..."
+    }
+  }
+}
+```
+Caption: `Paste this in Claude Desktop → Settings → MCP. That's it.`
+
+---
+
+### 12. OSS section
+
+Two-column layout (`md:grid-cols-2`), `border-t bg-muted/20`.
+
+**Badge:** `MIT · Self-hostable`
+**Heading:** `Open source at the core.`
+**Body:** Sifter is MIT-licensed and fully open source. Self-host the complete stack — chat, dashboards, webhooks, SDK, and MCP stdio — with a single Docker Compose command. No features crippled, no artificial limitations.
+
+**Metric:** 📦 MIT / license
+
+**Links:**
+- "View on GitHub ↗" → `https://github.com/sifter-ai/sifter`
+- "Read the docs ↗" → `https://docs.sifter.run/self-hosting/docker-compose`
+
+**Right: code block:**
+```bash
+# self-host in two commands
+$ git clone https://github.com/sifter-ai/sifter
+$ docker compose up
+```
+
+---
+
+### 13. Pricing
+
+Five-column card grid (`lg:grid-cols-5`), `border-t`.
+
+**Label:** `Pricing`
+**Heading:** `Start free. Scale when you need to.`
+**Sub:** All paid plans include the same features — API access, MCP remote, Google Drive connector, advanced chat, live dashboards, and webhooks. The only difference is the number of extractions per month. 1 extraction = 1 document processed by a sift (up to 10 pages).
+
+| Plan | Price | Extractions | Sifts | Highlighted features |
+|------|-------|-------------|-------|----------------------|
+| Free | $0 / forever | 10/mo | 3 | Web UI, 7-day retention. No API/MCP access. |
+| Starter | $19 / mo | 500/mo | 10 | Full REST API, MCP remote, Google Drive, Mail-to-upload, CSV export, unlimited retention. |
+| **Pro** ⭐ | $49 / mo | 3,000/mo | ∞ | Everything in Starter + SSO (Google), audit log. |
+| Business | $149 / mo | 15,000/mo | ∞ | Everything in Pro + PDF report export, advanced webhooks, unlimited shares. |
+| Scale | $399 / mo | 50,000/mo | ∞ | Everything in Business + share via email + PDF, priority support. |
+
+Pro is highlighted ("Most popular").
+
+Footer links:
+- "Or self-host for free. Docker setup guide →"
+- "Enterprise — custom SLA, BYOK LLM, on-prem →" → `/enterprise`
+
+---
+
+### 14. Two ways to run
+
+Two-card layout (`md:grid-cols-2`), `border-t bg-muted/20`.
+
+**Label:** `Deployment`
+**Heading:** `Two ways to run Sifter`
+
+| | Sifter Cloud | Sifter Self-hosted |
+|---|---|---|
+| Badge | "Recommended" | — |
+| Style | Light gradient | Dark `#111113` |
+| Sub | Sign up and start in minutes | Open source · MIT |
+| Body | No infrastructure to manage. Web UI, REST API, Python SDK, and MCP — all on Sifter's hosted platform. | Run on your own infrastructure. Bring your own LLM API key. Full control over data, storage, and scaling. |
+| CTA | "Get started free →" → `https://app.sifter.run/register` | `docker compose up -d` + "Read the docs →" |
+
+---
+
+### 15. Final CTA
+
+Dark section (`bg-[#0a0a0b] text-white`), dot-grid overlay, `border-t`.
+
+**Heading:** `Start extracting in minutes.`
+**Sub:** `Free tier forever. Self-host anytime. No credit card required.`
+
+**CTAs:**
+- Primary: **"Try Sifter free →"** → `https://app.sifter.run/register`
+- Secondary: **"Book a demo ↗"** → `/enterprise`
+
+Contact: `hello@sifter.ai`
+
+---
+
+### 16. Footer
+
+Five-column grid (`md:grid-cols-5`), `border-t`.
+
+**Brand column:** logo + "Open-source document intelligence. MIT licensed."
+
+| Column | Links |
+|--------|-------|
+| Product | Features (#features), Pricing (#pricing), Changelog, Roadmap (GitHub issues), Enterprise |
+| Developers | Docs, SDK reference, MCP guide, API reference, Self-hosting |
+| Company | GitHub ↗, Twitter ↗, Discord ↗, Blog |
+| Legal | Privacy, Terms, Cookie policy |
+
+Bottom bar: `© 2025 Sifter. MIT Licensed.` · `hello@sifter.ai`
+
+---
 
 ## EnterprisePage (`/enterprise`)
 
@@ -61,4 +377,4 @@ Contact form for enterprise inquiries:
 - `_honeypot` (hidden, anti-spam)
 - Post-submit: inline thank-you (no redirect)
 
-No backend endpoint needed for MVP — form can submit to a third-party form service (Formspree, Formspark) or be wired to the cloud email service later.
+No backend endpoint needed for MVP — form submits to a third-party form service (Formspree, Formspark) or wired to the cloud email service later.
