@@ -8,7 +8,7 @@
 [![Node](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Structure any document. Query it like a database. Build on top via API.**
+**Most folders are databases with no schema.**
 
 Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python and TypeScript SDKs. Self-hostable under MIT.
 
@@ -20,7 +20,7 @@ Open-source document intelligence engine — schema-driven extraction, NL query,
 
 RAG is built for retrieval — *find me chunks similar to this query*. It breaks on homogeneous collections like invoices, contracts, or receipts where every document looks alike and the question is an aggregation, not a search.
 
-![RAG vs Sifter](docs/images/why-nor-rag.png)
+![Documents to structured records](docs/images/docs-to-records.jpeg)
 
 Sifter's approach: extract structured fields once (*client, date, total*), store them as typed records, query with real filters and aggregations. The answer is exact and reproducible — because it's a database query, not a similarity search.
 

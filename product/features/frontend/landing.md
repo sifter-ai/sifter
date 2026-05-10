@@ -50,6 +50,9 @@ Two-column layout (`md:grid-cols-[1fr_1.1fr]`).
 
 Badge (pill, monospace, uppercase): `MIT open source · Bring your own LLM`
 
+**Pre-headline insight (mono, muted, small):**
+> Most folders are databases with no schema.
+
 **Headline:**
 > Your documents are
 > **a dark database.**
@@ -167,7 +170,7 @@ Full-width dark section (`bg-[#0a0a0b] text-white`), dot-grid pattern overlay.
 
 **Body:** You have 500 invoices. They all look alike to a similarity search. Now ask a real business question.
 
-**Diagram card** (white bg): image `/images/why-nor-rag.png` with captions `RAG · similarity, uncertain` and `Sifter · structured, exact`.
+**Diagram card** (white bg): image `/images/docs-to-records.jpeg` with captions `RAG · similarity, uncertain` and `Sifter · structured, exact`.
 
 **Example query bar (mono):**
 > "How much did I invoice to Acme Corp in September 2026?"

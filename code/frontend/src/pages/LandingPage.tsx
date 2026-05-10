@@ -84,6 +84,7 @@ export default function LandingPage() {
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide font-mono uppercase">
                 MIT open source · Bring your own LLM
               </span>
+              <p className="text-muted-foreground/60 text-[13px] font-mono mb-3 tracking-tight">Most folders are databases with no schema.</p>
               <h1 className="text-[1.75rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
                 Your documents are<br />
                 <span className="text-primary">a dark database.</span>
@@ -281,8 +282,8 @@ export default function LandingPage() {
 
           <div className="bg-white rounded-2xl p-6 md:p-8 mb-10 shadow-[0_0_60px_rgba(255,255,255,0.05)] ring-1 ring-white/10">
             <img
-              src="/images/why-nor-rag.png"
-              alt="RAG vs Sifter — similarity search vs structured aggregation"
+              src="/images/docs-to-records.jpeg"
+              alt="Documents become structured records"
               className="w-full block max-w-2xl mx-auto"
             />
             <div className="flex justify-between mt-4 max-w-2xl mx-auto px-2">
