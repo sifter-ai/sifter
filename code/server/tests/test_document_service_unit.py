@@ -887,3 +887,45 @@ async def test_list_inherited_extractors_with_grandparent(mock_motor_db):
     svc = DocumentService(mock_motor_db)
     inherited = await svc.list_inherited_extractors(child_id)
     assert any(i.sift_id == "gp-sift" for i in inherited)
+
+
+# ── collect_effective_sift_ids — empty folder_id break (line 208) ─────────────
+
+@pytest.mark.asyncio
+async def test_collect_effective_sift_ids_empty_folder_id(mock_motor_db):
+    """When folder_id is empty string, loop breaks immediately on line 208."""
+    svc = DocumentService(mock_motor_db)
+    result = await svc.collect_effective_sift_ids("")
+    assert result == []
+
+
+# ── delete_document — status without sift_id skipped (line 415) ──────────────
+
+@pytest.mark.asyncio
+async def test_delete_document_status_missing_sift_id_skipped(mock_motor_db):
+    """Status entry with no sift_id is skipped via continue (line 415)."""
+    doc_id = str(ObjectId())
+    folder_id = str(ObjectId())
+    doc_raw = {"_id": ObjectId(doc_id), "folder_id": folder_id, "storage_path": "/uploads/doc.pdf"}
+
+    mock_motor_db["documents"].find_one = AsyncMock(return_value=doc_raw)
+    mock_motor_db["documents"].delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
+    mock_motor_db["documents"].find = MagicMock(return_value=MagicMock(to_list=AsyncMock(return_value=[])))
+    mock_motor_db["document_sift_statuses"].find = MagicMock(
+        return_value=MagicMock(to_list=AsyncMock(return_value=[
+            {"sift_id": None, "status": "done"},
+            {"sift_id": "", "status": "pending"},
+        ]))
+    )
+    mock_motor_db["document_sift_statuses"].delete_many = AsyncMock()
+    mock_motor_db["processing_queue"].delete_many = AsyncMock()
+    mock_motor_db["folders"].update_one = AsyncMock()
+    mock_motor_db["sift_results"].delete_many = AsyncMock()
+
+    with patch("sifter.storage.FilesystemBackend.delete", new_callable=AsyncMock):
+        svc = DocumentService(mock_motor_db)
+        result = await svc.delete_document(doc_id)
+
+    assert result is True
+    # No sifts updated since all statuses have no sift_id
+    mock_motor_db["sifts"].find_one_and_update.assert_not_awaited()

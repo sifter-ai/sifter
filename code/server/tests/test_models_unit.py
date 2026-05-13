@@ -260,3 +260,21 @@ def test_aggregation_from_mongo_extraction_id_migration():
 def test_sift_from_mongo_none():
     from sifter.models.sift import Sift
     assert Sift.from_mongo(None) is None
+
+
+# ── db.close() — closes and clears _client (lines 21-23) ─────────────────────
+
+@pytest.mark.asyncio
+async def test_db_close_clears_client():
+    import sifter.db as db_mod
+    from unittest.mock import MagicMock
+
+    original_client = db_mod._client
+    try:
+        fake_client = MagicMock()
+        db_mod._client = fake_client
+        await db_mod.close()
+        fake_client.close.assert_called_once()
+        assert db_mod._client is None
+    finally:
+        db_mod._client = original_client

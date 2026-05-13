@@ -955,3 +955,50 @@ async def test_list_sift_folders_sift_not_found2(client):
     """Dedicated test for list_sift_folders 404."""
     r = await client.get("/api/sifts/000000000000000000000001/folders")
     assert r.status_code == 404
+
+
+# ── upload_documents (POST /api/sifts/{id}/documents) lines 250-342 ──────────
+
+async def test_upload_documents_success(client):
+    """Upload a file to a sift — covers the upload_documents endpoint."""
+    sid = await _create_sift(client, "Upload Test Sift")
+    content = b"Invoice\nClient: Acme\nAmount: 100"
+    with patch("sifter.services.document_processor.enqueue", new_callable=AsyncMock):
+        r = await client.post(
+            f"/api/sifts/{sid}/upload",
+            files={"files": ("invoice.txt", content, "text/plain")},
+        )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["uploaded"] == 1
+    assert "invoice.txt" in data["files"]
+
+
+async def test_upload_documents_sift_not_found(client):
+    """Upload to a non-existent sift → 404."""
+    with patch("sifter.services.document_processor.enqueue", new_callable=AsyncMock):
+        r = await client.post(
+            "/api/sifts/000000000000000000000001/upload",
+            files={"files": ("f.txt", b"data", "text/plain")},
+        )
+    assert r.status_code == 404
+
+
+async def test_upload_documents_duplicate_fail(client):
+    """Second upload of same filename with on_conflict=fail → 409."""
+    sid = await _create_sift(client, "Upload Conflict Sift")
+    content = b"Invoice data"
+    with patch("sifter.services.document_processor.enqueue", new_callable=AsyncMock):
+        r1 = await client.post(
+            f"/api/sifts/{sid}/upload",
+            files={"files": ("dup.txt", content, "text/plain")},
+            data={"on_conflict": "fail"},
+        )
+    assert r1.status_code == 200
+    with patch("sifter.services.document_processor.enqueue", new_callable=AsyncMock):
+        r2 = await client.post(
+            f"/api/sifts/{sid}/upload",
+            files={"files": ("dup.txt", content, "text/plain")},
+            data={"on_conflict": "fail"},
+        )
+    assert r2.status_code == 409

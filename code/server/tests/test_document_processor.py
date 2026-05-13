@@ -362,3 +362,87 @@ async def test_process_task_mark_failed_exception_is_swallowed(mock_motor_db):
         )
 
     assert discard is False  # should still complete without raising
+
+
+# ── _process_task — GCS URI source (line 183) ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_task_gcs_uri_source(mock_motor_db):
+    """When backend is GCSBackend + vertex_ai model, source is gs:// URI (line 183)."""
+    task_doc = _make_task_doc(storage_path="/uploads/f/doc.pdf")
+    doc_svc = MagicMock()
+    doc_svc.update_sift_status = AsyncMock()
+    ext_svc = MagicMock()
+    result = _make_sift_result()
+    result.id = "result1"
+    ext_svc.process_single_document = AsyncMock(return_value=[result])
+
+    class _FakeGCS:
+        bucket_name = "my-bucket"
+        async def load(self, path): return b"bytes"
+
+    with patch("sifter.storage.get_storage_backend") as mock_storage, \
+         patch("sifter.storage.GCSBackend", _FakeGCS), \
+         patch("sifter.config.config") as mock_cfg, \
+         patch(_PATCH_LIMITER) as mock_limiter, \
+         patch("sifter.services.document_processor._dispatch_webhook", new_callable=AsyncMock):
+
+        mock_storage.return_value = _FakeGCS()
+        mock_cfg.extractor_model = "vertex_ai/gemini-2.0-flash"
+
+        mock_lim = MagicMock()
+        mock_lim.check_extraction = AsyncMock()
+        mock_lim.record_processed = AsyncMock()
+        mock_limiter.return_value = mock_lim
+
+        discard = await dp._process_task(
+            db=mock_motor_db,
+            task_doc=task_doc,
+            document_id="doc1",
+            sift_id="sift1",
+            storage_path="/uploads/f/doc.pdf",
+            sift_org_id="default",
+            attempts=1,
+            max_attempts=3,
+            doc_svc=doc_svc,
+            ext_svc=ext_svc,
+        )
+
+    assert discard is False
+    call_kwargs = ext_svc.process_single_document.call_args
+    assert call_kwargs.args[1].startswith("gs://my-bucket/")
+
+
+# ── _process_task — status update raises in error handler (lines 293-294) ────
+
+@pytest.mark.asyncio
+async def test_process_task_status_update_exception_swallowed(mock_motor_db):
+    """When doc_svc.update_sift_status raises inside the error handler, it is swallowed (lines 293-294)."""
+    task_doc = _make_task_doc(attempts=3, max_attempts=3)
+    doc_svc = MagicMock()
+    doc_svc.update_sift_status = AsyncMock(side_effect=[None, Exception("db gone")])
+    ext_svc = MagicMock()
+    ext_svc.process_single_document = AsyncMock(side_effect=RuntimeError("extraction fail"))
+    ext_svc.mark_document_failed = AsyncMock()
+
+    with patch(_PATCH_STORAGE) as mock_storage, \
+         patch(_PATCH_LIMITER) as mock_limiter, \
+         patch("sifter.services.document_processor._dispatch_webhook", new_callable=AsyncMock):
+
+        mock_storage.return_value.load = AsyncMock(return_value=b"pdf")
+        mock_limiter.return_value.check_extraction = AsyncMock()
+
+        discard = await dp._process_task(
+            db=mock_motor_db,
+            task_doc=task_doc,
+            document_id="doc1",
+            sift_id="sift1",
+            storage_path="/uploads/f/doc.pdf",
+            sift_org_id="default",
+            attempts=3,
+            max_attempts=3,
+            doc_svc=doc_svc,
+            ext_svc=ext_svc,
+        )
+
+    assert discard is False

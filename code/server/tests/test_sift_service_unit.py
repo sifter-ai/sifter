@@ -660,3 +660,143 @@ def test_conform_exact_takes_priority_over_fuzzy():
     record = {"date": "2024-01-01", "data": "extra"}
     result = _conform_to_schema(record, _schema("date"))
     assert result["date"] == "2024-01-01"
+
+
+# ── process_documents — schema_fields enforce (line 156) ─────────────────────
+
+@pytest.mark.asyncio
+async def test_process_documents_enforces_schema_fields(mock_motor_db):
+    """When sift has schema_fields, extracted_data is conformed before storing (line 156)."""
+    sift_id = str(ObjectId())
+    schema_fields = [{"name": "client", "type": "string"}, {"name": "amount", "type": "number"}]
+    sift = _make_sift(sift_id=sift_id, schema="client (string), amount (number)", schema_fields=schema_fields)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    agent_result = MagicMock()
+    agent_result.matches_filter = True
+    # "cliente" fuzzy-maps to "client" (ratio ≈ 0.92); "amount" exact-matches
+    agent_result.extracted_data = [{"cliente": "Acme", "amount": 500.0}]
+    agent_result.document_type = "invoice"
+    agent_result.confidence = 0.9
+    agent_result.llm_citations = {}
+    agent_result.page_blocks = []
+
+    mock_results_service = MagicMock()
+    mock_results_service.insert_result = AsyncMock(return_value=_make_result(sift_id))
+    mock_results_service.ensure_indexes = AsyncMock()
+    mock_results_service.col = mock_motor_db["sift_results"]
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_results_service
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.storage.get_storage_backend") as mock_storage_factory, \
+         patch("sifter.services.webhook_service.WebhookService"):
+        mock_extract.return_value = agent_result
+        mock_backend = MagicMock()
+        mock_backend.load = AsyncMock(return_value=b"pdf bytes")
+        mock_storage_factory.return_value = mock_backend
+
+        await svc.process_documents(sift_id, ["/doc.pdf"])
+
+    # _conform_to_schema mapped "cliente" → "client" (fuzzy) and kept "amount" (exact)
+    assert agent_result.extracted_data[0].get("client") == "Acme"
+    assert agent_result.extracted_data[0].get("amount") == 500.0
+
+
+# ── process_documents — GCS URI source (line 143) ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_process_documents_gcs_uri_source(mock_motor_db):
+    """When backend is GCSBackend + vertex_ai model, source is gs:// URI (line 143)."""
+    sift_id = str(ObjectId())
+    sift = _make_sift(sift_id=sift_id)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    agent_result = MagicMock()
+    agent_result.matches_filter = True
+    agent_result.extracted_data = [{"client": "Acme"}]
+    agent_result.document_type = "invoice"
+    agent_result.confidence = 0.9
+    agent_result.llm_citations = {}
+    agent_result.page_blocks = []
+
+    mock_results_service = MagicMock()
+    mock_results_service.insert_result = AsyncMock(return_value=_make_result(sift_id))
+    mock_results_service.ensure_indexes = AsyncMock()
+    mock_results_service.col = mock_motor_db["sift_results"]
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_results_service
+
+    class _FakeGCS:
+        bucket_name = "test-bucket"
+        async def load(self, path): return b"bytes"
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.storage.get_storage_backend") as mock_storage_factory, \
+         patch("sifter.storage.GCSBackend", _FakeGCS), \
+         patch("sifter.services.sift_service.config") as mock_config, \
+         patch("sifter.services.webhook_service.WebhookService"):
+        mock_extract.return_value = agent_result
+        mock_storage_factory.return_value = _FakeGCS()
+        mock_config.extractor_model = "vertex_ai/gemini-2.0-flash"
+
+        await svc.process_documents(sift_id, ["/uploads/doc.pdf"])
+
+    # source should have been gs:// URI, not loaded bytes
+    call_kwargs = mock_extract.call_args.kwargs
+    assert call_kwargs["source"] == "gs://test-bucket//uploads/doc.pdf"
+
+
+# ── process_single_document — schema_fields enforce (line 254) ───────────────
+
+@pytest.mark.asyncio
+async def test_process_single_document_enforces_schema_fields(mock_motor_db):
+    """When sift has schema_fields, extracted_data is conformed before storing (line 254)."""
+    from sifter.services.sift_agent import ExtractionAgentResult
+
+    sift_id = str(ObjectId())
+    schema_fields = [{"name": "amount", "type": "number"}]
+    sift = _make_sift(sift_id=sift_id, schema="amount (number)", schema_fields=schema_fields)
+    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
+
+    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw)
+    mock_motor_db["sifts"].update_one = AsyncMock()
+
+    updated_doc = sift_raw | {"processed_documents": 1, "total_documents": 1}
+    mock_motor_db["sifts"].find_one_and_update = AsyncMock(return_value=updated_doc)
+
+    agent_result = ExtractionAgentResult(
+        document_type="invoice",
+        matches_filter=True,
+        filter_reason="",
+        confidence=0.9,
+        extracted_data=[{"amount": 1500.0}],  # exact match — just tests the branch
+        page_blocks=[],
+        llm_citations={},
+    )
+
+    inserted_result = _make_result(sift_id)
+    mock_results_service = MagicMock()
+    mock_results_service.insert_result = AsyncMock(return_value=inserted_result)
+    mock_results_service.ensure_indexes = AsyncMock()
+    mock_results_service.col = mock_motor_db["sift_results"]
+
+    svc = SiftService(mock_motor_db)
+    svc.results_service = mock_results_service
+
+    with patch("sifter.services.sift_service.sift_agent.extract", new_callable=AsyncMock) as mock_extract, \
+         patch("sifter.services.webhook_service.WebhookService"):
+        mock_extract.return_value = agent_result
+
+        results = await svc.process_single_document(sift_id, b"pdf bytes", "invoice.pdf")
+
+    assert len(results) == 1
+    assert agent_result.extracted_data[0].get("amount") == 1500.0
