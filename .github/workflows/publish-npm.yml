@@ -25,7 +25,15 @@ jobs:
       - run: npm ci && npm run build
         working-directory: code/sdk-ts
 
-      - run: npm publish --access public
+      - name: Publish (skip if already published)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          EXISTING=$(npm view "@sifter-ai/sdk@$VERSION" version 2>/dev/null || true)
+          if [ "$EXISTING" = "$VERSION" ]; then
+            echo "Version $VERSION already on registry, skipping"
+          else
+            npm publish --access public
+          fi
         working-directory: code/sdk-ts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -63,7 +71,15 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - run: npm publish --access public
+      - name: Publish (skip if already published)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          EXISTING=$(npm view "@sifter-ai/cli@$VERSION" version 2>/dev/null || true)
+          if [ "$EXISTING" = "$VERSION" ]; then
+            echo "Version $VERSION already on registry, skipping"
+          else
+            npm publish --access public
+          fi
         working-directory: code/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
