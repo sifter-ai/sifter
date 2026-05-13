@@ -45,6 +45,7 @@ export class FolderHandle {
 
   get name(): string { return String(this._data["name"] ?? ""); }
   get path(): string { return String(this._data["path"] ?? ""); }
+  get document_count(): number { return Number(this._data["document_count"] ?? 0); }
 
   on(event: string | string[], callback: (...args: unknown[]) => void): this {
     const events = Array.isArray(event) ? event : [event];
