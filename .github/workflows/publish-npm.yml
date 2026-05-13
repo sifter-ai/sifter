@@ -50,26 +50,26 @@ jobs:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
 
-      - name: Set version and replace local SDK dependency with published version
+      - name: Set SDK version and build from source
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           npm version "$VERSION" --no-git-tag-version
-          jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
-        working-directory: code/cli
+          npm ci && npm run build
+        working-directory: code/sdk-ts
 
-      - name: Wait for SDK to be available on registry
+      - name: Build CLI against local SDK (avoids registry propagation delay)
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          for i in 1 2 3 4 5; do
-            npm view "@sifter-ai/sdk@$VERSION" version 2>/dev/null && break
-            echo "Attempt $i: SDK $VERSION not yet on registry, retrying in 30s..."
-            sleep 30
-          done
-
-      - run: npm install && npm run build
+          npm version "$VERSION" --no-git-tag-version
+          # Install local SDK tarball so the CLI TypeScript build uses the current source
+          npm pack ../sdk-ts
+          TARBALL=$(ls @sifter-ai-sdk-*.tgz)
+          jq --arg t "./$TARBALL" '.dependencies["@sifter-ai/sdk"] = $t' package.json > tmp.json && mv tmp.json package.json
+          npm install && npm run build
+          # Restore published SDK reference before packaging for npm
+          jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
+          rm -f "$TARBALL"
         working-directory: code/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish (skip if already published)
         run: |
