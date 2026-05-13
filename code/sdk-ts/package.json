@@ -1,6 +1,6 @@
 {
   "name": "@sifter-ai/sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TypeScript SDK for Sifter — programmatic document extraction",
   "type": "module",
   "main": "./dist/index.js",

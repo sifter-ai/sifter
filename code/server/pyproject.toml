@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sifter-server"
-version = "0.1.0"
+version = "1.0.0"
 description = "AI-powered document extraction engine — self-hostable server"
 readme = "README.md"
 license = { text = "MIT" }

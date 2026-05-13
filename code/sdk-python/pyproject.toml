@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sifter-ai"
-version = "0.1.7"
+version = "1.0.0"
 description = "Python SDK for the Sifter document extraction API"
 readme = "README.md"
 license = { text = "MIT" }
