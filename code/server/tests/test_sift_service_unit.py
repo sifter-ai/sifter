@@ -7,7 +7,7 @@ from bson import ObjectId
 
 from sifter.models.sift import Sift, SiftStatus
 from sifter.models.sift_result import SiftResult
-from sifter.services.sift_service import SiftService, DocumentDiscardedError, _snake, _infer_schema
+from sifter.services.sift_service import SiftService, DocumentDiscardedError, _snake, _infer_schema, _conform_to_schema
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -601,3 +601,62 @@ async def test_process_single_document_citation_failure(mock_motor_db):
         results = await svc.process_single_document(sift_id, b"bytes", "invoice.pdf")
 
     assert len(results) >= 1
+
+
+# ── _conform_to_schema ────────────────────────────────────────────────────────
+
+def _schema(*names):
+    return [{"name": n, "type": "string"} for n in names]
+
+
+def test_conform_exact_match():
+    record = {"client": "Acme", "amount": 100}
+    result = _conform_to_schema(record, _schema("client", "amount"))
+    assert result == {"client": "Acme", "amount": 100}
+
+
+def test_conform_missing_key_becomes_none():
+    record = {"client": "Acme"}
+    result = _conform_to_schema(record, _schema("client", "amount"))
+    assert result["client"] == "Acme"
+    assert result["amount"] is None
+
+
+def test_conform_extra_keys_dropped():
+    record = {"client": "Acme", "unexpected": "ignored"}
+    result = _conform_to_schema(record, _schema("client"))
+    assert result == {"client": "Acme"}
+    assert "unexpected" not in result
+
+
+def test_conform_fuzzy_italian_to_english():
+    # LLM returned Italian keys; schema uses English equivalents
+    record = {"categoria": "fattura", "autore": "Mario", "data": "2024-01-01"}
+    result = _conform_to_schema(record, _schema("category", "author", "date"))
+    assert result["category"] == "fattura"
+    assert result["author"] == "Mario"
+    assert result["date"] == "2024-01-01"
+
+
+def test_conform_fuzzy_below_threshold_stays_none():
+    # "xyz" vs "client" — ratio well below 0.6 → stays None
+    record = {"xyz": "irrelevant"}
+    result = _conform_to_schema(record, _schema("client"))
+    assert result["client"] is None
+
+
+def test_conform_empty_record():
+    result = _conform_to_schema({}, _schema("client", "amount"))
+    assert result == {"client": None, "amount": None}
+
+
+def test_conform_empty_schema():
+    result = _conform_to_schema({"client": "Acme"}, [])
+    assert result == {}
+
+
+def test_conform_exact_takes_priority_over_fuzzy():
+    # "date" exactly matches schema key "date"; "data" should not steal it
+    record = {"date": "2024-01-01", "data": "extra"}
+    result = _conform_to_schema(record, _schema("date"))
+    assert result["date"] == "2024-01-01"

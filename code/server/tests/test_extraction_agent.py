@@ -306,3 +306,55 @@ async def test_extract_single_record_list_response():
 
     assert len(result.extracted_data) == 1
     assert result.extracted_data[0]["amount"] == "100"
+
+
+# ── empty extractedData fallbacks (lines 137, 140) ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_extract_multi_record_empty_extracted_data():
+    """multi_record=True + extractedData is falsy dict → empty list (line 137)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.0,
+        "extractedData": {},
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"text",
+            filename="invoice.txt",
+            instructions="Extract",
+            multi_record=True,
+        )
+
+    assert result.extracted_data == []
+
+
+@pytest.mark.asyncio
+async def test_extract_single_record_empty_list_response():
+    """multi_record=False + extractedData is empty list → fallback [{}] (line 140)."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = json.dumps({
+        "documentType": "invoice",
+        "matchesFilter": True,
+        "filterReason": "",
+        "confidence": 0.0,
+        "extractedData": [],
+    })
+
+    with patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm:
+        mock_llm.return_value = mock_response
+        result = await extract(
+            source=b"text",
+            filename="invoice.txt",
+            instructions="Extract",
+            multi_record=False,
+        )
+
+    assert result.extracted_data == [{}]
