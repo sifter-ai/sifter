@@ -234,7 +234,8 @@ async def test_update_schema_first_time(mock_motor_db):
 
 
 @pytest.mark.asyncio
-async def test_update_schema_changed_fires_webhook(mock_motor_db):
+async def test_update_schema_already_set_is_noop(mock_motor_db):
+    # Schema is locked after first inference — no updates or webhooks on subsequent docs.
     old_fields = [{"name": "client", "type": "string"}]
     sift = _make_sift(
         schema="client (string)",
@@ -242,18 +243,17 @@ async def test_update_schema_changed_fires_webhook(mock_motor_db):
         schema_version=1,
     )
     mock_motor_db["sifts"].update_one = AsyncMock()
-    mongo_doc = sift.to_mongo() | {"_id": ObjectId(sift.id)}
-    mock_motor_db["sifts"].find_one = AsyncMock(return_value=mongo_doc)
 
     svc = SiftService(mock_motor_db)
     with patch("sifter.services.webhook_service.WebhookService") as MockWH:
         mock_wh = MagicMock()
         mock_wh.dispatch = AsyncMock()
         MockWH.return_value = mock_wh
-        # New field added → schema changed
+        # Schema already set → must be a no-op
         await svc._update_schema_if_changed(sift, {"client": "Acme", "amount": 100.0})
 
-    mock_wh.dispatch.assert_called_once()
+    mock_motor_db["sifts"].update_one.assert_not_called()
+    mock_wh.dispatch.assert_not_called()
 
 
 # ── get_records ───────────────────────────────────────────────────────────────
@@ -374,14 +374,12 @@ async def test_mark_document_failed_sift_not_found(mock_motor_db):
 # ── _update_schema_if_changed webhook path ────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_update_schema_if_changed_dispatches_webhook_on_change(mock_motor_db):
+async def test_update_schema_if_changed_noop_when_already_set(mock_motor_db):
+    # Schema is locked after first inference — calling again with different fields is a no-op.
     sift_id = str(ObjectId())
     sift = _make_sift(sift_id=sift_id, schema="old_field (string)", schema_fields=[{"name": "old_field", "type": "string"}], schema_version=1)
-    sift_raw = sift.to_mongo() | {"_id": ObjectId(sift_id)}
 
     mock_motor_db["sifts"].update_one = AsyncMock()
-    # find_one returns updated doc with new schema
-    mock_motor_db["sifts"].find_one = AsyncMock(return_value=sift_raw | {"schema": "new_field (string)", "schema_fields": [{"name": "new_field", "type": "string"}], "schema_version": 2})
 
     svc = SiftService(mock_motor_db)
 
@@ -392,7 +390,8 @@ async def test_update_schema_if_changed_dispatches_webhook_on_change(mock_motor_
 
         await svc._update_schema_if_changed(sift, {"new_field": "value"})
 
-    mock_wh.dispatch.assert_called_once()
+    mock_motor_db["sifts"].update_one.assert_not_called()
+    mock_wh.dispatch.assert_not_called()
 
 
 # ── reindex (lines 362-367) ───────────────────────────────────────────────────

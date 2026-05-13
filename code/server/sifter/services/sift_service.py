@@ -125,6 +125,7 @@ class SiftService:
         )
 
         schema = sift.schema
+        schema_fields: list[dict] = sift.schema_fields or []
         errors = []
         discarded = 0
 
@@ -150,6 +151,12 @@ class SiftService:
                     multi_record=sift.multi_record,
                 )
 
+                # Enforce established schema before storing
+                if schema_fields:
+                    result.extracted_data = [
+                        _conform_to_schema(r, schema_fields) for r in result.extracted_data
+                    ]
+
                 if not result.matches_filter:
                     discarded += 1
                     logger.info(
@@ -172,12 +179,14 @@ class SiftService:
                         record_index=rec_idx,
                     )
 
-                # Update schema from first successful result (process_documents path)
+                # Infer schema from first successful result (locked after that)
                 if result.extracted_data:
                     current_sift = await self.get(sift_id)
                     if current_sift:
                         await self._update_schema_if_changed(current_sift, result.extracted_data[0])
-                        schema = (await self.get(sift_id)).schema  # refresh
+                        refreshed = await self.get(sift_id)
+                        schema = refreshed.schema
+                        schema_fields = refreshed.schema_fields or []
 
                 await self.update(sift_id, {"processed_documents": idx + 1 - len(errors)})
                 logger.info(
@@ -239,6 +248,12 @@ class SiftService:
             schema=current_schema,
             multi_record=sift.multi_record,
         )
+
+        # Enforce established schema before storing
+        if latest and latest.schema_fields:
+            result.extracted_data = [
+                _conform_to_schema(r, latest.schema_fields) for r in result.extracted_data
+            ]
 
         if not result.matches_filter:
             discard_updated = await self.col.find_one_and_update(
@@ -310,52 +325,24 @@ class SiftService:
             await self.update(sift_id, {"status": new_status, "error": error_message})
 
     async def _update_schema_if_changed(self, sift: Sift, extracted_data: dict) -> None:
+        # Schema is inferred from the first document only and then locked.
+        # Subsequent extractions must conform to it — not redefine it.
+        if sift.schema is not None:
+            return
+
         from .schema_service import infer_schema_fields
-        from .webhook_service import WebhookService
 
         new_fields = infer_schema_fields(extracted_data)
         new_schema_text = _infer_schema(extracted_data)
-        new_field_names = {f["name"]: f["type"] for f in new_fields}
-        old_field_names = {f["name"]: f["type"] for f in (sift.schema_fields or [])}
-
-        if new_field_names == old_field_names and sift.schema is not None:
-            return  # no change
-
-        old_version = sift.schema_version
-        new_version = old_version + 1 if sift.schema is not None else 1
 
         await self.update(
             sift.id,
             {
                 "schema": new_schema_text,
                 "schema_fields": new_fields,
-                "schema_version": new_version,
+                "schema_version": 1,
             },
         )
-
-        # Emit webhook only on actual schema changes (not first-time set)
-        if sift.schema is not None and new_field_names != old_field_names:
-            old_keys = set(old_field_names)
-            new_keys = set(new_field_names)
-            added = [f for f in new_fields if f["name"] in (new_keys - old_keys)]
-            removed = [{"name": n} for n in (old_keys - new_keys)]
-            changed = [
-                f for f in new_fields
-                if f["name"] in (old_keys & new_keys) and old_field_names[f["name"]] != f["type"]
-            ]
-            payload = {
-                "sift_id": sift.id,
-                "old_version": old_version,
-                "new_version": new_version,
-                "added_fields": added,
-                "removed_fields": removed,
-                "changed_fields": changed,
-            }
-            try:
-                wh_svc = WebhookService(self.db)
-                await wh_svc.dispatch("sift.schema.changed", payload, sift_id=sift.id, org_id=sift.org_id)
-            except Exception as e:
-                logger.error("schema_changed_webhook_failed", sift_id=sift.id, error=str(e))
 
     async def reindex(self, sift_id: str, file_paths: list[str]) -> None:
         """Delete all results and reprocess all documents."""
@@ -395,6 +382,36 @@ def _snake(key: str) -> str:
     key = _re.sub(r"([a-z\d])([A-Z])", r"\1_\2", key)
     key = key.lower()
     return _re.sub(r"_+", "_", key).strip("_") or "field"
+
+
+def _conform_to_schema(record: dict, schema_fields: list[dict]) -> dict:
+    """
+    Remap an extracted record to exactly match the established schema field names.
+    Exact matches take priority; unmatched schema keys fall back to fuzzy
+    name matching (SequenceMatcher ratio >= 0.6) to recover from LLM naming
+    drift (e.g. Italian 'categoria' vs English 'category').
+    Extra keys not in the schema are dropped; missing schema keys become None.
+    """
+    from difflib import SequenceMatcher
+
+    schema_keys = [f["name"] for f in schema_fields]
+    result: dict = dict.fromkeys(schema_keys)
+    remaining = dict(record)
+    matched: set[str] = set()
+
+    for sk in schema_keys:
+        if sk in remaining:
+            result[sk] = remaining.pop(sk)
+            matched.add(sk)
+
+    for sk in schema_keys:
+        if sk in matched or not remaining:
+            continue
+        best_rk = max(remaining, key=lambda rk: SequenceMatcher(None, sk, rk).ratio())
+        if SequenceMatcher(None, sk, best_rk).ratio() >= 0.6:
+            result[sk] = remaining.pop(best_rk)
+
+    return result
 
 
 def _infer_schema(extracted_data: dict[str, Any]) -> str:

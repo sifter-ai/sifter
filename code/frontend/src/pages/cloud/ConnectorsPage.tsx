@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import {
   fetchGDriveConnections,
+  fetchSubscription,
   getGDriveOAuthUrl,
   browseGDrive,
   configureGDrive,
@@ -28,6 +29,13 @@ import {
 import { fetchFolders } from "@/api/folders";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -301,16 +309,18 @@ function GDriveConnectionCard({
               <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
                 <FolderOpen className="h-3 w-3" /> Sifter folder
               </label>
-              <select
-                className="w-full rounded-lg border border-input bg-background px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                value={sifterId}
-                onChange={(e) => setSifterId(e.target.value)}
-              >
-                <option value="">— select folder —</option>
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
-                ))}
-              </select>
+              <Select value={sifterId} onValueChange={setSifterId}>
+                <SelectTrigger className="w-full h-8 text-xs">
+                  <SelectValue placeholder="— select folder —" />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders.map((f) => (
+                    <SelectItem key={f.id} value={f.id} className="text-xs">
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -583,6 +593,12 @@ export default function ConnectorsPage() {
   });
   const folders: { id: string; name: string }[] = foldersData?.items ?? [];
 
+  const { data: sub } = useQuery({
+    queryKey: ["subscription"],
+    queryFn: fetchSubscription,
+  });
+  const isFreePlan = !sub || sub.plan_code === "free";
+
   return (
     <div className="relative min-h-full">
       <div
@@ -621,20 +637,22 @@ export default function ConnectorsPage() {
             <Sparkles className="h-3 w-3" strokeWidth={2.25} />
             <span>Sifter Cloud</span>
           </div>
-          <div className="flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
-            <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.25} />
-            <div className="text-xs leading-relaxed space-y-0.5">
-              <p className="text-amber-900 dark:text-amber-200 font-medium">
-                Connectors are a <span className="font-semibold">Starter</span> feature.
-              </p>
-              <p className="text-amber-800/80 dark:text-amber-300/80">
-                Free-plan orgs cannot connect external sources.{" "}
-                <a href="/settings/billing" className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100">
-                  Upgrade →
-                </a>
-              </p>
+          {isFreePlan && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
+              <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.25} />
+              <div className="text-xs leading-relaxed space-y-0.5">
+                <p className="text-amber-900 dark:text-amber-200 font-medium">
+                  Connectors are a <span className="font-semibold">Starter</span> feature.
+                </p>
+                <p className="text-amber-800/80 dark:text-amber-300/80">
+                  Free-plan orgs cannot connect external sources.{" "}
+                  <a href="/settings/billing" className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100">
+                    Upgrade →
+                  </a>
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Google Drive */}

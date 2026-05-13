@@ -81,7 +81,12 @@ async def extract(
             "## Output Format\nReturn a single JSON object in the `extractedData` field."
         )
     if schema:
-        text_parts.append(f"## Expected Schema (maintain consistency)\n{schema}")
+        text_parts.append(
+            f"## REQUIRED: Exact Schema Field Names\n"
+            f"Use EXACTLY these field names in `extractedData`. "
+            f"Do NOT rename, translate, or add fields. "
+            f"If the document language differs from the field names, keep the field names as-is:\n{schema}"
+        )
     if processed.text_content:
         text_parts.append(f"## Document Text Content\n{processed.text_content}")
 

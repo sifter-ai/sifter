@@ -209,25 +209,52 @@ function LinkFolderDialog({
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Folder | null>(null);
+  const [currentParentId, setCurrentParentId] = useState<string | null>(null);
+  const [breadcrumb, setBreadcrumb] = useState<Folder[]>([]);
   const linkMutation = useLinkFolderToSift(siftId);
 
   useEffect(() => {
     if (!open) return;
     setSearch("");
     setSelected(null);
+    setCurrentParentId(null);
+    setBreadcrumb([]);
     setLoading(true);
     fetchFolders()
       .then((page) => setFolders(page.items))
       .finally(() => setLoading(false));
   }, [open]);
 
-  const filtered = folders.filter((f) => {
-    const q = search.toLowerCase();
-    return (
-      f.name.toLowerCase().includes(q) ||
-      (f.path ?? "").toLowerCase().includes(q)
-    );
-  });
+  const isSearching = search.trim().length > 0;
+
+  const displayed = isSearching
+    ? folders.filter((f) => {
+        const q = search.toLowerCase();
+        return f.name.toLowerCase().includes(q) || (f.path ?? "").toLowerCase().includes(q);
+      })
+    : folders.filter((f) => f.parent_id === currentParentId);
+
+  const hasChildren = (folder: Folder) => folders.some((f) => f.parent_id === folder.id);
+
+  const navigateInto = (e: React.MouseEvent, folder: Folder) => {
+    e.stopPropagation();
+    setSelected(null);
+    setCurrentParentId(folder.id);
+    setBreadcrumb((prev) => [...prev, folder]);
+  };
+
+  const navigateToCrumb = (index: number) => {
+    if (index === -1) {
+      setCurrentParentId(null);
+      setBreadcrumb([]);
+      setSelected(null);
+    } else {
+      const folder = breadcrumb[index];
+      setCurrentParentId(folder.id);
+      setBreadcrumb((prev) => prev.slice(0, index + 1));
+      setSelected(null);
+    }
+  };
 
   const handleLink = () => {
     if (!selected) return;
@@ -249,34 +276,81 @@ function LinkFolderDialog({
               className="pl-8"
               placeholder="Search by name or path…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setSelected(null); }}
               autoFocus
             />
           </div>
+
+          {/* Breadcrumb — hidden while searching */}
+          {!isSearching && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+              <button
+                className="hover:text-foreground transition-colors"
+                onClick={() => navigateToCrumb(-1)}
+              >
+                All folders
+              </button>
+              {breadcrumb.map((crumb, i) => (
+                <span key={crumb.id} className="flex items-center gap-1">
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                  <button
+                    className={`hover:text-foreground transition-colors ${i === breadcrumb.length - 1 ? "text-foreground font-medium" : ""}`}
+                    onClick={() => navigateToCrumb(i)}
+                  >
+                    {crumb.name}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="max-h-56 overflow-y-auto rounded-md border">
             {loading ? (
               <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading…
               </div>
-            ) : filtered.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No folders found.</p>
+            ) : displayed.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {isSearching ? "No folders found." : "No subfolders here."}
+              </p>
             ) : (
-              filtered.map((f) => (
-                <button
+              displayed.map((f) => (
+                <div
                   key={f.id}
-                  onClick={() => setSelected(f)}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b last:border-0 ${
-                    selected?.id === f.id ? "bg-primary/10 font-medium" : ""
+                  onClick={() => setSelected((prev) => prev?.id === f.id ? null : f)}
+                  className={`group flex items-center w-full text-left px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/50 transition-colors border-b last:border-0 ${
+                    selected?.id === f.id ? "bg-primary/10" : ""
                   }`}
                 >
-                  <span className="block truncate">{f.name}</span>
-                  {f.path && (
-                    <span className="text-xs text-muted-foreground font-mono">{f.path}</span>
+                  <FolderIcon className="h-4 w-4 shrink-0 mr-2.5 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <span className={`block truncate ${selected?.id === f.id ? "font-medium" : ""}`}>
+                      {f.name}
+                    </span>
+                    {isSearching && f.path && (
+                      <span className="text-xs text-muted-foreground font-mono">{f.path}</span>
+                    )}
+                  </div>
+                  {hasChildren(f) && (
+                    <button
+                      onClick={(e) => navigateInto(e, f)}
+                      className="ml-2 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                      title="Open folder"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
                   )}
-                </button>
+                </div>
               ))
             )}
           </div>
+
+          {selected && (
+            <p className="text-xs text-muted-foreground">
+              Selected: <span className="font-medium text-foreground">{selected.path ?? selected.name}</span>
+            </p>
+          )}
+
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

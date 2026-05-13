@@ -151,8 +151,8 @@ export default function LandingPage() {
             <div className="relative">
               <div className="bg-white rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5">
                 <img
-                  src="/images/hero.png"
-                  alt="Documents becoming structured data"
+                  src="/images/folder-to-records.png"
+                  alt="Most folders are databases with no schema"
                   className="w-full block"
                 />
               </div>

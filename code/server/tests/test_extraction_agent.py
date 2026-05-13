@@ -261,7 +261,7 @@ async def test_extract_with_schema():
 
     call_messages = mock_llm.call_args.kwargs["messages"]
     user_text = call_messages[1]["content"][0]["text"]
-    assert "Expected Schema" in user_text
+    assert "Exact Schema Field Names" in user_text
     assert result.document_type == "invoice"
 
 
