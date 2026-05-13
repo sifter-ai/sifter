@@ -626,18 +626,18 @@ export default function ConnectorsPage() {
           </p>
         </header>
 
-        {/* Cloud hero */}
-        <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-sky-500/[0.06] p-5 space-y-3 relative overflow-hidden">
-          <div
-            className="pointer-events-none absolute -top-20 -right-20 h-40 w-40 rounded-full blur-3xl opacity-40"
-            style={{ background: "radial-gradient(closest-side, hsl(200 85% 55% / 0.3), transparent)" }}
-            aria-hidden
-          />
-          <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-primary/90">
-            <Sparkles className="h-3 w-3" strokeWidth={2.25} />
-            <span>Sifter Cloud</span>
-          </div>
-          {isFreePlan && (
+        {/* Cloud hero — only shown on free plan as an upgrade prompt */}
+        {isFreePlan && (
+          <section className="rounded-2xl border bg-gradient-to-br from-primary/[0.08] via-transparent to-sky-500/[0.06] p-5 space-y-3 relative overflow-hidden">
+            <div
+              className="pointer-events-none absolute -top-20 -right-20 h-40 w-40 rounded-full blur-3xl opacity-40"
+              style={{ background: "radial-gradient(closest-side, hsl(200 85% 55% / 0.3), transparent)" }}
+              aria-hidden
+            />
+            <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-primary/90">
+              <Sparkles className="h-3 w-3" strokeWidth={2.25} />
+              <span>Sifter Cloud</span>
+            </div>
             <div className="flex items-start gap-2 rounded-lg border border-amber-200/70 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/30 px-3 py-2.5">
               <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.25} />
               <div className="text-xs leading-relaxed space-y-0.5">
@@ -652,8 +652,8 @@ export default function ConnectorsPage() {
                 </p>
               </div>
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Google Drive */}
         <div className="rounded-xl border overflow-hidden">
