@@ -63,12 +63,12 @@ jobs:
           npm version "$VERSION" --no-git-tag-version
           # Install local SDK tarball so the CLI TypeScript build uses the current source
           npm pack ../sdk-ts
-          TARBALL=$(ls @sifter-ai-sdk-*.tgz)
+          TARBALL=$(ls sifter-ai-sdk-*.tgz)
           jq --arg t "./$TARBALL" '.dependencies["@sifter-ai/sdk"] = $t' package.json > tmp.json && mv tmp.json package.json
           npm install && npm run build
           # Restore published SDK reference before packaging for npm
           jq --arg v "^$VERSION" '.dependencies["@sifter-ai/sdk"] = $v' package.json > tmp.json && mv tmp.json package.json
-          rm -f "$TARBALL"
+          rm -f sifter-ai-sdk-*.tgz
         working-directory: code/cli
 
       - name: Publish (skip if already published)
