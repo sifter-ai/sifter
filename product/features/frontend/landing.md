@@ -50,9 +50,6 @@ Two-column layout (`md:grid-cols-[1fr_1.1fr]`).
 
 Badge (pill, monospace, uppercase): `MIT open source · Bring your own LLM`
 
-**Pre-headline insight (mono, muted, small):**
-> Most folders are databases with no schema.
-
 **Headline:**
 > Your documents are
 > **a dark database.**

@@ -84,7 +84,6 @@ export default function LandingPage() {
               <span className="inline-flex items-center gap-1.5 border border-primary/25 text-primary text-[11px] font-medium px-3 py-1 rounded-full bg-primary/5 mb-6 tracking-wide font-mono uppercase">
                 MIT open source · Bring your own LLM
               </span>
-              <p className="text-muted-foreground/60 text-[13px] font-mono mb-3 tracking-tight">Most folders are databases with no schema.</p>
               <h1 className="text-[1.75rem] sm:text-[2.6rem] md:text-[3.2rem] font-bold tracking-tight leading-[1.08] text-foreground">
                 Your documents are<br />
                 <span className="text-primary">a dark database.</span>

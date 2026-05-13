@@ -8,7 +8,7 @@
 [![Node](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Most folders are databases with no schema.**
+**Your documents are a dark database.**
 
 Open-source document intelligence engine — schema-driven extraction, NL query, MCP server, Python and TypeScript SDKs. Self-hostable under MIT.
 
