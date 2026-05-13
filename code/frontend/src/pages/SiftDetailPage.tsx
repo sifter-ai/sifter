@@ -740,6 +740,7 @@ export function SiftDetailPage() {
   useEffect(() => {
     if (prevStatusRef.current === "indexing" && !isIndexing(extraction?.status)) {
       qc.refetchQueries({ queryKey: ["sift-records", id] });
+      qc.invalidateQueries({ queryKey: ["usage"] });
     }
     prevStatusRef.current = extraction?.status;
   }, [extraction?.status]);

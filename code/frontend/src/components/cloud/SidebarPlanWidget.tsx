@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSubscription, fetchUsage } from "@/api/cloud";
+import { useSifts } from "@/hooks/useExtractions";
 import { Zap } from "lucide-react";
 
 const PLAN_STYLE: Record<string, { dot: string; badge: string }> = {
@@ -21,10 +22,14 @@ export function SidebarPlanWidget() {
     staleTime: 60_000,
   });
 
+  const { data: siftsData } = useSifts();
+  const hasIndexing = siftsData?.items?.some((s) => s?.status === "indexing") ?? false;
+
   const { data: usage } = useQuery({
     queryKey: ["usage"],
     queryFn: fetchUsage,
     staleTime: 30_000,
+    refetchInterval: hasIndexing ? 5_000 : false,
   });
 
   if (!sub || !usage) return null;
