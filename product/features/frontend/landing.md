@@ -125,33 +125,48 @@ Two-column layout (`md:grid-cols-2`), `border-t`.
 
 ### 5. See it in action
 
-Full-width card (`border rounded-2xl`), `border-b`.
+Full-width card (`border rounded-2xl`), `border-b`. Implemented as `<InteractiveDemo />` in `src/components/InteractiveDemo.tsx`.
 
 **Label (mono, uppercase):** `See it in action`
 
 **Heading:** `Drop a document. Get structured data.`
 
-Two-panel layout (`md:grid-cols-2 divide-x`):
+**Tab bar** (top, `overflow-x-auto`): 6 dataset tabs, each with icon + label:
+- FileText · Invoices (PDF)
+- Receipt · Receipts (JPG)
+- User · CVs (PDF)
+- Zap · Utility Bills (PDF)
+- FileSignature · Contracts (PDF)
+- Camera · Photos (JPG)
 
-**Left — Input:**
-- File: `warehouse_b_machine_047.jpg` / `photo · 2.1 MB`
-- Schema box: `Extract: brand, model, serial_number, year, condition, location`
-- CTA: **"Try free →"**
+Active tab: `bg-primary text-primary-foreground`. Clicking a different tab resets to that dataset's first file and plays the processing animation.
 
-**Right — Output** (dark `#111113` bg):
-JSON preview:
-```json
-{
-  "brand": "Caterpillar",
-  "model": "320 GC",
-  "serial_number": "CAT0320GC00482",
-  "year": 2019,
-  "condition": "good",
-  "location": "Warehouse B – Bay 4",
-  "last_service": "2024-02-10"
-}
-```
-Label: `7 fields`
+**Body** (`grid-cols-1 md:grid-cols-[220px_1fr]`):
+
+**Left panel — File list + Schema:**
+- Subtitle: `{N} files · {fileType}` (mono, uppercase)
+- 5 file rows, each with: file-type icon, filename (truncated), file size. Active file: `bg-primary/10 text-primary`. Clicking a file triggers the animation.
+- Schema section (below a `border-t`): field names in monospace, small text.
+
+**Right panel — Output** (dark `#111113` bg, `min-h-[320px]`):
+- Header: `Output` label + `processing ⟳` spinner (while animating) or line count (when done).
+- JSON output rendered with syntax highlighting: keys in violet, strings in emerald, numbers in amber.
+- **Animation sequence:** on tab/file change → 700ms "processing" state → fields revealed line-by-line with 75ms stagger.
+- On initial render: first file of first dataset shown immediately (no animation).
+- CTA link at bottom: `"Try with your documents →"` → `https://app.sifter.run/register`.
+
+**Datasets (6 × 5 files each, all data pre-computed — no API calls):**
+
+| Dataset | Schema |
+|---------|--------|
+| Invoices | vendor, invoice_number, date, due_date, total, vat, line_items |
+| Receipts | store, date, items, subtotal, tax, total, payment_method |
+| CVs | name, email, phone, skills, experience, education |
+| Utility Bills | provider, account_number, period, consumption_kwh, amount_due, due_date |
+| Contracts | parties, start_date, end_date, contract_value, governing_law |
+| Photos | category, brand, model, condition, location, estimated_value |
+
+No backend calls. All output is static JSON pre-computed at build time.
 
 ---
 

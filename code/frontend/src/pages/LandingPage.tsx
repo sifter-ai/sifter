@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { InteractiveDemo } from "@/components/InteractiveDemo";
 import {
   ArrowRight,
   Check,
@@ -27,15 +28,6 @@ import logo from "@/assets/logo.svg";
 const DOCS_URL = "https://docs.sifter.run";
 const GITHUB_URL = "https://github.com/sifter-ai/sifter";
 
-const DEMO_OUTPUT = `{
-  "brand": "Caterpillar",
-  "model": "320 GC",
-  "serial_number": "CAT0320GC00482",
-  "year": 2019,
-  "condition": "good",
-  "location": "Warehouse B – Bay 4",
-  "last_service": "2024-02-10"
-}`;
 
 export default function LandingPage() {
 
@@ -210,50 +202,12 @@ export default function LandingPage() {
 
       {/* ── Illustrazione utilizzo ── */}
       <section className="py-20 border-b">
-        <div className="max-w-4xl mx-auto px-6">
+        <div className="max-w-6xl mx-auto px-6">
           <p className="text-[11px] font-mono text-muted-foreground tracking-[0.18em] uppercase text-center mb-2">
             See it in action
           </p>
           <h2 className="text-2xl font-bold text-center mb-10">Drop a document. Get structured data.</h2>
-
-          <div className="border rounded-2xl overflow-hidden bg-card">
-            <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
-              {/* Left: input */}
-              <div className="p-6 flex flex-col gap-4">
-                <p className="text-[10px] font-mono text-muted-foreground tracking-[0.15em] uppercase">Input</p>
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 text-primary rounded-lg p-2.5">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">warehouse_b_machine_047.jpg</p>
-                    <p className="text-xs text-muted-foreground">photo · 2.1 MB</p>
-                  </div>
-                </div>
-                <div className="bg-muted/40 rounded-lg p-3 font-mono text-xs text-muted-foreground">
-                  <p className="text-foreground font-medium mb-1">Schema</p>
-                  <p>Extract: brand, model, serial_number, year, condition, location</p>
-                </div>
-                <a
-                  href="https://app.sifter.run/register"
-                  className="mt-auto bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2 justify-center"
-                >
-                  Try free <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-              </div>
-
-              {/* Right: output */}
-              <div className="p-6 bg-[#111113]">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-mono text-muted-foreground tracking-[0.15em] uppercase">Output</p>
-                  <span className="text-[10px] font-mono text-zinc-500">7 fields</span>
-                </div>
-                <pre className="font-mono text-[11px] text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap">
-                  {DEMO_OUTPUT}
-                </pre>
-              </div>
-            </div>
-          </div>
+          <InteractiveDemo />
         </div>
       </section>
 
@@ -281,8 +235,8 @@ export default function LandingPage() {
 
           <div className="bg-white rounded-2xl p-6 md:p-8 mb-10 shadow-[0_0_60px_rgba(255,255,255,0.05)] ring-1 ring-white/10">
             <img
-              src="/images/docs-to-records.jpeg"
-              alt="Documents become structured records"
+              src="/images/why-nor-rag.png"
+              alt="RAG uses similarity search — Sifter extracts structured records"
               className="w-full block max-w-2xl mx-auto"
             />
             <div className="flex justify-between mt-4 max-w-2xl mx-auto px-2">
@@ -423,9 +377,18 @@ export default function LandingPage() {
           </h2>
           <div className="grid md:grid-cols-3 gap-5">
             <USPCard icon={<MessageSquare />} title="Chat">
-              Ask questions about your documents in plain language.
-              Get structured answers, not just text blobs.
-              Works with Claude, ChatGPT, or any MCP-compatible client.
+              <span>Ask questions about your documents in plain language. Get structured answers, not text blobs.</span>
+              <div className="mt-4 space-y-1.5">
+                {[
+                  "What's the total unpaid across all Q1 invoices?",
+                  "Which contracts expire in the next 90 days?",
+                  "Candidates with Python and 5+ years experience?",
+                ].map((q) => (
+                  <div key={q} className="font-mono text-[11px] bg-black/10 dark:bg-white/8 rounded-md px-2.5 py-1.5 text-foreground/70">
+                    "{q}"
+                  </div>
+                ))}
+              </div>
             </USPCard>
             <USPCard icon={<Search />} title="Query" accent>
               Define a schema. Sifter extracts exactly those fields — every time.
@@ -471,8 +434,11 @@ export default function LandingPage() {
             <FeatureCard icon={<Terminal />} title="MCP native">
               Sifter speaks MCP out of the box. Connect Claude Desktop, Cursor, or any MCP-compatible tool.
             </FeatureCard>
-            <FeatureCard icon={<Webhook />} title="Webhooks + dashboards">
-              Trigger automations on every extraction. Visualize results in real-time dashboards.
+            <FeatureCard icon={<Webhook />} title="Webhooks">
+              Trigger automations on every extraction: Slack, HTTP, or any endpoint. HMAC-signed for security.
+            </FeatureCard>
+            <FeatureCard icon={<LayoutDashboard />} title="Live dashboards">
+              Describe what you want to see in plain English. Sifter generates KPI tiles, breakdowns, and time-series — updated on every extraction.
             </FeatureCard>
             <FeatureCard icon={<Server />} title="Self-hostable">
               Full Docker Compose stack. Your data, your infrastructure, your keys. MIT licensed.
@@ -522,6 +488,85 @@ export default function LandingPage() {
               </div>
               <div className="font-mono text-[10px] text-primary/80 bg-primary/5 border border-primary/15 rounded-md px-3 py-2">
                 "What field do you want to extract?"
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Live Dashboard ── */}
+      <section className="py-20 border-t">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-1.5 bg-primary/8 text-primary text-xs font-medium px-3 py-1 rounded-full mb-5 border border-primary/20">
+                <LayoutDashboard className="h-3 w-3" /> Built-in dashboard
+              </div>
+              <h2 className="text-2xl font-bold leading-tight">
+                Your data, always live.<br />No SQL. No BI tool.
+              </h2>
+              <p className="text-muted-foreground mt-3 leading-relaxed text-sm">
+                Describe the board you want in plain English — Sifter generates KPI tiles,
+                breakdowns, and time-series automatically. The dashboard updates on every
+                extraction. No Metabase, no Grafana, no extra tool.
+              </p>
+              <div className="mt-5 space-y-3">
+                {[
+                  { icon: "📊", text: "Auto-generated from a plain-English spec" },
+                  { icon: "🔄", text: "Updates on every extraction — always current" },
+                  { icon: "📦", text: "Included in the open-source build" },
+                ].map(({ icon, text }) => (
+                  <div key={text} className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="text-base shrink-0">{icon}</span>
+                    {text}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 bg-primary/5 border border-primary/15 rounded-lg px-4 py-3 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">In Sifter Cloud:</span> connect Gmail or Drive — new documents are extracted automatically and the dashboard stays up to date.
+              </div>
+            </div>
+            <div className="bg-muted/30 border rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b bg-muted/40 flex items-center gap-2">
+                <LayoutDashboard className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Invoices dashboard</span>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Total invoiced", value: "€124,300" },
+                    { label: "Unpaid", value: "€18,450" },
+                    { label: "Avg. payment", value: "32 days" },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="bg-card border rounded-lg p-3 text-center">
+                      <p className="text-[10px] text-muted-foreground">{label}</p>
+                      <p className="text-sm font-bold mt-1">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-card border rounded-lg p-4">
+                  <p className="text-[10px] text-muted-foreground mb-3">Invoiced by vendor</p>
+                  <div className="space-y-2">
+                    {[
+                      { name: "Acme Inc.", pct: 38 },
+                      { name: "Blue Ridge LLC", pct: 27 },
+                      { name: "Vertex Supply", pct: 21 },
+                      { name: "Others", pct: 14 },
+                    ].map(({ name, pct }) => (
+                      <div key={name} className="flex items-center gap-3">
+                        <span className="text-[10px] text-muted-foreground w-20 shrink-0 truncate">{name}</span>
+                        <div className="flex-1 bg-muted rounded-full h-1.5">
+                          <div className="bg-primary h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-muted/40 border border-dashed border-primary/20 rounded-lg px-4 py-2.5 font-mono text-[10px] text-primary/70 flex items-center gap-2">
+                  <span className="text-muted-foreground/50">›</span>
+                  "Show unpaid by vendor, monthly trend"
+                </div>
               </div>
             </div>
           </div>
@@ -924,9 +969,9 @@ function USPCard({ icon, title, children, accent }: {
         {React.cloneElement(icon as React.ReactElement, { className: "h-5 w-5" })}
       </div>
       <h3 className="text-lg font-bold">{title}</h3>
-      <p className={`text-sm leading-relaxed ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+      <div className={`text-sm leading-relaxed ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
         {children}
-      </p>
+      </div>
     </div>
   );
 }
