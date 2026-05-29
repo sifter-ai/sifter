@@ -94,9 +94,30 @@ console.log(records);
 }
 ```
 
-Then ask Claude: *"What's the total unpaid across all invoices from last quarter?"*
+Then ask:
+
+> *"What's the total unpaid across all invoices from last quarter?"*
+> *"Show me all contracts expiring in the next 90 days."*
+> *"Which candidates have Python and more than 5 years experience?"*
+
+Sifter answers with structured data — exact counts, sums, filtered rows. Not a text blob.
 
 Want a remote MCP URL without running a local server? → [Sifter Cloud](https://sifter.run)
+
+---
+
+## Dashboard
+
+Sifter includes a built-in dashboard — no Metabase, no Grafana, no SQL required.
+
+Describe what you want to see in plain language:
+
+```python
+sift = client.sifts.get("invoices")
+sift.create_dashboard("Show total invoiced and unpaid by vendor, monthly trend")
+```
+
+Produces KPI tiles, breakdowns, and time-series — updated automatically on every extraction.
 
 ---
 
