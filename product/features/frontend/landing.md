@@ -294,7 +294,7 @@ Two-column layout (`md:grid-cols-2`), `border-t`.
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://api.sifter.run/mcp/sk-..."
+      "url": "https://sifter.run/mcp"
     }
   }
 }
