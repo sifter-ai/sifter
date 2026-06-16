@@ -6,6 +6,8 @@ from typing import NamedTuple
 
 import structlog
 
+from ..config import config
+
 logger = structlog.get_logger()
 
 SUPPORTED_EXTENSIONS = {
@@ -16,6 +18,21 @@ SUPPORTED_EXTENSIONS = {
     ".html", ".htm",
     ".csv",
 }
+
+# Extra extensions unlocked when the markitdown preprocessor is active.
+MARKITDOWN_EXTENSIONS = SUPPORTED_EXTENSIONS | {
+    ".xlsx", ".xls",
+    ".pptx", ".ppt",
+    ".epub",
+    ".zip",
+    ".json", ".xml",
+    ".msg",
+    ".mp3", ".wav",
+}
+
+# Visual formats that keep their image/file block attached even in markitdown mode,
+# so vision models retain full capability.
+_VISUAL_EXTENSIONS = {".pdf"} | {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp"}
 
 _MIME_MAP = {
     ".pdf": "application/pdf",
@@ -78,6 +95,8 @@ class FileProcessor:
         )
 
     def process(self, data: bytes, filename: str) -> ProcessedFile:
+        if config.preprocessor == "markitdown":
+            return self._process_markitdown(data, filename)
         ext = Path(filename).suffix.lower()
         if ext == ".pdf":
             return self._process_pdf(data, filename)
@@ -93,6 +112,89 @@ class FileProcessor:
             return self._process_text(data, filename, mime=_MIME_MAP.get(ext, "text/plain"))
         else:
             raise UnsupportedFileType(ext)
+
+    def _build_markitdown(self):
+        """Construct a MarkItDown instance, wiring optional OCR backends.
+
+        Raises a clear, actionable error when the markitdown package is missing.
+        """
+        try:
+            from markitdown import MarkItDown
+        except ImportError as exc:
+            raise RuntimeError(
+                "markitdown is not installed but SIFTER_PREPROCESSOR=markitdown. "
+                "Install it with: pip install 'markitdown[all]' "
+                "(or set SIFTER_PREPROCESSOR=native)."
+            ) from exc
+
+        kwargs: dict = {}
+        if config.markitdown_docintel_endpoint:
+            kwargs["docintel_endpoint"] = config.markitdown_docintel_endpoint
+        if config.markitdown_ocr:
+            client, model = self._markitdown_llm_client()
+            if client is not None:
+                kwargs["llm_client"] = client
+                kwargs["llm_model"] = model
+        return MarkItDown(**kwargs)
+
+    def _markitdown_llm_client(self):
+        """Best-effort OpenAI-compatible client for markitdown image/PDF captioning,
+        built from the extractor credentials. Returns (None, None) if unavailable."""
+        try:
+            from openai import OpenAI
+        except ImportError:
+            logger.warning("markitdown_ocr_unavailable", reason="openai package not installed")
+            return None, None
+        from ..config import api_kwargs_for
+        kw = api_kwargs_for("extractor")
+        client = OpenAI(api_key=kw.get("api_key"), base_url=kw.get("api_base"))
+        # markitdown/OpenAI expect a bare model name (e.g. "gpt-4o"), not "openai/gpt-4o".
+        model = config.extractor_model.split("/", 1)[-1]
+        return client, model
+
+    def _process_markitdown(self, data: bytes, filename: str) -> ProcessedFile:
+        """Convert any supported document to Markdown text via markitdown.
+
+        For visual formats (PDF, images) the original image/file block is also attached
+        so vision models keep full capability; PDFs keep pymupdf page_blocks for citations.
+        """
+        ext = Path(filename).suffix.lower()
+        mime_type = _MIME_MAP.get(ext, "application/octet-stream")
+
+        md = self._build_markitdown()
+        stream = io.BytesIO(data)
+        try:
+            result = md.convert_stream(stream, file_extension=ext)
+        except TypeError:
+            # Older/newer markitdown signatures may not accept file_extension.
+            stream.seek(0)
+            result = md.convert_stream(stream)
+        text_content = result.text_content or ""
+
+        images: list[dict] = []
+        page_blocks: list[dict] = []
+        if ext == ".pdf":
+            b64 = base64.b64encode(data).decode("utf-8")
+            images = [{
+                "type": "file",
+                "file": {"file_data": f"data:application/pdf;base64,{b64}"},
+            }]
+            page_blocks = self._extract_pdf_blocks(data)
+        elif ext in _IMAGE_EXTENSIONS:
+            img_mime = _MIME_MAP.get(ext, "image/png")
+            b64 = base64.b64encode(data).decode("utf-8")
+            images = [{
+                "type": "image_url",
+                "image_url": {"url": f"data:{img_mime};base64,{b64}"},
+            }]
+
+        return ProcessedFile(
+            text_content=text_content,
+            images=images,
+            mime_type=mime_type,
+            file_name=filename,
+            page_blocks=page_blocks,
+        )
 
     def _extract_pdf_blocks(self, data: bytes) -> list[dict]:
         try:
@@ -194,4 +296,5 @@ class FileProcessor:
         )
 
     def is_supported(self, filename: str) -> bool:
-        return Path(filename).suffix.lower() in SUPPORTED_EXTENSIONS
+        allowed = MARKITDOWN_EXTENSIONS if config.preprocessor == "markitdown" else SUPPORTED_EXTENSIONS
+        return Path(filename).suffix.lower() in allowed

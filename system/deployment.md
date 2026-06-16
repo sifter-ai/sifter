@@ -1,8 +1,8 @@
 ---
 title: Deployment
 status: synced
-version: "1.1"
-last-modified: "2026-04-17T00:00:00.000Z"
+version: "1.2"
+last-modified: "2026-06-16T00:00:00.000Z"
 ---
 
 # Deployment
@@ -106,6 +106,7 @@ On first boot only `SIFTER_DEFAULT_API_KEY` is required. Everything else has wor
 - Base: `python:3.12-slim`
 - Uses `uv` for dependency installation from lockfile (`uv sync --no-dev --frozen`)
 - Installs `libmupdf-dev` for PDF processing
+- Bundles `markitdown[all]` (core dependency) for the default preprocessing step
 - Exposes port 8000
 
 ## Environment Variables
@@ -117,6 +118,9 @@ All variables use the `SIFTER_` prefix (via pydantic-settings).
 | `SIFTER_DEFAULT_API_KEY` | *(required)* | LLM provider API key |
 | `SIFTER_EXTRACTOR_MODEL` | `openai/gpt-4o` | LiteLLM model string for extraction |
 | `SIFTER_PIPELINE_MODEL` | `openai/gpt-4o-mini` | Faster model for aggregation pipelines |
+| `SIFTER_PREPROCESSOR` | `markitdown` | Document preprocessing step: `markitdown` (convert to text, any model) or `native` (base64 docs, vision model required) |
+| `SIFTER_MARKITDOWN_OCR` | `false` | When `true`, markitdown uses the extractor model as a vision client to OCR/caption images and PDFs |
+| `SIFTER_MARKITDOWN_DOCINTEL_ENDPOINT` | *(optional)* | Azure Document Intelligence endpoint for markitdown OCR |
 | `SIFTER_MONGODB_URI` | `mongodb://localhost:27017` | MongoDB connection string |
 | `SIFTER_MONGODB_DATABASE` | `sifter` | Database name |
 | `SIFTER_API_KEY` | `sk-dev` | Bootstrap API key — **change in production** |

@@ -44,6 +44,16 @@ class SifterConfig(BaseSettings):
     extraction_temperature: float = 0.2
     max_concurrent_extractions: int = 5
 
+    # Document preprocessing — turns uploaded bytes into model input.
+    #   "markitdown" (default): convert to Markdown text via microsoft/markitdown,
+    #     so the extractor receives text (any model works) and more formats are supported.
+    #   "native": legacy path — PDFs/images as base64 blocks (vision model required).
+    preprocessor: str = "markitdown"
+    # When true, markitdown uses the extractor model as a vision client to OCR/caption images and PDFs.
+    markitdown_ocr: bool = False
+    # Optional Azure Document Intelligence endpoint for markitdown OCR.
+    markitdown_docintel_endpoint: str = ""
+
     # Auth — API key optional
     api_key: str = "sk-dev"  # Set SIFTER_API_KEY in production
     require_api_key: bool = False  # If True, requests without X-API-Key get 401

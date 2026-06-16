@@ -4,7 +4,14 @@ PDF and image paths require binary test fixtures and are skipped here.
 """
 import pytest
 
+from sifter.config import config
 from sifter.services.file_processor import FileProcessor, UnsupportedFileType
+
+
+@pytest.fixture(autouse=True)
+def _native_preprocessor(monkeypatch):
+    """These tests exercise the native (non-markitdown) converters."""
+    monkeypatch.setattr(config, "preprocessor", "native")
 
 
 # ── plain text ────────────────────────────────────────────────────────────────

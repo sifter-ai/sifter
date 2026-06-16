@@ -1,6 +1,13 @@
 """Tests for FileProcessor PDF block extraction."""
 import pytest
+from sifter.config import config
 from sifter.services.file_processor import FileProcessor
+
+
+@pytest.fixture(autouse=True)
+def _native_preprocessor(monkeypatch):
+    """Exercise the native path so these tests don't depend on markitdown."""
+    monkeypatch.setattr(config, "preprocessor", "native")
 
 
 def _make_minimal_pdf() -> bytes:
