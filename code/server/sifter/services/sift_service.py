@@ -134,6 +134,7 @@ class SiftService:
         _use_gcs_uri = (
             isinstance(backend, GCSBackend)
             and config.extractor_model.startswith("vertex_ai/")
+            and config.preprocessor != "markitdown"
         )
 
         for idx, file_path in enumerate(file_paths):

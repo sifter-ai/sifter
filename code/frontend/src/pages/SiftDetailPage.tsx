@@ -75,6 +75,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchFolders } from "@/api/folders";
 import type { Folder, SchemaField, SiftDocument } from "@/api/types";
+import { useConfig } from "@/context/ConfigContext";
 
 function docStatusVariant(status: string) {
   switch (status) {
@@ -686,6 +687,7 @@ function CorrectionRulesPanel({ siftId }: { siftId: string }) {
 export function SiftDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { supportedExtensions } = useConfig();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState("");
@@ -821,7 +823,7 @@ export function SiftDetailPage() {
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif"
+        accept={supportedExtensions.join(",")}
         className="hidden"
         onChange={handleUpload}
       />

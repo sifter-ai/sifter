@@ -116,7 +116,7 @@ Sign up at [sifter.ai](https://sifter.ai) and go to **Settings → API Keys → 
 ## Create a sift
 
 ```bash
-curl -X POST https://api.sifter.ai/api/sifts \
+curl -X POST https://api.sifter.run/api/sifts \
   -H "X-API-Key: sk-..." \
   -H "Content-Type: application/json" \
   -d '{"name": "Invoices", "instructions": "client name, invoice date, total amount"}'
@@ -125,7 +125,7 @@ curl -X POST https://api.sifter.ai/api/sifts \
 ## Upload documents
 
 ```bash
-curl -X POST https://api.sifter.ai/api/sifts/{id}/upload \
+curl -X POST https://api.sifter.run/api/sifts/{id}/upload \
   -H "X-API-Key: sk-..." \
   -F "files=@invoice.pdf"
 ```
@@ -133,7 +133,7 @@ curl -X POST https://api.sifter.ai/api/sifts/{id}/upload \
 ## Fetch records
 
 ```bash
-curl https://api.sifter.ai/api/sifts/{id}/records \
+curl https://api.sifter.run/api/sifts/{id}/records \
   -H "X-API-Key: sk-..."
 ```
 

@@ -3,11 +3,14 @@ import { apiUrl } from "@/lib/apiFetch";
 
 export type DeploymentMode = "oss" | "cloud";
 
+const DEFAULT_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".docx", ".txt", ".md", ".html", ".htm", ".csv"];
+
 interface ConfigContextValue {
   mode: DeploymentMode;
   isLoaded: boolean;
   googleAuthEnabled: boolean;
   googleClientId: string | null;
+  supportedExtensions: string[];
 }
 
 const ConfigContext = createContext<ConfigContextValue>({
@@ -15,6 +18,7 @@ const ConfigContext = createContext<ConfigContextValue>({
   isLoaded: false,
   googleAuthEnabled: false,
   googleClientId: null,
+  supportedExtensions: DEFAULT_EXTENSIONS,
 });
 
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
@@ -22,6 +26,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [googleAuthEnabled, setGoogleAuthEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [supportedExtensions, setSupportedExtensions] = useState<string[]>(DEFAULT_EXTENSIONS);
 
   useEffect(() => {
     fetch(apiUrl("/api/config"))
@@ -32,13 +37,14 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
           setGoogleAuthEnabled(true);
           setGoogleClientId(data.googleClientId ?? null);
         }
+        if (data.supportedExtensions) setSupportedExtensions(data.supportedExtensions);
       })
       .catch(() => {})
       .finally(() => setIsLoaded(true));
   }, []);
 
   return (
-    <ConfigContext.Provider value={{ mode, isLoaded, googleAuthEnabled, googleClientId }}>
+    <ConfigContext.Provider value={{ mode, isLoaded, googleAuthEnabled, googleClientId, supportedExtensions }}>
       {children}
     </ConfigContext.Provider>
   );

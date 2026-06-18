@@ -1,8 +1,8 @@
 ---
 title: Architecture & Tech Stack
 status: synced
-version: "1.1"
-last-modified: "2026-04-17T00:00:00.000Z"
+version: "1.2"
+last-modified: "2026-06-16T00:00:00.000Z"
 ---
 
 # Architecture & Tech Stack
@@ -27,7 +27,8 @@ Four first-class clients against the public REST API — all shipped from this r
 - **Framework**: FastAPI (async)
 - **Database**: MongoDB via `motor` (async driver)
 - **AI**: LiteLLM (multi-provider: OpenAI, Anthropic, Google, Ollama)
-- **PDF processing**: pymupdf (fitz) for page images; DOCX via mammoth (→ Markdown); HTML via beautifulsoup4 (→ plain text); TXT/MD/CSV via stdlib
+- **Document preprocessing**: selectable via `SIFTER_PREPROCESSOR` (see below) — `markitdown` (default) or `native`
+- **PDF processing**: pymupdf (fitz) for page images + deterministic text blocks (citation grounding); DOCX via mammoth (→ Markdown); HTML via beautifulsoup4 (→ plain text); TXT/MD/CSV via stdlib (native path)
 - **Auth**: `python-jose` (JWT HS256) + `passlib[bcrypt]` (password hashing) + `google-auth` (Google OAuth ID token verification)
 - **Rate limiting**: `slowapi` with `get_remote_address` key function
 - **Logging**: structlog
@@ -93,6 +94,15 @@ Configuration env vars: `SIFTER_GOOGLE_CLIENT_ID`, `SIFTER_GOOGLE_CLIENT_SECRET`
 | `POST /api/sifts/{id}/upload` | 30 / minute |
 
 Limiter lives in `sifter/limiter.py` and is imported by `sifter/server.py`.
+
+## Document Preprocessing
+
+`FileProcessor` (`sifter/services/file_processor.py`) turns raw uploaded bytes into model input. Its behaviour is selected by `SIFTER_PREPROCESSOR`:
+
+- `markitdown` (default) — converts the document to **Markdown text** via [microsoft/markitdown](https://github.com/microsoft/markitdown) (`MarkItDown(...).convert_stream(...).text_content`). The extraction step receives text, so any LLM works (including text-only models), payloads shrink, and the supported-format set widens (Office, EPub, ZIP, JSON/XML, audio, …). For visual formats (PDF, images) the original image/file block is also attached so vision models keep full capability; PDFs keep pymupdf `page_blocks` for citation grounding. Optional OCR via `SIFTER_MARKITDOWN_OCR` (extractor model as vision client) or `SIFTER_MARKITDOWN_DOCINTEL_ENDPOINT` (Azure Document Intelligence). `markitdown[all]` is a core dependency.
+- `native` — legacy path: PDFs/images as base64 blocks (vision model required), DOCX via mammoth, HTML via beautifulsoup4, CSV/TXT/MD via stdlib.
+
+The extraction agent (`sift_agent.extract()`) is preprocessor-agnostic: it sends `text_content` + `images`, so a text-only document (`images == []`) is passed as pure text. When `markitdown` is active, the GCS `gs://` URI shortcut in `document_processor.py` / `sift_service.py` is disabled because markitdown converts from the document bytes.
 
 ## Background Document Processing Queue
 

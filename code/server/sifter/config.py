@@ -22,6 +22,10 @@ class SifterConfig(BaseSettings):
     extractor_api_key: str = ""
     extractor_base_url: str = ""
 
+    ocr_model: str = ""               # markitdown image OCR (vision model); falls back to extractor_model
+    ocr_api_key: str = ""
+    ocr_base_url: str = ""
+
     pipeline_model: str = ""         # NL query → MongoDB aggregation pipeline
     pipeline_api_key: str = ""
     pipeline_base_url: str = ""
@@ -39,10 +43,23 @@ class SifterConfig(BaseSettings):
         for name in ("extractor_model", "pipeline_model", "chat_model", "dashboard_model"):
             if not getattr(self, name):
                 object.__setattr__(self, name, self.default_model)
+        # OCR falls back to extractor (already a vision-capable model), not default.
+        if not self.ocr_model:
+            object.__setattr__(self, "ocr_model", self.extractor_model)
 
     # Sift defaults
     extraction_temperature: float = 0.2
     max_concurrent_extractions: int = 5
+
+    # Document preprocessing — turns uploaded bytes into model input.
+    #   "markitdown" (default): convert to Markdown text via microsoft/markitdown,
+    #     so the extractor receives text (any model works) and more formats are supported.
+    #   "native": legacy path — PDFs/images as base64 blocks (vision model required).
+    preprocessor: str = "markitdown"
+    # When true, markitdown uses the extractor model as a vision client to OCR/caption images and PDFs.
+    markitdown_ocr: bool = False
+    # Optional Azure Document Intelligence endpoint for markitdown OCR.
+    markitdown_docintel_endpoint: str = ""
 
     # Auth — API key optional
     api_key: str = "sk-dev"  # Set SIFTER_API_KEY in production

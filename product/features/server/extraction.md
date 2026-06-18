@@ -1,8 +1,8 @@
 ---
 title: "Server: Document Extraction (Sifts)"
 status: synced
-version: "1.7"
-last-modified: "2026-04-24T00:00:00.000Z"
+version: "1.8"
+last-modified: "2026-06-16T00:00:00.000Z"
 ---
 
 # Document Extraction — Server
@@ -47,8 +47,28 @@ Key fields returned by `GET /api/sifts/{id}`:
 1. User creates a sift with a name, description, and natural language instructions (e.g. "Extract: client name, invoice date, total amount, VAT number")
 2. A **default folder** is created automatically with the same name as the sift and linked to it
 3. Documents are uploaded either via **Folders** (see `server/documents.md`) or directly via `POST /api/sifts/{id}/upload` — both routes go through the same folder-document pipeline
-4. Sifter processes each document asynchronously via the background queue
-5. Sift schema is auto-inferred from the first processed document
+4. Each document is converted to model input by the **preprocessing step** (see below)
+5. Sifter processes each document asynchronously via the background queue
+6. Sift schema is auto-inferred from the first processed document
+
+## Document Preprocessing
+
+Before extraction, each document is turned into model input by a selectable **preprocessing step**, controlled by `SIFTER_PREPROCESSOR`:
+
+| Value | Behaviour |
+|-------|-----------|
+| `markitdown` (default) | Convert the document to **Markdown text** via [microsoft/markitdown](https://github.com/microsoft/markitdown). The extractor receives **text**, so any LLM works — including text-only / cheaper models. Payloads are far lighter than base64 documents. |
+| `native` | Legacy path: PDFs and images are sent to the model as base64 blocks (requires a vision model); DOCX→Markdown (mammoth), HTML→text (beautifulsoup4), CSV→Markdown table, TXT/MD passthrough. |
+
+**Images stay multimodal.** In `markitdown` mode, visual formats (PDF, PNG/JPG/TIFF/WebP) attach **both** the extracted Markdown text **and** the original image/file block, so vision models keep full capability while text-only models still receive the text layer. A pure image with no embedded text yields an empty text layer unless OCR is enabled.
+
+**Citations preserved.** For PDFs the deterministic `page_blocks` (pymupdf) are still extracted in `markitdown` mode, so per-field citation grounding is unaffected (see `product/features/server/citations.md`).
+
+**Extended formats.** In `markitdown` mode `is_supported()` widens beyond the native set to include Office (xlsx, xls, pptx, ppt), EPub, ZIP, JSON, XML, Outlook (msg) and audio (mp3, wav) — anything markitdown can convert. In `native` mode the supported set is unchanged (pdf, png/jpg/tiff/webp, docx, txt/md, html, csv).
+
+**Optional OCR.** markitdown does not OCR images by default. `SIFTER_MARKITDOWN_OCR=true` passes the extractor model to markitdown as its vision client for image/PDF captioning; `SIFTER_MARKITDOWN_DOCINTEL_ENDPOINT` enables Azure Document Intelligence OCR. Both are opt-in and off by default.
+
+> When `markitdown` is active, the GCS `gs://` URI shortcut (used with Vertex AI extractors) is disabled, because markitdown converts from the document bytes.
 
 ## Templates (`GET /api/templates`)
 

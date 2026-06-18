@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useConfig } from "@/context/ConfigContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Loader2, UploadCloud, X } from "lucide-react";
 import { uploadDocument } from "@/api/folders";
@@ -39,6 +40,8 @@ export function UploadModal({
   defaultFolderId,
 }: UploadModalProps) {
   const queryClient = useQueryClient();
+  const { supportedExtensions } = useConfig();
+  const acceptAttr = supportedExtensions.join(",");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [targetFolderId, setTargetFolderId] = useState(defaultFolderId ?? folders[0]?.id ?? "");
@@ -167,12 +170,12 @@ export function UploadModal({
           >
             <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm font-medium">Drag & drop files here</p>
-            <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, HTML, TXT, MD, CSV, PNG, JPG, TIFF — or click to select</p>
+            <p className="text-xs text-muted-foreground mt-1">{supportedExtensions.map(e => e.slice(1).toUpperCase()).join(", ")} — or click to select</p>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,.docx,.html,.htm,.txt,.md,.csv,.png,.jpg,.jpeg,.tiff,.tif,.webp"
+              accept={acceptAttr}
               className="hidden"
               onChange={(e) => addFiles(e.target.files)}
             />
