@@ -10,6 +10,23 @@ from ..config import config
 
 logger = structlog.get_logger()
 
+
+class _LiteLLMCompletions:
+    def create(self, model: str, messages: list, **kwargs):
+        import litellm
+        from ..config import api_kwargs_for
+        kw = api_kwargs_for("ocr")
+        return litellm.completion(model=model, messages=messages, **kw)
+
+
+class _LiteLLMChat:
+    completions = _LiteLLMCompletions()
+
+
+class _LiteLLMClient:
+    """OpenAI-compatible client backed by LiteLLM, for markitdown-ocr plugin."""
+    chat = _LiteLLMChat()
+
 SUPPORTED_EXTENSIONS = {
     ".pdf",
     ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp",
@@ -96,6 +113,9 @@ class FileProcessor:
 
     def process(self, data: bytes, filename: str) -> ProcessedFile:
         if config.preprocessor == "markitdown":
+            ext = Path(filename).suffix.lower()
+            if ext in _IMAGE_EXTENSIONS:
+                return self._process_image(data, filename)
             return self._process_markitdown(data, filename)
         ext = Path(filename).suffix.lower()
         if ext == ".pdf":
@@ -131,42 +151,31 @@ class FileProcessor:
         if config.markitdown_docintel_endpoint:
             kwargs["docintel_endpoint"] = config.markitdown_docintel_endpoint
         if config.markitdown_ocr:
-            client, model = self._markitdown_llm_client()
-            if client is not None:
-                kwargs["llm_client"] = client
-                kwargs["llm_model"] = model
-        return MarkItDown(**kwargs)
-
-    def _markitdown_llm_client(self):
-        """Best-effort OpenAI-compatible client for markitdown image/PDF captioning,
-        built from the extractor credentials. Returns (None, None) if unavailable."""
-        try:
-            from openai import OpenAI
-        except ImportError:
-            logger.warning("markitdown_ocr_unavailable", reason="openai package not installed")
-            return None, None
-        from ..config import api_kwargs_for
-        kw = api_kwargs_for("extractor")
-        client = OpenAI(api_key=kw.get("api_key"), base_url=kw.get("api_base"))
-        # markitdown/OpenAI expect a bare model name (e.g. "gpt-4o"), not "openai/gpt-4o".
-        model = config.extractor_model.split("/", 1)[-1]
-        return client, model
+            kwargs["llm_client"] = _LiteLLMClient()
+            kwargs["llm_model"] = config.ocr_model
+        return MarkItDown(enable_plugins=True, **kwargs)
 
     def _process_markitdown(self, data: bytes, filename: str) -> ProcessedFile:
-        """Convert any supported document to Markdown text via markitdown.
-
-        For visual formats (PDF, images) the original image/file block is also attached
-        so vision models keep full capability; PDFs keep pymupdf page_blocks for citations.
-        """
+        import time
         ext = Path(filename).suffix.lower()
         mime_type = _MIME_MAP.get(ext, "application/octet-stream")
+        ocr_enabled = config.markitdown_ocr
 
+        logger.info(
+            "preprocessor_start",
+            filename=filename,
+            ext=ext,
+            size_kb=round(len(data) / 1024, 1),
+            ocr=ocr_enabled,
+            ocr_model=config.ocr_model if ocr_enabled else None,
+        )
+
+        t0 = time.monotonic()
         md = self._build_markitdown()
         stream = io.BytesIO(data)
         try:
             result = md.convert_stream(stream, file_extension=ext)
         except TypeError:
-            # Older/newer markitdown signatures may not accept file_extension.
             stream.seek(0)
             result = md.convert_stream(stream)
         text_content = result.text_content or ""
@@ -174,19 +183,16 @@ class FileProcessor:
         images: list[dict] = []
         page_blocks: list[dict] = []
         if ext == ".pdf":
-            b64 = base64.b64encode(data).decode("utf-8")
-            images = [{
-                "type": "file",
-                "file": {"file_data": f"data:application/pdf;base64,{b64}"},
-            }]
             page_blocks = self._extract_pdf_blocks(data)
-        elif ext in _IMAGE_EXTENSIONS:
-            img_mime = _MIME_MAP.get(ext, "image/png")
-            b64 = base64.b64encode(data).decode("utf-8")
-            images = [{
-                "type": "image_url",
-                "image_url": {"url": f"data:{img_mime};base64,{b64}"},
-            }]
+
+        logger.info(
+            "preprocessor_done",
+            filename=filename,
+            elapsed_s=round(time.monotonic() - t0, 2),
+            text_chars=len(text_content),
+            page_blocks=len(page_blocks),
+            images=len(images),
+        )
 
         return ProcessedFile(
             text_content=text_content,

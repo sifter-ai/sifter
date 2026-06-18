@@ -22,6 +22,10 @@ class SifterConfig(BaseSettings):
     extractor_api_key: str = ""
     extractor_base_url: str = ""
 
+    ocr_model: str = ""               # markitdown image OCR (vision model); falls back to extractor_model
+    ocr_api_key: str = ""
+    ocr_base_url: str = ""
+
     pipeline_model: str = ""         # NL query → MongoDB aggregation pipeline
     pipeline_api_key: str = ""
     pipeline_base_url: str = ""
@@ -39,6 +43,9 @@ class SifterConfig(BaseSettings):
         for name in ("extractor_model", "pipeline_model", "chat_model", "dashboard_model"):
             if not getattr(self, name):
                 object.__setattr__(self, name, self.default_model)
+        # OCR falls back to extractor (already a vision-capable model), not default.
+        if not self.ocr_model:
+            object.__setattr__(self, "ocr_model", self.extractor_model)
 
     # Sift defaults
     extraction_temperature: float = 0.2
