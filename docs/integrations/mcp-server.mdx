@@ -11,7 +11,7 @@ Two connection modes:
 
 | Mode | Transport | Endpoint | When to use |
 |------|-----------|----------|-------------|
-| **Remote (Cloud)** | Streamable HTTP | `https://sifter.run/mcp` | Sifter Cloud, Starter+ — zero install |
+| **Remote (Cloud)** | Streamable HTTP | `https://api.sifter.run/mcp` | Sifter Cloud, Starter+ — zero install |
 | **Local (self-host)** | stdio (`uvx sifter-mcp`) | your Sifter base URL | Self-hosted, or local dev |
 
 <Info>
@@ -24,7 +24,7 @@ The remote endpoint is a **Starter+** Sifter Cloud feature. Free-plan API keys r
 
 No installation. Point any MCP-aware client at the hosted endpoint.
 
-**Endpoint:** `https://sifter.run/mcp`
+**Endpoint:** `https://api.sifter.run/mcp`
 **Transport:** Streamable HTTP (MCP standard)
 **Auth:** OAuth 2.0 (recommended) or API key
 
@@ -41,7 +41,7 @@ Just add the URL — Claude handles the OAuth flow:
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://sifter.run/mcp"
+      "url": "https://api.sifter.run/mcp"
     }
   }
 }
@@ -52,7 +52,7 @@ On first use Claude will open a browser window, you log in to Sifter, grant acce
 **Claude Code (CLI)**
 
 ```bash
-claude mcp add sifter --url https://sifter.run/mcp
+claude mcp add sifter --url https://api.sifter.run/mcp
 ```
 
 **Cursor**
@@ -62,7 +62,7 @@ claude mcp add sifter --url https://sifter.run/mcp
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://sifter.run/mcp"
+      "url": "https://api.sifter.run/mcp"
     }
   }
 }
@@ -81,7 +81,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://sifter.run/mcp",
+      "url": "https://api.sifter.run/mcp",
       "headers": {
         "Authorization": "Bearer sk-your-api-key"
       }
@@ -93,7 +93,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 **Claude Code (CLI)**
 
 ```bash
-claude mcp add sifter --url https://sifter.run/mcp \
+claude mcp add sifter --url https://api.sifter.run/mcp \
   --header "Authorization: Bearer sk-your-api-key"
 ```
 
@@ -104,7 +104,7 @@ claude mcp add sifter --url https://sifter.run/mcp \
   "mcpServers": {
     "sifter": {
       "type": "http",
-      "url": "https://sifter.run/mcp",
+      "url": "https://api.sifter.run/mcp",
       "headers": {
         "Authorization": "Bearer sk-your-api-key"
       }
@@ -115,7 +115,7 @@ claude mcp add sifter --url https://sifter.run/mcp \
 
 **ChatGPT / Gemini / other MCP clients**
 
-Any client that speaks MCP over Streamable HTTP can connect. Point it at `https://sifter.run/mcp` — use OAuth if your client supports it, or add the `Authorization: Bearer` header with an API key.
+Any client that speaks MCP over Streamable HTTP can connect. Point it at `https://api.sifter.run/mcp` — use OAuth if your client supports it, or add the `Authorization: Bearer` header with an API key.
 
 ---
 

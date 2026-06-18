@@ -76,12 +76,12 @@ await folder.upload(fileInput.files[0]);
   <Tab title="REST API">
 ```bash
 # Single file
-curl -X POST https://api.sifter.ai/api/folders/{id}/documents \
+curl -X POST https://api.sifter.run/api/folders/{id}/documents \
   -H "X-API-Key: sk-..." \
   -F "files=@invoice.pdf"
 
 # Multiple files
-curl -X POST https://api.sifter.ai/api/folders/{id}/documents \
+curl -X POST https://api.sifter.run/api/folders/{id}/documents \
   -H "X-API-Key: sk-..." \
   -F "files=@invoice1.pdf" \
   -F "files=@invoice2.pdf"

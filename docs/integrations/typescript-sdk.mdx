@@ -23,7 +23,7 @@ bun add @sifter-ai/sdk
 import { Sifter } from "@sifter-ai/sdk";
 
 const sifter = new Sifter({
-  apiUrl: "https://sifter.run",          // or http://localhost:8000 for self-hosted
+  apiUrl: "https://api.sifter.run",          // or http://localhost:8000 for self-hosted
   apiKey: process.env.SIFTER_API_KEY,    // falls back to SIFTER_API_KEY env var
 });
 ```
@@ -250,7 +250,7 @@ Plug in retry, tracing, or edge-runtime fetches:
 
 ```ts
 const sifter = new Sifter({
-  apiUrl: "https://sifter.run",
+  apiUrl: "https://api.sifter.run",
   apiKey: "sk-...",
   fetch: async (input, init) => {
     const res = await globalThis.fetch(input, init);
