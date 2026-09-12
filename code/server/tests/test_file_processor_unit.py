@@ -263,3 +263,67 @@ def test_process_csv_exception_fallback():
         assert "col1" in result.text_content or result.text_content
     finally:
         csv_module.reader = original_reader
+
+
+# ── HEIC / HEIF (iPhone photos) ───────────────────────────────────────────────
+
+@pytest.fixture
+def heic_bytes() -> bytes:
+    """A small HEIC image, encoded the same way an iPhone camera would."""
+    import io
+
+    import pillow_heif
+    from PIL import Image
+
+    pillow_heif.register_heif_opener()
+    img = Image.new("RGB", (64, 48), (180, 40, 30))
+    buf = io.BytesIO()
+    img.save(buf, format="HEIF", quality=70)
+    return buf.getvalue()
+
+
+def test_is_supported_heic():
+    assert FileProcessor().is_supported("IMG_0042.HEIC") is True
+    assert FileProcessor().is_supported("photo.heif") is True
+
+
+def test_heic_to_jpeg_returns_jpeg(heic_bytes):
+    from sifter.services.file_processor import heic_to_jpeg
+
+    out = heic_to_jpeg(heic_bytes)
+    assert out[:3] == b"\xff\xd8\xff"  # JPEG SOI marker
+
+
+def test_process_heic_sends_jpeg_to_the_model(heic_bytes):
+    """Vision models reject image/heic, so the image block must carry JPEG."""
+    result = FileProcessor().process(heic_bytes, "IMG_0042.HEIC")
+    assert result.mime_type == "image/jpeg"
+    assert len(result.images) == 1
+    assert result.images[0]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+    assert result.text_content == ""
+
+
+def test_process_heic_in_markitdown_mode(heic_bytes, monkeypatch):
+    """markitdown mode bypasses the converter for images, HEIC included."""
+    monkeypatch.setattr(config, "preprocessor", "markitdown")
+    result = FileProcessor().process(heic_bytes, "photo.heif")
+    assert result.images[0]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+
+def test_heic_to_jpeg_applies_exif_orientation():
+    """iPhone photos store rotation in EXIF; the decoded JPEG must be upright."""
+    import io
+
+    import pillow_heif
+    from PIL import Image
+    from sifter.services.file_processor import heic_to_jpeg
+
+    pillow_heif.register_heif_opener()
+    img = Image.new("RGB", (80, 40), (10, 120, 200))
+    exif = img.getexif()
+    exif[0x0112] = 6  # Orientation: rotate 90° CW
+    buf = io.BytesIO()
+    img.save(buf, format="HEIF", exif=exif.tobytes())
+
+    with Image.open(io.BytesIO(heic_to_jpeg(buf.getvalue()))) as out:
+        assert out.size == (40, 80)  # transposed

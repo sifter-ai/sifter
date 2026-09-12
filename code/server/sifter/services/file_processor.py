@@ -29,7 +29,7 @@ class _LiteLLMClient:
 
 SUPPORTED_EXTENSIONS = {
     ".pdf",
-    ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp",
+    ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".heic", ".heif",
     ".docx",
     ".txt", ".md",
     ".html", ".htm",
@@ -49,7 +49,7 @@ MARKITDOWN_EXTENSIONS = SUPPORTED_EXTENSIONS | {
 
 # Visual formats that keep their image/file block attached even in markitdown mode,
 # so vision models retain full capability.
-_VISUAL_EXTENSIONS = {".pdf"} | {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp"}
+_VISUAL_EXTENSIONS = {".pdf"} | {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".heic", ".heif"}
 
 _MIME_MAP = {
     ".pdf": "application/pdf",
@@ -59,6 +59,8 @@ _MIME_MAP = {
     ".tiff": "image/tiff",
     ".tif": "image/tiff",
     ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".txt": "text/plain",
     ".md": "text/markdown",
@@ -67,9 +69,36 @@ _MIME_MAP = {
     ".csv": "text/csv",
 }
 
-_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp"}
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".heic", ".heif"}
+
+# Apple's HEIC/HEIF (default camera format on iPhone) is not accepted by any
+# vision model, so it is decoded to JPEG before the image block is built.
+_HEIC_EXTENSIONS = {".heic", ".heif"}
 
 _CSV_ROW_LIMIT = 10_000
+
+
+def heic_to_jpeg(data: bytes, quality: int = 90) -> bytes:
+    """Decode HEIC/HEIF bytes to JPEG, honouring the EXIF orientation tag.
+
+    iPhone photos are HEIC by default and carry rotation in EXIF rather than in
+    the pixel data, so the transpose keeps receipts upright for the OCR/vision pass.
+    """
+    try:
+        import pillow_heif
+        from PIL import Image, ImageOps
+    except ImportError as exc:
+        raise RuntimeError(
+            "HEIC/HEIF support requires pillow-heif. Install it with: pip install pillow-heif"
+        ) from exc
+
+    pillow_heif.register_heif_opener()
+    with Image.open(io.BytesIO(data)) as img:
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")  # JPEG has no alpha channel
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality)
+        return buf.getvalue()
 
 
 class UnsupportedFileType(Exception):
@@ -232,7 +261,11 @@ class FileProcessor:
 
     def _process_image(self, data: bytes, filename: str) -> ProcessedFile:
         ext = Path(filename).suffix.lower()
-        mime_type = _MIME_MAP.get(ext, "image/png")
+        if ext in _HEIC_EXTENSIONS:
+            data = heic_to_jpeg(data)
+            mime_type = "image/jpeg"
+        else:
+            mime_type = _MIME_MAP.get(ext, "image/png")
         b64 = base64.b64encode(data).decode("utf-8")
         return ProcessedFile(
             text_content="",

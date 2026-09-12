@@ -138,7 +138,9 @@ export async function downloadDocument(documentId: string, filename: string): Pr
 }
 
 export async function fetchDocumentBlob(documentId: string): Promise<{ url: string; contentType: string }> {
-  const res = await apiFetch(`/api/documents/${documentId}/download`);
+  // preview=1 makes the server return a JPEG rendition for formats browsers
+  // cannot display (HEIC); every other format is returned untouched.
+  const res = await apiFetch(`/api/documents/${documentId}/download?preview=1`);
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
   const blob = await res.blob();
   return { url: URL.createObjectURL(blob), contentType: blob.type };

@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/apiFetch";
 
 export type DeploymentMode = "oss" | "cloud";
 
-const DEFAULT_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".docx", ".txt", ".md", ".html", ".htm", ".csv"];
+const DEFAULT_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".heic", ".heif", ".docx", ".txt", ".md", ".html", ".htm", ".csv"];
 
 interface ConfigContextValue {
   mode: DeploymentMode;

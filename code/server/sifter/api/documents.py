@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 import structlog
@@ -71,10 +72,13 @@ async def get_document(
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: str,
+    preview: bool = Query(default=False),
     principal: Principal = Depends(get_current_principal),
     db=Depends(get_db),
 ):
     from ..storage import get_storage_backend
+    from ..services.file_processor import _HEIC_EXTENSIONS, heic_to_jpeg
+
     svc = DocumentService(db)
     doc = await svc.get_document(document_id, org_id=principal.org_id)
     if not doc:
@@ -84,9 +88,20 @@ async def download_document(
     data = await storage.load(doc.storage_path)
 
     safe_filename = doc.original_filename.replace('"', '\\"')
+    media_type = doc.content_type or "application/octet-stream"
+
+    # Browsers other than Safari cannot render HEIC, so the in-app preview asks
+    # for a JPEG rendition. A plain download still returns the original file.
+    if preview and Path(doc.original_filename).suffix.lower() in _HEIC_EXTENSIONS:
+        try:
+            data = heic_to_jpeg(data)
+            media_type = "image/jpeg"
+        except Exception as exc:
+            logger.warning("heic_preview_failed", document_id=document_id, error=str(exc))
+
     return Response(
         content=data,
-        media_type=doc.content_type or "application/octet-stream",
+        media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
     )
 

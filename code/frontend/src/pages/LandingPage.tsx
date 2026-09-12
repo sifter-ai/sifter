@@ -636,7 +636,7 @@ export default function LandingPage() {
                   {'      '}
                   <span className="text-amber-300">"url"</span>
                   {": "}
-                  <span className="text-emerald-400">"https://sifter.run/mcp"</span>
+                  <span className="text-emerald-400">"https://api.sifter.run/mcp"</span>
                   {"\n"}
                   {"    }\n"}
                   {"  }\n"}

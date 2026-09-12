@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Bot, Check, Copy, ExternalLink, KeyRound, Sparkles, Zap } from "lucide-react";
 import { useConfig } from "@/context/ConfigContext";
 
-const CLOUD_MCP_URL = "https://sifter.run/mcp";
+const CLOUD_MCP_URL = "https://api.sifter.run/mcp";
 
 function CodeBlock({ code, language = "json" }: { code: string; language?: string }) {
   const [copied, setCopied] = useState(false);

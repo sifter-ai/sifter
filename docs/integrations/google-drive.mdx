@@ -30,7 +30,7 @@ See the [Google Drive → Sifter tutorial](/resources/tutorials/drive-to-sifter)
 
 - Background syncs run approximately every **15 minutes**.
 - A sync can be triggered on demand from the UI or the API.
-- **Supported formats**: PDF, Word (DOCX/DOC), Excel (XLSX/XLS), PowerPoint (PPTX/PPT), and images (PNG, JPG, TIFF, WEBP). Native Google Docs / Sheets / Slides are skipped — export them first.
+- **Supported formats**: PDF, Word (DOCX/DOC), Excel (XLSX/XLS), PowerPoint (PPTX/PPT), and images (PNG, JPG, TIFF, WEBP, HEIC). Native Google Docs / Sheets / Slides are skipped — export them first.
 - Documents longer than 10 pages are counted as `skipped`.
 - Each ingested document counts against your monthly document quota and fires `folder.document.uploaded` if you have a matching [webhook](/concepts/webhooks).
 

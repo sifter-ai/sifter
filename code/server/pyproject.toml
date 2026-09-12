@@ -41,6 +41,7 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "markitdown[all]>=0.1.0",
     "markitdown-ocr>=0.1.0",
+    "pillow-heif>=0.16.0",
 ]
 
 [dependency-groups]

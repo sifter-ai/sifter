@@ -87,7 +87,7 @@ Sifter Cloud is a separate commercial product built on top of this engine. Cloud
 
 - Fully managed multi-tenant hosting (no Mongo, no ops).
 - Managed LLM routing (no Vertex / OpenAI account on your side).
-- **Authenticated remote MCP endpoint** (`https://sifter.run/mcp`) — agents authenticate with an API key; no local install.
+- **Authenticated remote MCP endpoint** (`https://api.sifter.run/mcp`) — agents authenticate with an API key; no local install.
 - **Google Drive connector** — OAuth + polling, one click.
 - **Mail-to-upload** — per-folder inbound email address; forward an invoice, it lands in the folder.
 - Organizations, team invites, per-org hashed API keys, billing via Stripe.
