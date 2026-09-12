@@ -18,7 +18,7 @@ Each of the four agents (extractor, pipeline, chat, dashboard) can use a **diffe
 | Google Gemini (AI Studio) | `gemini/gemini-2.5-flash` | Fast and cost-effective; set `GEMINI_API_KEY` |
 | Vertex AI | `vertex_ai/gemini-2.5-flash` | Uses GCP service account / ADC; no API key needed |
 | Azure OpenAI | `azure/gpt-4o` | Also set `AZURE_API_BASE` and `AZURE_API_VERSION` |
-| Fireworks.ai | `openai/accounts/fireworks/models/...` | Set `SIFTER_DEFAULT_BASE_URL=https://api.fireworks.ai/inference/v1` |
+| Fireworks.ai | `fireworks_ai/accounts/fireworks/models/...` | Native provider: the base URL defaults to `https://api.fireworks.ai/inference/v1` |
 | Ollama (local) | `ollama/llama3.2` | No API key; set `SIFTER_DEFAULT_BASE_URL=http://localhost:11434` |
 | Any OpenAI-compatible | `openai/your-model` | Set `SIFTER_DEFAULT_BASE_URL` to the endpoint |
 
@@ -79,7 +79,7 @@ AZURE_API_VERSION=2024-08-01-preview
 ## Fireworks.ai (OpenAI-compatible)
 
 ```bash
-SIFTER_DEFAULT_MODEL=openai/accounts/fireworks/models/llama-v3p3-70b-instruct
+SIFTER_DEFAULT_MODEL=fireworks_ai/accounts/fireworks/models/llama-v3p3-70b-instruct
 SIFTER_DEFAULT_API_KEY=fw_...
 SIFTER_DEFAULT_BASE_URL=https://api.fireworks.ai/inference/v1
 ```
