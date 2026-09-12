@@ -670,7 +670,7 @@ wheels = [
 
 [[package]]
 name = "sifter-ai"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "../sdk-python" }
 dependencies = [
     { name = "httpx" },
@@ -688,7 +688,7 @@ dev = [
 
 [[package]]
 name = "sifter-mcp"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },
@@ -703,7 +703,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.0.0" },
+    { name = "mcp", specifier = ">=1.0.0,<2" },
     { name = "sifter-ai", editable = "../sdk-python" },
 ]
 
