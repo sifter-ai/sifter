@@ -21,6 +21,17 @@ All packages live under `code/`:
 
 ## Commands
 
+> **Tests and the production database.** `import litellm` runs `load_dotenv()` at
+> import time, so any `.env` next to the server is loaded into the environment of
+> whatever process imports the app, tests included. A `.env` holding a remote
+> MongoDB URI therefore points the whole test run at that cluster, and fixtures
+> that call `delete_many({})` destroy real data: this wiped the production
+> database on 2026-09-12. Both suites now pin `SIFTER_MONGODB_URI` to localhost
+> and `SIFTER_MONGODB_DATABASE` to `sifter_test` in `tests/conftest.py`, and abort
+> the run if the resolved URI is not local. Keep production credentials in
+> `.env.production` only, never in `.env`.
+
+
 ### Backend (`code/server/`)
 ```bash
 uv sync                        # install dependencies

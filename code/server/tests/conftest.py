@@ -2,13 +2,51 @@
 Shared test configuration.
 All async tests use a single session-scoped event loop to avoid
 motor event loop conflicts.
+
+The environment pinning below keeps the suite on a local throwaway database.
+`import litellm` runs load_dotenv() at import time, so a .env sitting next to the
+server that holds a remote MongoDB URI would otherwise point the whole test
+process at it, and these tests write and delete freely. python-dotenv does not
+override variables that are already set, so pinning here wins. pytest_configure
+re-checks afterwards and aborts rather than touching a remote database.
 """
 
 import asyncio
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+# Must happen at import time, before any test module pulls in litellm.
+os.environ["SIFTER_MONGODB_URI"] = os.environ.get(
+    "SIFTER_TEST_MONGODB_URI", "mongodb://localhost:27017"
+)
+os.environ["SIFTER_MONGODB_DATABASE"] = os.environ.get(
+    "SIFTER_TEST_MONGODB_DATABASE", "sifter_test"
+)
+
+_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "mongo", "mongodb")
+
+
+def _is_local(uri: str) -> bool:
+    host = uri.split("://", 1)[-1].split("/")[0].split("@")[-1]
+    return any(host.startswith(h) for h in _LOCAL_HOSTS)
+
+
+def pytest_configure(config):
+    """Abort the run if anything repointed the suite at a remote database."""
+    import litellm  # noqa: F401 — its import-time load_dotenv is the known offender
+    from sifter.config import config as sifter_config
+
+    uri = sifter_config.mongodb_uri
+    if not _is_local(uri):
+        pytest.exit(
+            "Refusing to run: the suite resolved a non-local MongoDB "
+            f"({uri.split('@')[-1][:60]}). These tests write and delete data. "
+            "Point SIFTER_MONGODB_URI at a local MongoDB, or unset it.",
+            returncode=3,
+        )
 
 
 # Force all tests in this session to use the same event loop
