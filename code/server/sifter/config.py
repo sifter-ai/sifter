@@ -1,3 +1,4 @@
+import logging
 import json
 import os
 from pydantic_settings import BaseSettings
@@ -39,6 +40,18 @@ class SifterConfig(BaseSettings):
     dashboard_base_url: str = ""
 
     def model_post_init(self, __context) -> None:
+        # Deployments set these through the environment, where a stray space or a
+        # missing provider prefix is easy to introduce and otherwise only shows up
+        # as a LiteLLM "LLM Provider NOT provided" error on every document.
+        _model_fields = (
+            "default_model", "extractor_model", "ocr_model",
+            "pipeline_model", "chat_model", "dashboard_model",
+        )
+        for name in _model_fields:
+            value = getattr(self, name)
+            if value != value.strip():
+                object.__setattr__(self, name, value.strip())
+
         # Resolve empty task models to the default, so call sites can just read them.
         for name in ("extractor_model", "pipeline_model", "chat_model", "dashboard_model"):
             if not getattr(self, name):
@@ -46,6 +59,15 @@ class SifterConfig(BaseSettings):
         # OCR falls back to extractor (already a vision-capable model), not default.
         if not self.ocr_model:
             object.__setattr__(self, "ocr_model", self.extractor_model)
+
+        for name in _model_fields:
+            value = getattr(self, name)
+            if value and "/" not in value:
+                logging.getLogger(__name__).warning(
+                    "SIFTER_%s=%r has no LiteLLM provider prefix (expected e.g. "
+                    "'fireworks_ai/accounts/fireworks/models/...'); calls will fail",
+                    name.upper(), value,
+                )
 
     # Sift defaults
     extraction_temperature: float = 0.2
