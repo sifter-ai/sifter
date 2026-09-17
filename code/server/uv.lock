@@ -3445,7 +3445,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mcp", specifier = ">=1.0.0" },
+    { name = "mcp", specifier = ">=1.0.0,<2" },
     { name = "sifter-ai", editable = "../sdk-python" },
 ]
 
