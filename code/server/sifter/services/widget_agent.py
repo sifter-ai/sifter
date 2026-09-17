@@ -155,7 +155,7 @@ async def generate_widgets(
             tools=_WIDGET_TOOLS,
             tool_choice="auto",
             temperature=0.3,
-            **api_kwargs_for("dashboard"),
+            **api_kwargs_for("dashboard", tool_calling=True),
         )
 
         msg = response.choices[0].message

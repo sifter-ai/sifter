@@ -164,3 +164,21 @@ async def test_chat_tool_result_with_pipeline(mock_motor_db):
     assert result.response == "Total is 500."
     assert result.data == [{"total": 500}]
     assert result.pipeline is not None
+
+
+# ── tool_choice must survive LiteLLM's capability map ────────────────────────
+
+@pytest.mark.asyncio
+async def test_chat_allows_tool_choice_past_the_capability_map(mock_motor_db):
+    """Fireworks models are largely absent from LiteLLM's capability map, which would
+    otherwise reject tool_choice with UnsupportedParamsError before sending anything."""
+    llm_resp = _make_llm_response("Hi.", tool_calls=None)
+
+    with patch("sifter.services.qa_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.qa_agent.AgentToolRunner"):
+        mock_llm.return_value = llm_resp
+        await chat(None, "Hello", [], mock_motor_db)
+
+    kwargs = mock_llm.call_args.kwargs
+    assert kwargs["tool_choice"] == "auto"
+    assert kwargs["allowed_openai_params"] == ["tools", "tool_choice"]

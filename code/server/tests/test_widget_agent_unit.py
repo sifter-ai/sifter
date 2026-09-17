@@ -405,3 +405,34 @@ async def test_generate_widgets_tool_error_swallowed(mock_motor_db):
         result = await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
 
     assert len(result.widgets) == 1
+
+
+# ── tool_choice must survive LiteLLM's capability map ────────────────────────
+
+@pytest.mark.asyncio
+async def test_generate_widgets_allows_tool_choice_past_the_capability_map(mock_motor_db):
+    """Fireworks models are largely absent from LiteLLM's capability map, which would
+    otherwise reject tool_choice with UnsupportedParamsError before sending anything."""
+    propose_tool_call = MagicMock()
+    propose_tool_call.id = "tc1"
+    propose_tool_call.function.name = "propose_widgets"
+    propose_tool_call.function.arguments = json.dumps({"widgets": [_valid_widget()]})
+
+    msg = MagicMock()
+    msg.content = None
+    msg.tool_calls = [propose_tool_call]
+    resp = MagicMock()
+    resp.choices = [MagicMock()]
+    resp.choices[0].message = msg
+
+    mock_runner = MagicMock()
+    mock_runner.call = AsyncMock(return_value=({"ok": True}, MagicMock(tool="propose_widgets", args={}, result_preview="", duration_ms=1)))
+
+    with patch("sifter.services.widget_agent.litellm.acompletion", new_callable=AsyncMock) as mock_llm, \
+         patch("sifter.services.widget_agent.AgentToolRunner", return_value=mock_runner):
+        mock_llm.return_value = resp
+        await generate_widgets("Show data", sift_hint=None, db=mock_motor_db)
+
+    kwargs = mock_llm.call_args.kwargs
+    assert kwargs["tool_choice"] == "auto"
+    assert kwargs["allowed_openai_params"] == ["tools", "tool_choice"]

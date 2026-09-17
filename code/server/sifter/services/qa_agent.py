@@ -71,7 +71,7 @@ async def chat(
             tools=AGENT_TOOL_SCHEMAS,
             tool_choice="auto",
             temperature=0.3,
-            **api_kwargs_for("chat"),
+            **api_kwargs_for("chat", tool_calling=True),
         )
 
         msg = response.choices[0].message

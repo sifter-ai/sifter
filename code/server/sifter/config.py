@@ -165,18 +165,44 @@ def _uses_native_credentials(model: str) -> bool:
     return any(model.startswith(p) for p in _NATIVE_CREDENTIAL_PREFIXES)
 
 
-def api_kwargs_for(task: str) -> dict:
+# LiteLLM decides whether a provider accepts `tools` / `tool_choice` from a static
+# capability map (model_prices_and_context_window.json), not from the endpoint. For
+# fireworks_ai most entries carry no `supports_tool_choice`, and a model missing from
+# the map entirely is treated the same way, so an agent call dies before it is sent:
+#
+#     litellm.UnsupportedParamsError: fireworks_ai does not support parameters:
+#     ['tool_choice'], for model=accounts/fireworks/models/qwen3p8-2p4t-a95b
+#
+# The endpoint handles tool calling fine — the map is just incomplete, and upgrading
+# LiteLLM does not fix it (1.83 and 1.101 ship the same gaps). `allowed_openai_params`
+# is LiteLLM's documented escape hatch: forward these params without consulting the
+# map. `drop_params=True` is the wrong lever here — it would silently strip the tools
+# and leave the agent loop talking to itself in plain text.
+TOOL_CALLING_PARAMS = ["tools", "tool_choice"]
+
+
+def tool_calling_kwargs() -> dict:
+    """litellm kwargs that let `tools`/`tool_choice` through the capability map."""
+    return {"allowed_openai_params": list(TOOL_CALLING_PARAMS)}
+
+
+def api_kwargs_for(task: str, *, tool_calling: bool = False) -> dict:
     """Return api_key / api_base kwargs for litellm for the given task.
 
     Resolves: task-specific value → default value → omit (native credentials).
     Tasks: extractor, pipeline, chat, dashboard.
+
+    Pass `tool_calling=True` for calls that send `tools`/`tool_choice`.
     """
     model: str = getattr(config, f"{task}_model")
+    extra = tool_calling_kwargs() if tool_calling else {}
     if _uses_native_credentials(model):
-        return {}
+        return extra
     api_key = getattr(config, f"{task}_api_key") or config.default_api_key or None
     base_url = getattr(config, f"{task}_base_url") or config.default_base_url or None
-    return {k: v for k, v in {"api_key": api_key, "api_base": base_url}.items() if v is not None}
+    kwargs = {k: v for k, v in {"api_key": api_key, "api_base": base_url}.items() if v is not None}
+    kwargs.update(extra)
+    return kwargs
 
 
 _normalise_cors_env()
